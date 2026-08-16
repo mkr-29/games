@@ -4,29 +4,30 @@ import { gameState } from '../engine/GameState.js';
 import { BikeSystem } from './BikeSystem.js';
 import { TIERS } from './PromotionSystem.js';
 
-// Official 2026 FIM MotoGP™ World Championship Calendar (21 Rounds)
+// Official 2026 FIM MotoGP™ World Championship Calendar (22 Rounds)
 export const GP_CALENDAR = [
-    { id: 'qatar', title: "Qatar Grand Prix (Lusail)", flag: "🇶🇦", lengthKm: 5.380, type: "High Speed & Night Straight", favors: "hp", laps: 12, baseSec: 108.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
-    { id: 'portugal', title: "Portuguese Grand Prix (Portimão)", flag: "🇵🇹", lengthKm: 4.592, type: "Elevation Rollercoaster", favors: "chassis", laps: 12, baseSec: 98.4, sectorRatios: [0.25, 0.25, 0.26, 0.24] },
+    { id: 'thailand', title: "Thai Grand Prix (Chang International Circuit)", flag: "🇹🇭", lengthKm: 4.554, type: "1km Slipstream Straight & Heavy Hairpins", favors: "hp", laps: 12, baseSec: 90.5, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
     { id: 'argentina', title: "Argentine Grand Prix (Termas de Río Hondo)", flag: "🇦🇷", lengthKm: 4.806, type: "Fast Flowing Sweepers", favors: "aero", laps: 12, baseSec: 98.1, sectorRatios: [0.25, 0.27, 0.23, 0.25] },
     { id: 'americas', title: "Grand Prix of the Americas (COTA Austin)", flag: "🇺🇸", lengthKm: 5.513, type: "Technical & Heavy Bumps", favors: "chassis", laps: 12, baseSec: 122.3, sectorRatios: [0.27, 0.25, 0.26, 0.22] },
+    { id: 'qatar', title: "Qatar Grand Prix (Lusail)", flag: "🇶🇦", lengthKm: 5.380, type: "High Speed & Night Straight", favors: "hp", laps: 12, baseSec: 108.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
     { id: 'jerez', title: "Gran Premio de España (Jerez)", flag: "🇪🇸", lengthKm: 4.423, type: "Hard Braking & Trail Entry", favors: "chassis", laps: 12, baseSec: 96.6, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
     { id: 'france', title: "French Grand Prix (Le Mans)", flag: "🇫🇷", lengthKm: 4.185, type: "Stop-and-Go & Sudden Rain", favors: "ecu", laps: 12, baseSec: 90.6, sectorRatios: [0.23, 0.27, 0.25, 0.25] },
-    { id: 'catalunya', title: "Gran Premio de Catalunya (Barcelona)", flag: "🇪🇸", lengthKm: 4.657, type: "High Tire Wear & Drag", favors: "aero", laps: 12, baseSec: 98.6, sectorRatios: [0.26, 0.24, 0.25, 0.25] },
+    { id: 'silverstone', title: "British Grand Prix (Silverstone)", flag: "🇬🇧", lengthKm: 5.900, type: "Ultra High-Speed Sweeps", favors: "hp", laps: 12, baseSec: 118.2, sectorRatios: [0.25, 0.26, 0.24, 0.25] },
+    { id: 'aragon', title: "Gran Premio de Aragón (MotorLand)", flag: "🇪🇸", lengthKm: 5.077, type: "Carbon Discs Heavy Braking & Corkscrew", favors: "hp", laps: 12, baseSec: 106.2, sectorRatios: [0.26, 0.24, 0.26, 0.24] },
     { id: 'mugello', title: "Gran Premio d'Italia (Mugello)", flag: "🇮🇹", lengthKm: 5.245, type: "1.1km Main Straight Speed", favors: "hp", laps: 12, baseSec: 105.1, sectorRatios: [0.27, 0.23, 0.26, 0.24] },
     { id: 'assen', title: "TT Assen (Cathedral of Speed)", flag: "🇳🇱", lengthKm: 4.542, type: "Fast Flowing Chicanes", favors: "aero", laps: 12, baseSec: 91.6, sectorRatios: [0.24, 0.26, 0.25, 0.25] },
     { id: 'sachsenring', title: "German Grand Prix (Sachsenring)", flag: "🇩🇪", lengthKm: 3.671, type: "Tight Left-Hand Waterfall", favors: "chassis", laps: 12, baseSec: 80.3, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'silverstone', title: "British Grand Prix (Silverstone)", flag: "🇬🇧", lengthKm: 5.900, type: "Ultra High-Speed Sweeps", favors: "hp", laps: 12, baseSec: 118.2, sectorRatios: [0.25, 0.26, 0.24, 0.25] },
+    { id: 'brno', title: "Czech Republic Grand Prix (Automotodrom Brno)", flag: "🇨🇿", lengthKm: 5.403, type: "Natural Hillside Amphitheater", favors: "chassis", laps: 12, baseSec: 114.5, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
     { id: 'spielberg', title: "Austrian Grand Prix (Red Bull Ring)", flag: "🇦🇹", lengthKm: 4.348, type: "Steep Uphill Acceleration", favors: "hp", laps: 12, baseSec: 88.6, sectorRatios: [0.24, 0.28, 0.24, 0.24] },
     { id: 'balaton', title: "Hungarian Grand Prix (Balaton Park)", flag: "🇭🇺", lengthKm: 4.115, type: "Technical Chicane Rhythm", favors: "chassis", laps: 12, baseSec: 92.1, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'aragon', title: "Gran Premio de Aragón (MotorLand)", flag: "🇪🇸", lengthKm: 5.077, type: "Carbon Discs Heavy Braking", favors: "hp", laps: 12, baseSec: 106.2, sectorRatios: [0.26, 0.24, 0.26, 0.24] },
-    { id: 'misano', title: "San Marino Grand Prix (Misano)", flag: "🇮🇹", lengthKm: 4.226, type: "High Lean Cornering Speed", favors: "chassis", laps: 12, baseSec: 91.1, sectorRatios: [0.24, 0.26, 0.25, 0.25] },
-    { id: 'sokol', title: "Kazakhstan Grand Prix (Sokol Racetrack)", flag: "🇰🇿", lengthKm: 4.495, type: "Technical Rhythm & ECU", favors: "ecu", laps: 12, baseSec: 96.2, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'mandalika', title: "Indonesian Grand Prix (Mandalika)", flag: "🇮🇩", lengthKm: 4.313, type: "Fast Coastal Sweeps", favors: "aero", laps: 12, baseSec: 90.1, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'motegi', title: "Grand Prix of Japan (Motegi)", flag: "🇯🇵", lengthKm: 4.801, type: "Hard Braking & Acceleration", favors: "ecu", laps: 12, baseSec: 104.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
+    { id: 'catalunya', title: "Gran Premio de Catalunya (Barcelona)", flag: "🇪🇸", lengthKm: 4.657, type: "High Tire Wear & Long Straight", favors: "aero", laps: 12, baseSec: 98.6, sectorRatios: [0.26, 0.24, 0.25, 0.25] },
+    { id: 'misano', title: "San Marino Grand Prix (Misano)", flag: "🇸🇲", lengthKm: 4.226, type: "High Lean Cornering Speed & Curvone", favors: "chassis", laps: 12, baseSec: 91.1, sectorRatios: [0.24, 0.26, 0.25, 0.25] },
+    { id: 'motegi', title: "Grand Prix of Japan (Mobility Resort Motegi)", flag: "🇯🇵", lengthKm: 4.801, type: "Hard Braking & Acceleration", favors: "ecu", laps: 12, baseSec: 104.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
+    { id: 'mandalika', title: "Indonesian Grand Prix (Pertamina Mandalika)", flag: "🇮🇩", lengthKm: 4.313, type: "Fast Coastal Sweeps", favors: "aero", laps: 12, baseSec: 90.1, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
     { id: 'phillip_island', title: "Australian Grand Prix (Phillip Island)", flag: "🇦🇺", lengthKm: 4.448, type: "Ocean Sweeps & High Tire Wear", favors: "aero", laps: 12, baseSec: 87.6, sectorRatios: [0.23, 0.27, 0.26, 0.24] },
-    { id: 'sepang', title: "Malaysian Grand Prix (Sepang)", flag: "🇲🇾", lengthKm: 5.543, type: "High Heat & Sudden Monsoons", favors: "ecu", laps: 12, baseSec: 117.7, sectorRatios: [0.26, 0.25, 0.25, 0.24] },
-    { id: 'valencia', title: "Gran Premio de Valencia (Finale)", flag: "🇪🇸", lengthKm: 4.005, type: "Tight Stadium Arena Finale", favors: "chassis", laps: 12, baseSec: 89.9, sectorRatios: [0.24, 0.26, 0.25, 0.25] }
+    { id: 'sepang', title: "Petronas Grand Prix of Malaysia (Sepang)", flag: "🇲🇾", lengthKm: 5.543, type: "Twin Straights & Tropical Heat", favors: "ecu", laps: 12, baseSec: 117.7, sectorRatios: [0.26, 0.25, 0.25, 0.24] },
+    { id: 'portugal', title: "Portuguese Grand Prix (Portimão)", flag: "🇵🇹", lengthKm: 4.592, type: "Elevation Rollercoaster", favors: "chassis", laps: 12, baseSec: 98.4, sectorRatios: [0.25, 0.25, 0.26, 0.24] },
+    { id: 'valencia', title: "Gran Premio de Valencia (Ricardo Tormo Finale)", flag: "🇪🇸", lengthKm: 4.005, type: "Tight Stadium Arena Finale", favors: "chassis", laps: 12, baseSec: 89.9, sectorRatios: [0.24, 0.26, 0.25, 0.25] }
 ];
 
 // Tire Compound Specs
