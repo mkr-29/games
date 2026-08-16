@@ -89,9 +89,14 @@ export const INITIAL_STATE = {
         trackProgress: 0, // 0 to 100%
         lapTimes: [],
         leaderboard: [],
+        lapHistory: [], // Full telemetry per completed lap
+        fastestLap: null, // { riderName, lapTimeSec, lapTimeStr, lapNum }
+        sessionFastestSectors: [null, null, null, null], // [s1, s2, s3, s4] overall bests
         raceLogs: [],
         seasonPoints: 0,
         weather: "dry", // "dry" or "wet"
+        trackTempC: 28, // Track temperature in Celsius
+        tireCompound: "medium", // "soft", "medium", "hard", "wet"
         tireType: "slicks", // "slicks" or "wet"
         tireCondition: 100, // 100% down to 0%
         activeIncident: null // Prompt object for mid-race choices

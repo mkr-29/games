@@ -766,6 +766,251 @@ body {
     text-decoration: line-through;
 }
 
+/* Tire Compound Selector */
+.tire-compound-buttons {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.compound-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-card);
+    color: var(--text-muted);
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: var(--transition);
+}
+
+.compound-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.compound-btn.active {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #fff;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.compound-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #000;
+}
+
+.badge-soft { background: #ff334b; color: #fff; }
+.badge-med { background: #ffb700; color: #000; }
+.badge-hard { background: #e0e0e0; color: #000; }
+.badge-wet { background: #00d2ff; color: #000; }
+
+.tire-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #000;
+    margin-right: 4px;
+}
+
+.tire-pct-lbl {
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.team-sub {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    font-weight: 400;
+}
+
+/* Fastest Lap Banner */
+.fastest-lap-banner {
+    background: linear-gradient(90deg, rgba(168, 85, 247, 0.25) 0%, rgba(30, 27, 75, 0.4) 100%);
+    border: 1px solid rgba(168, 85, 247, 0.5);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fl-tag {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #d070ff;
+    letter-spacing: 0.5px;
+}
+
+.fl-info {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #f0f2f5;
+    font-family: monospace;
+}
+
+.badge-fl {
+    background: #a855f7;
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+
+.badge-pb {
+    background: #00e676;
+    color: #000;
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.badge-err {
+    background: rgba(255, 51, 75, 0.2);
+    color: #ff6b6b;
+    border: 1px solid #ff334b;
+    font-size: 0.65rem;
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.badge-warn {
+    background: rgba(255, 183, 0, 0.2);
+    color: #ffb700;
+    border: 1px solid #ffb700;
+    font-size: 0.65rem;
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.map-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.fastest-lap-row {
+    box-shadow: inset 2px 0 0 #a855f7;
+}
+
+/* Sector Split Chips */
+.th-sectors {
+    text-align: center !important;
+    width: 48px;
+}
+
+.sector-chip {
+    display: inline-block;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.70rem;
+    font-family: monospace;
+    font-weight: 700;
+    min-width: 38px;
+    text-align: center;
+}
+
+.sector-purple {
+    background: rgba(168, 85, 247, 0.25);
+    color: #d070ff;
+    border: 1px solid #a855f7;
+}
+
+.sector-green {
+    background: rgba(0, 230, 118, 0.2);
+    color: #00e676;
+    border: 1px solid #00e676;
+}
+
+.sector-yellow {
+    background: rgba(255, 183, 0, 0.1);
+    color: #ffb700;
+    border: 1px solid rgba(255, 183, 0, 0.3);
+}
+
+/* Telemetry Lap History Box */
+.telemetry-history-box {
+    margin-top: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-md);
+    padding: 10px;
+}
+
+.telemetry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.telemetry-header h3 {
+    font-size: 0.85rem;
+    font-family: var(--font-heading);
+    font-weight: 700;
+}
+
+.telemetry-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.telemetry-table-container {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+}
+
+.telemetry-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+
+.telemetry-table th {
+    background: rgba(255, 255, 255, 0.04);
+    padding: 6px 8px;
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    background: #11141c;
+    z-index: 1;
+}
+
+.telemetry-table td {
+    padding: 5px 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
 /* Leaderboard */
 .track-progress-container {
     background: rgba(0, 0, 0, 0.25);
@@ -800,25 +1045,28 @@ body {
     border: 1px solid var(--border-card);
     border-radius: var(--radius-md);
     background: rgba(0, 0, 0, 0.2);
+    margin-top: 8px;
 }
 
 .leaderboard-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.82rem;
+    font-size: 0.80rem;
 }
 
 .leaderboard-table th {
     background: rgba(255, 255, 255, 0.04);
-    padding: 8px 12px;
+    padding: 7px 10px;
     text-align: left;
     color: var(--text-muted);
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .leaderboard-table td {
-    padding: 8px 12px;
+    padding: 7px 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.04);
+    white-space: nowrap;
 }
 
 .leaderboard-table tr.user-rider {
@@ -845,6 +1093,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    margin-top: 8px;
 }
 
 .log-entry {

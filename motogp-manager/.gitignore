@@ -32,3 +32,6 @@ Thumbs.db
 # Temporary & Cache files
 .cache/
 .eslintcache
+
+# graphify
+graphify-out

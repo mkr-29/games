@@ -269,11 +269,19 @@
                                 🚀 Start Free Practice 1
                             </button>
                             <div class="race-strategy-options" id="race-strategy-box" style="display:none;">
-                                <h4>Race Engine Strategy</h4>
+                                <h4>Tire Compound Choice</h4>
+                                <div class="tire-compound-buttons" id="tire-compound-selector">
+                                    <button class="compound-btn" data-compound="soft"><span class="compound-badge badge-soft">S</span> Soft</button>
+                                    <button class="compound-btn active" data-compound="medium"><span class="compound-badge badge-med">M</span> Medium</button>
+                                    <button class="compound-btn" data-compound="hard"><span class="compound-badge badge-hard">H</span> Hard</button>
+                                    <button class="compound-btn" data-compound="wet"><span class="compound-badge badge-wet">W</span> Wet</button>
+                                </div>
+
+                                <h4 style="margin-top: 10px;">Race Engine Strategy</h4>
                                 <div class="strategy-buttons">
-                                    <button class="strat-btn active" data-map="balanced">Balanced (Standard)</button>
-                                    <button class="strat-btn" data-map="push">Push Hard (Power+ / High Wear)</button>
-                                    <button class="strat-btn" data-map="conserve">Tire Saver (Consistent)</button>
+                                    <button class="strat-btn active" data-map="balanced">Balanced (PWR 2)</button>
+                                    <button class="strat-btn" data-map="push">Push Hard (PWR 1)</button>
+                                    <button class="strat-btn" data-map="conserve">Tire Saver (PWR 3)</button>
                                 </div>
                             </div>
                         </div>
@@ -282,40 +290,82 @@
                     <!-- Right: Live Telemetry & Standings Dashboard -->
                     <div class="panel-card">
                         <div class="card-header">
-                            <h2>⏱️ Live Telemetry & Leaderboard</h2>
+                            <h2>⏱️ Live Timing Tower & Sectors</h2>
                             <span class="live-dot" id="live-indicator" style="display:none;">● LIVE LAP</span>
                         </div>
 
                         <div class="race-telemetry-dashboard">
-                            <!-- Track Progress Bar -->
+                            <!-- Track Progress & Info Bar -->
                             <div class="track-progress-container">
                                 <div class="track-info-bar">
                                     <span id="race-lap-counter">Lap 0 / 12</span>
-                                    <span id="race-weather-lbl">Weather: Sunny 24°C</span>
+                                    <span id="race-weather-lbl">Weather: Sunny 28°C</span>
                                 </div>
                                 <div class="lap-progress-bar">
                                     <div class="lap-fill" id="race-lap-fill" style="width:0%;"></div>
                                 </div>
                             </div>
 
-                            <!-- Live Leaderboard Table -->
+                            <!-- Session Fastest Lap Banner -->
+                            <div class="fastest-lap-banner" id="fastest-lap-banner" style="display:none;">
+                                <div class="fl-tag">🟣 FASTEST LAP</div>
+                                <div class="fl-info" id="fastest-lap-info">--:--.--- (--)</div>
+                            </div>
+
+                            <!-- Live Leaderboard Table with Sectors -->
                             <div class="leaderboard-table-container">
                                 <table class="leaderboard-table">
                                     <thead>
                                         <tr>
                                             <th>Pos</th>
                                             <th>Rider</th>
-                                            <th>Team</th>
+                                            <th>Tire</th>
                                             <th>Gap</th>
+                                            <th>Int</th>
                                             <th>Last Lap</th>
+                                            <th class="th-sectors">S1</th>
+                                            <th class="th-sectors">S2</th>
+                                            <th class="th-sectors">S3</th>
+                                            <th class="th-sectors">S4</th>
+                                            <th>Best</th>
                                         </tr>
                                     </thead>
                                     <tbody id="leaderboard-body">
                                         <tr>
-                                            <td colspan="5" class="empty-state">No race in progress. Click "Start Free Practice" to begin event.</td>
+                                            <td colspan="11" class="empty-state">No race in progress. Click "Start Free Practice" to begin event.</td>
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+
+                            <!-- Full Lap Telemetry Drawer Toggle & Table -->
+                            <div class="telemetry-history-box" id="telemetry-history-box">
+                                <div class="telemetry-header">
+                                    <h3>📊 Rider Lap-by-Lap Telemetry</h3>
+                                    <span class="telemetry-sub" id="telemetry-lap-count">0 Laps Recorded</span>
+                                </div>
+                                <div class="telemetry-table-container">
+                                    <table class="telemetry-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Lap</th>
+                                                <th>Lap Time</th>
+                                                <th>S1</th>
+                                                <th>S2</th>
+                                                <th>S3</th>
+                                                <th>S4</th>
+                                                <th>Tire</th>
+                                                <th>Map</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="telemetry-body">
+                                            <tr>
+                                                <td colspan="9" class="empty-state">Telemetry will record automatically as laps are completed.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
                             <!-- Race Output Logs -->
@@ -341,6 +391,7 @@
                                         <th>Points (PTS)</th>
                                         <th>Wins (1st)</th>
                                         <th>Podiums (Top 3)</th>
+                                        <th>Fastest Laps (🟣)</th>
                                     </tr>
                                 </thead>
                                 <tbody id="championship-standings-body">
