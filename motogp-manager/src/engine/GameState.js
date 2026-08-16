@@ -106,6 +106,14 @@ export const INITIAL_STATE = {
         tireCompound: "medium", // "soft", "medium", "hard", "wet"
         tireType: "slicks", // "slicks" or "wet"
         tireCondition: 100, // 100% down to 0%
+        flagState: {
+            status: "GREEN", // "GREEN", "YELLOW", "RED", "WHITE_CROSS"
+            sector: null, // 1, 2, 3, 4 or null
+            lapsRemaining: 0,
+            reason: "Track clear"
+        },
+        redFlagged: false,
+        totalDnfsInRace: 0,
         activeIncident: null // Prompt object for mid-race choices
     },
 

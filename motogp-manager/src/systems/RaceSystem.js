@@ -1,4 +1,4 @@
-// RaceSystem.js - Official 2026 Grand Prix Weekend Format (FP1, Timed Practice, Q1/Q2 Shootouts, Sprint Race & Grand Prix)
+// RaceSystem.js - Official 2026 Grand Prix Weekend Format with FIM Flags & Realistic Crash Engine
 
 import { gameState } from '../engine/GameState.js';
 import { BikeSystem } from './BikeSystem.js';
@@ -160,6 +160,27 @@ export class RaceSystem {
         return sec.toFixed(3);
     }
 
+    static setFlag(status, sector = null, laps = 1, reason = 'Track clear') {
+        const state = gameState.getState();
+        const rs = state.raceState;
+        rs.flagState = {
+            status, // 'GREEN', 'YELLOW', 'RED', 'WHITE_CROSS'
+            sector, // 1, 2, 3, 4 or null
+            lapsRemaining: laps,
+            reason
+        };
+
+        if (status === 'YELLOW') {
+            gameState.addLog(`🟨 YELLOW FLAG in Sector ${sector || 1}! ${reason}. Overtaking forbidden in sector.`);
+        } else if (status === 'RED') {
+            gameState.addLog(`🚩 RED FLAG! Race stopped: ${reason}!`);
+        } else if (status === 'WHITE_CROSS') {
+            gameState.addLog(`🏳️ WHITE FLAG WITH RED CROSS: Rain drops reported! Pit lane open for bike swaps.`);
+        } else if (status === 'GREEN') {
+            gameState.addLog(`🟩 GREEN FLAG: Track clear, full racing speed resumes!`);
+        }
+    }
+
     static initChampionshipStandings() {
         const state = gameState.getState();
         const rs = state.raceState;
@@ -213,7 +234,8 @@ export class RaceSystem {
         state.science = Math.min(state.scienceMax, state.science + 12);
 
         rs.fpCompleted = true;
-        rs.stage = 'PR'; // Advance to Timed Practice
+        rs.stage = 'PR';
+        this.setFlag('GREEN', null, 0, 'Track clear');
 
         gameState.addLog(`🏁 Free Practice 1 Complete at ${gp.title}! Setup Dialed In: ${setupMatch}%. Telemetry +35, RP +12.`);
         return true;
@@ -317,7 +339,6 @@ export class RaceSystem {
             dnf: false
         });
 
-        // Sort by fastest practice lap
         practiceList.sort((a, b) => a.bestLapSec - b.bestLapSec);
 
         const practiceLeader = practiceList[0].bestLapSec;
@@ -328,7 +349,6 @@ export class RaceSystem {
 
         rs.leaderboard = practiceList;
 
-        // Top 10 advance directly to Q2, Bottom 6 go to Q1
         const top10 = practiceList.slice(0, 10);
         const bottom6 = practiceList.slice(10);
 
@@ -363,7 +383,6 @@ export class RaceSystem {
 
         const q1Grid = rs.q1Riders || rs.leaderboard.slice(10);
 
-        // Run Q1 shootout for the bottom riders
         q1Grid.forEach(r => {
             const { bestLap, bestSectors } = this.simulateHotLap(r.score, r.consistency, baseTrackSec, gp.sectorRatios);
             r.q1LapSec = bestLap;
@@ -386,16 +405,13 @@ export class RaceSystem {
             r.lapTimeStr = this.formatLapTime(r.q1LapSec);
         });
 
-        // Top 2 promote into Q2
         const q1Graduates = q1Grid.slice(0, 2);
-        const q1Eliminated = q1Grid.slice(2); // Locked into P13–P16 on grid
+        const q1Eliminated = q1Grid.slice(2);
 
         rs.q1Graduates = q1Graduates;
-        rs.q1Eliminated = q1Eliminated; // Grid positions P13, P14, P15, P16
+        rs.q1Eliminated = q1Eliminated;
         rs.q1Completed = true;
         rs.stage = 'Q2';
-
-        // Set leaderboard to display Q1 classification
         rs.leaderboard = q1Grid;
 
         const userInQ1 = q1Grid.find(r => r.isUser);
@@ -426,7 +442,6 @@ export class RaceSystem {
         const tierMult = this.getTierSpeedMultiplier(state.tier);
         const baseTrackSec = gp.baseSec * tierMult;
 
-        // 12 Q2 Contenders: 10 from Practice + 2 from Q1
         const direct10 = rs.q2DirectRiders || rs.leaderboard.slice(0, 10);
         const grad2 = rs.q1Graduates || [];
         const q2List = [...direct10, ...grad2];
@@ -447,7 +462,6 @@ export class RaceSystem {
 
         q2List.sort((a, b) => a.q2LapSec - b.q2LapSec);
 
-        // Combine Q2 top 12 with locked Q1 bottom 4 (16 total riders)
         const lockedBottom4 = rs.q1Eliminated || [];
         const finalGrid = [...q2List, ...lockedBottom4];
 
@@ -466,7 +480,7 @@ export class RaceSystem {
         const userPos = finalGrid.findIndex(r => r.isUser) + 1;
         rs.qpGridPosition = userPos;
         rs.q2Completed = true;
-        rs.stage = 'SPRINT'; // Next stage is Saturday Sprint Race
+        rs.stage = 'SPRINT';
 
         const poleRider = finalGrid[0];
         gameState.addLog(`👑 POLE POSITION! ${poleRider.name} takes POLE with ${this.formatLapTime(poleTime)}! ${state.rider.name} starts P${userPos} for both Sprint & Grand Prix!`);
@@ -500,9 +514,12 @@ export class RaceSystem {
         rs.lapHistory = [];
         rs.fastestLap = null;
         rs.sessionFastestSectors = [999, 999, 999, 999];
+        rs.totalDnfsInRace = 0;
+        rs.redFlagged = false;
+        this.setFlag('GREEN', null, 0, 'Track clear - Sprint Start');
 
         const gp = this.getCurrentGP();
-        rs.totalLaps = Math.max(4, Math.floor(gp.laps / 2)); // 50% Distance
+        rs.totalLaps = Math.max(4, Math.floor(gp.laps / 2));
 
         this.prepareGridRidersForRace(rs);
 
@@ -529,9 +546,12 @@ export class RaceSystem {
         rs.lapHistory = [];
         rs.fastestLap = null;
         rs.sessionFastestSectors = [999, 999, 999, 999];
+        rs.totalDnfsInRace = 0;
+        rs.redFlagged = false;
+        this.setFlag('GREEN', null, 0, 'Track clear - GP Start');
 
         const gp = this.getCurrentGP();
-        rs.totalLaps = gp.laps; // 100% Distance
+        rs.totalLaps = gp.laps;
 
         this.prepareGridRidersForRace(rs);
 
@@ -554,6 +574,7 @@ export class RaceSystem {
         rs.leaderboard = sourceGrid.map((r, idx) => {
             const riderCopy = { ...r };
             riderCopy.dnf = false;
+            riderCopy.dnfReason = '';
             riderCopy.accumulatedRaceTime = 0;
             riderCopy.lastLapSec = 0;
             riderCopy.lastLapStr = '--:--.---';
@@ -568,7 +589,7 @@ export class RaceSystem {
                 if (rs.weather === 'wet') {
                     riderCopy.tireCompound = 'wet';
                 } else {
-                    riderCopy.tireCompound = (rs.sessionType === 'SPRINT' && Math.random() < 0.5) ? 'soft' : dryCompounds[Math.floor(Math.random() * dryCompounds.length)];
+                    riderCopy.tireCompound = (rs.sessionType === 'SPRINT' && Math.random() < 0.4) ? 'soft' : dryCompounds[Math.floor(Math.random() * dryCompounds.length)];
                 }
             } else {
                 riderCopy.tireCompound = rs.tireCompound;
@@ -611,6 +632,13 @@ export class RaceSystem {
             gameState.addLog(`🔧 Switched ECU to Eco Map (PWR 3). Engine coolant temperature stabilized.`);
         } else if (choiceAction === 'risk_push') {
             gameState.addLog(`🔥 PUSHING POWER MAP: Maintaining full power. High risk of engine failure!`);
+        } else if (choiceAction === 'restart_soft' || choiceAction === 'restart_med' || choiceAction === 'restart_hard') {
+            const comp = choiceAction.replace('restart_', '');
+            rs.tireCompound = comp;
+            rs.tireCondition = 100;
+            rs.raceInProgress = true;
+            this.setFlag('GREEN', null, 0, 'Quick Restart underway');
+            gameState.addLog(`🚀 QUICK RESTART! Race resumed from the grid with fresh ${comp.toUpperCase()} tires!`);
         }
 
         rs.activeIncident = null;
@@ -660,6 +688,14 @@ export class RaceSystem {
 
         if (!rs.leaderboard || rs.leaderboard.length === 0) return;
 
+        // Flag state countdown
+        if (rs.flagState && rs.flagState.status === 'YELLOW') {
+            rs.flagState.lapsRemaining -= 1;
+            if (rs.flagState.lapsRemaining <= 0) {
+                this.setFlag('GREEN', null, 0, 'Track clear - Green Flag');
+            }
+        }
+
         const bikeStats = BikeSystem.getBikeStats();
         let userSkill = state.rider.overallSkill;
         if (state.rider.injury) {
@@ -668,6 +704,8 @@ export class RaceSystem {
 
         const trackEvolution = -Math.min(0.25, (currentLap / totalLaps) * 0.25);
         const fuelWeightDelta = ((totalLaps - currentLap + 1) / totalLaps) * (rs.sessionType === 'SPRINT' ? 0.40 : 0.75);
+
+        let crashesThisLap = 0;
 
         rs.leaderboard.forEach(r => {
             if (r.dnf) return;
@@ -725,15 +763,32 @@ export class RaceSystem {
             if (strategy === 'push') lapPace -= (rs.sessionType === 'SPRINT' ? 0.58 : 0.52);
             if (strategy === 'conserve') lapPace += 0.44;
 
-            // Weather Penalty
+            // Yellow flag caution delta in sector
+            if (rs.flagState && rs.flagState.status === 'YELLOW') {
+                lapPace += 0.50; // Drivers slow down through caution zone
+            }
+
+            // Weather & Realistic Tire Pit Adaptation (AI do not blindly all crash on wet track)
             if (rs.weather === 'wet') {
                 if (compoundKey !== 'wet') {
-                    lapPace += 8.5 + (Math.random() * 4.0);
-                    if (Math.random() < 0.25) {
-                        r.dnf = true;
-                        r.dnfReason = 'Lowside crash in wet on slick tires';
-                        gameState.addLog(`💥 CRASH! ${r.name} (${r.team}) slid into the gravel in the rain on slick tires! DNF.`);
-                        return;
+                    if (!r.isUser) {
+                        // AI executes Flag-to-Flag bike swap on next lap
+                        r.tireCompound = 'wet';
+                        r.tireCondition = 100;
+                        lapPace += 18.5; // Pit transit
+                        gameState.addLog(`🛠️ PIT LANE: ${r.name} pitted under Flag-to-Flag rules for wet Michelin tires.`);
+                    } else {
+                        lapPace += 8.5;
+                        // Controlled low crash probability for user staying on slicks
+                        if (Math.random() < 0.04 && (rs.totalDnfsInRace || 0) < 3) {
+                            r.dnf = true;
+                            r.dnfReason = 'Lowside in rain on slick tires';
+                            crashesThisLap += 1;
+                            rs.totalDnfsInRace = (rs.totalDnfsInRace || 0) + 1;
+                            gameState.addLog(`💥 CRASH! ${r.name} slid off into the gravel on slicks in the wet! DNF.`);
+                            this.setFlag('YELLOW', 2, 1, `Crash at Turn 6`);
+                            return;
+                        }
                     }
                 }
             } else {
@@ -741,6 +796,24 @@ export class RaceSystem {
                     lapPace += 4.5;
                     r.tireCondition = Math.max(0, r.tireCondition - 15);
                 }
+            }
+
+            // Realistic Individual Crash Probability Check (0.5% per rider per lap dry, max 3 DNFs per race)
+            let baseCrashChance = 0.005;
+            if (strategy === 'push') baseCrashChance += 0.003;
+            if (r.tireCondition < 15) baseCrashChance += 0.015;
+            if (rs.weather === 'wet' && compoundKey === 'wet') baseCrashChance += 0.005;
+
+            const totalDnfs = rs.totalDnfsInRace || 0;
+            if (totalDnfs < 3 && Math.random() < baseCrashChance) {
+                r.dnf = true;
+                r.dnfReason = r.tireCondition < 15 ? 'Worn tire rear highside' : (strategy === 'push' ? 'Aggressive trail braking lowside' : 'Lost front end at apex');
+                crashesThisLap += 1;
+                rs.totalDnfsInRace = totalDnfs + 1;
+                const crashSector = Math.floor(Math.random() * 4) + 1;
+                this.setFlag('YELLOW', crashSector, 1, `${r.name} crashed in Sector ${crashSector}`);
+                gameState.addLog(`💥 CRASH! ${r.name} (${r.team}) suffered a ${r.dnfReason}! DNF on Lap ${currentLap}.`);
+                return;
             }
 
             // Consistency Jitter
@@ -751,15 +824,15 @@ export class RaceSystem {
             // Micro-mistakes
             let eventNote = '';
             const mistakeRoll = Math.random();
-            if (strategy === 'push' && mistakeRoll < 0.08) {
-                const mistakeLostSec = 0.35 + (Math.random() * 0.45);
+            if (strategy === 'push' && mistakeRoll < 0.07) {
+                const mistakeLostSec = 0.35 + (Math.random() * 0.40);
                 lapPace += mistakeLostSec;
                 eventNote = `Wide at Turn 4 (+${mistakeLostSec.toFixed(2)}s)`;
                 if (r.isUser) {
                     gameState.addLog(`⚠️ MOMENT! ${r.name} ran wide on Lap ${currentLap} (+${mistakeLostSec.toFixed(2)}s)!`);
                 }
-            } else if (r.tireCondition < 20 && mistakeRoll < 0.12) {
-                const slideLostSec = 0.60 + (Math.random() * 0.60);
+            } else if (r.tireCondition < 20 && mistakeRoll < 0.10) {
+                const slideLostSec = 0.50 + (Math.random() * 0.50);
                 lapPace += slideLostSec;
                 eventNote = `Rear slide save (+${slideLostSec.toFixed(2)}s)`;
             }
@@ -825,6 +898,12 @@ export class RaceSystem {
             }
         });
 
+        // Red Flag check (Multi-bike incident)
+        if (crashesThisLap >= 2 && !rs.redFlagged) {
+            this.handleRedFlagScenario(`Multi-bike incident on Lap ${currentLap}`);
+            return;
+        }
+
         rs.leaderboard.sort((a, b) => {
             if (a.dnf && !b.dnf) return 1;
             if (!a.dnf && b.dnf) return -1;
@@ -845,37 +924,63 @@ export class RaceSystem {
         });
     }
 
+    // ==========================================
+    // RED FLAG PROCEDURE (Multi-Bike Crash / Stoppage)
+    // ==========================================
+    static handleRedFlagScenario(reason) {
+        const state = gameState.getState();
+        const rs = state.raceState;
+        rs.redFlagged = true;
+        this.setFlag('RED', null, 0, reason);
+
+        const raceDistancePct = rs.currentLap / rs.totalLaps;
+
+        if (raceDistancePct >= 0.75) {
+            // Over 75% completed -> Official Finish!
+            gameState.addLog(`🚩 RED FLAG (75%+ Completed): Race declared official! Results based on Lap ${rs.currentLap - 1}.`);
+            if (rs.sessionType === 'SPRINT') {
+                this.finishSprintRace();
+            } else {
+                this.finishRace();
+            }
+        } else {
+            // Under 75% -> Quick Restart Procedure!
+            rs.raceInProgress = false;
+            rs.activeIncident = {
+                id: 'red_flag_restart',
+                title: '🚩 RED FLAG - QUICK RESTART PROCEDURE',
+                desc: `Race suspended due to ${reason}. Pit lane open for bike maintenance and tire change. Choose tire compound for the sprint restart (${rs.totalLaps - rs.currentLap} laps remaining):`,
+                choices: [
+                    { label: '🔴 Restart on SOFT Compound', action: 'restart_soft' },
+                    { label: '🟡 Restart on MEDIUM Compound', action: 'restart_med' },
+                    { label: '⚪ Restart on HARD Compound', action: 'restart_hard' }
+                ]
+            };
+            gameState.addLog(`🚩 PIT WALL: Red Flag restart procedure active. Select restart tire setup.`);
+        }
+    }
+
     static processMidRaceIncidents() {
         const state = gameState.getState();
         const rs = state.raceState;
-        if (rs.activeIncident) return;
+        if (rs.activeIncident || !rs.raceInProgress) return;
 
         const rand = Math.random();
 
+        // Sudden Rain Shower (Flag-to-Flag White Flag)
         if (rs.weather === 'dry' && rs.currentLap >= 3 && rs.currentLap <= 6 && rand < 0.12) {
             rs.weather = 'wet';
+            this.setFlag('WHITE_CROSS', null, 2, 'Sudden Rain Shower - Flag-to-Flag Bike Swaps Open');
             rs.activeIncident = {
                 id: 'weather_rain',
-                title: '🌧️ SUDDEN RAIN SHOWER!',
-                desc: 'Rain is falling over the asphalt! Track is wet. Do you want to pit for wet tires?',
+                title: '🌧️ SUDDEN RAIN SHOWER (FLAG-TO-FLAG)!',
+                desc: 'Rain is falling over the asphalt! Track is declared WET. Do you want to pit for wet tires?',
                 choices: [
-                    { label: '🛞 Pit for Wet Michelin Tires', action: 'pit_wet' },
-                    { label: '⚠️ Stay on Slicks (Gamble in the Wet)', action: 'stay_slicks' }
+                    { label: '🛞 Pit for Wet Michelin Tires (Flag-to-Flag)', action: 'pit_wet' },
+                    { label: '⚠️ Stay on Slicks (Gamble on Drying Line)', action: 'stay_slicks' }
                 ]
             };
             gameState.addLog(`🌧️ WEATHER ALERT: Rain falling on Lap ${rs.currentLap}! Pit Wall alert active.`);
-            return;
-        }
-
-        if (rand < 0.10) {
-            const activeAI = rs.leaderboard.filter(r => !r.isUser && !r.dnf);
-            if (activeAI.length > 0) {
-                const victim = activeAI[Math.floor(Math.random() * activeAI.length)];
-                victim.dnf = true;
-                victim.dnfReason = 'Gravel trap lowside';
-                victim.accumulatedRaceTime = 99999;
-                gameState.addLog(`💥 CRASH! ${victim.name} (${victim.team}) crashed in Turn 1! DNF on Lap ${rs.currentLap}.`);
-            }
         }
     }
 
@@ -888,12 +993,12 @@ export class RaceSystem {
 
         rs.raceInProgress = false;
         rs.sprintCompleted = true;
-        rs.stage = 'RACE'; // Advance to Sunday Main Grand Prix!
+        rs.stage = 'RACE';
         rs.activeIncident = null;
+        this.setFlag('GREEN', null, 0, 'Sprint Finished');
 
         this.initChampionshipStandings();
 
-        // Official FIM MotoGP Sprint Points Table: Top 9 riders score points
         const sprintPointsTable = [12, 9, 7, 6, 5, 4, 3, 2, 1];
 
         rs.leaderboard.forEach((r, idx) => {
@@ -945,7 +1050,7 @@ export class RaceSystem {
         const rs = state.raceState;
 
         rs.raceInProgress = false;
-        rs.stage = 'FP1'; // Reset stage to FP1 for the next GP
+        rs.stage = 'FP1';
         rs.fpCompleted = false;
         rs.practiceCompleted = false;
         rs.q1Completed = false;
@@ -953,10 +1058,10 @@ export class RaceSystem {
         rs.sprintCompleted = false;
         rs.directQ2 = false;
         rs.activeIncident = null;
+        this.setFlag('GREEN', null, 0, 'Grand Prix Finished');
 
         this.initChampionshipStandings();
 
-        // Official FIM MotoGP Full Grand Prix Points Table: Top 15 riders score
         const pointsTable = [25, 20, 16, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
         rs.leaderboard.forEach((r, idx) => {
@@ -972,7 +1077,6 @@ export class RaceSystem {
             }
         });
 
-        // +1 bonus for fastest lap if finished in top 10
         if (rs.fastestLap) {
             const flRiderPos = rs.leaderboard.findIndex(r => r.name === rs.fastestLap.riderName) + 1;
             if (flRiderPos >= 1 && flRiderPos <= 10) {
@@ -1027,7 +1131,6 @@ export class RaceSystem {
 
             gameState.addLog(`🏆 GRAND PRIX COMPLETE! ${state.rider.name} finished P${userPos}! Prize: +$${prizeMoney}, +${pointsEarned} PTS, +${hypeEarned} Hype.`);
 
-            // Injury Check
             if (Math.random() < 0.10) {
                 const injuries = [
                     { name: "Arm Pump Strain", penalty: 8, racesRemaining: 2 },
@@ -1046,7 +1149,6 @@ export class RaceSystem {
             }
         }
 
-        // Advance GP Calendar Index
         rs.currentGPIndex += 1;
         if (rs.currentGPIndex % GP_CALENDAR.length === 0) {
             state.season += 1;

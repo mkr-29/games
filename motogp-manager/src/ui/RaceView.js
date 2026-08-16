@@ -165,6 +165,9 @@ export class RaceView {
         // Render Fastest Lap Banner
         this.renderFastestLapBanner(rs);
 
+        // Render Official FIM Flag Banner
+        this.renderFlagBanner(rs);
+
         // Render Pit Wall Radio Incident Prompt
         this.renderPitWallIncident(rs);
 
@@ -196,6 +199,33 @@ export class RaceView {
             this.updateText('fastest-lap-info', `${rs.fastestLap.riderName} (${rs.fastestLap.team}) — ${rs.fastestLap.lapTimeStr} on Lap ${rs.fastestLap.lapNum}`);
         } else {
             banner.style.display = 'none';
+        }
+    }
+
+    static renderFlagBanner(rs) {
+        const banner = document.getElementById('fim-flag-banner');
+        const icon = document.getElementById('fim-flag-icon');
+        const text = document.getElementById('fim-flag-text');
+        if (!banner || !icon || !text) return;
+
+        const flag = rs.flagState || { status: 'GREEN', sector: null, reason: 'Track clear' };
+
+        if (flag.status === 'YELLOW') {
+            banner.className = 'fim-flag-banner flag-yellow';
+            icon.textContent = '🟨';
+            text.textContent = `YELLOW FLAG (Sector ${flag.sector || 1}) - CAUTION: ${flag.reason || 'Incident on track'} (No overtaking)`;
+        } else if (flag.status === 'RED') {
+            banner.className = 'fim-flag-banner flag-red';
+            icon.textContent = '🚩';
+            text.textContent = `RED FLAG - SESSION SUSPENDED: ${flag.reason || 'Dangerous conditions / Multi-crash'} (Pit lane procedure active)`;
+        } else if (flag.status === 'WHITE_CROSS') {
+            banner.className = 'fim-flag-banner flag-white-cross';
+            icon.textContent = '🏳️';
+            text.textContent = `WHITE FLAG (RAIN REPORTED) - ${flag.reason || 'Flag-to-Flag bike swap active'} (Pit open)`;
+        } else {
+            banner.className = 'fim-flag-banner flag-green';
+            icon.textContent = '🟩';
+            text.textContent = `TRACK CLEAR (Green Flag - Full Racing Speed)`;
         }
     }
 
