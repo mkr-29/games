@@ -63,28 +63,43 @@
                     <div class="res-value" id="val-heritage">0 HT</div>
                     <div class="res-rate">Prestige Tokens</div>
                 </div>
+
+                <div class="header-calendar-pill" id="header-calendar-pill">
+                    <div class="cal-pill-info">
+                        <span class="cal-pill-title" id="header-cal-week">Week 1: Sepang Test</span>
+                        <span class="cal-pill-dates" id="header-cal-dates">Feb 16 – Feb 22</span>
+                    </div>
+                </div>
             </div>
         </header>
 
-        <!-- Main Navigation Tabs Bar -->
-        <nav class="nav-tabs">
-            <button class="nav-btn active" data-tab="garage" id="tab-btn-garage">
-                <span class="nav-icon">🔧</span> Garage & Upgrades
-            </button>
-            <button class="nav-btn" data-tab="rnd" id="tab-btn-rnd">
-                <span class="nav-icon">🔬</span> R&D Tech Tree
-            </button>
-            <button class="nav-btn" data-tab="staff" id="tab-btn-staff">
-                <span class="nav-icon">👨‍🔧</span> Riders & Staff
-            </button>
-            <button class="nav-btn" data-tab="race" id="tab-btn-race">
-                <span class="nav-icon">🏎️</span> Race Weekend <span class="badge-pulsing" id="race-ready-badge" style="display:none;">READY</span>
-            </button>
-            <button class="nav-btn" data-tab="heritage" id="tab-btn-heritage">
-                <span class="nav-icon">🏛️</span> Legacy & Rebirth
-            </button>
-            <button class="nav-btn" data-tab="settings" id="tab-btn-settings">
-                <span class="nav-icon">⚙️</span> Settings
+        <!-- Main Navigation Tabs Bar with Top-Right Next Week Button -->
+        <nav class="nav-tabs-wrapper">
+            <div class="nav-tabs">
+                <button class="nav-btn active" data-tab="garage" id="tab-btn-garage">
+                    <span class="nav-icon">🔧</span> Garage & Upgrades
+                </button>
+                <button class="nav-btn" data-tab="rnd" id="tab-btn-rnd">
+                    <span class="nav-icon">🔬</span> R&D Tech Tree
+                </button>
+                <button class="nav-btn" data-tab="staff" id="tab-btn-staff">
+                    <span class="nav-icon">👨‍🔧</span> Riders & Staff
+                </button>
+                <button class="nav-btn" data-tab="calendar" id="tab-btn-calendar">
+                    <span class="nav-icon">📅</span> Season Calendar
+                </button>
+                <button class="nav-btn" data-tab="race" id="tab-btn-race">
+                    <span class="nav-icon">🏎️</span> Race Weekend <span class="badge-pulsing" id="race-ready-badge" style="display:none;">READY</span>
+                </button>
+                <button class="nav-btn" data-tab="heritage" id="tab-btn-heritage">
+                    <span class="nav-icon">🏛️</span> Legacy & Rebirth
+                </button>
+                <button class="nav-btn" data-tab="settings" id="tab-btn-settings">
+                    <span class="nav-icon">⚙️</span> Settings
+                </button>
+            </div>
+            <button class="btn-nav-proceed" id="btn-header-proceed-week" title="Open Agenda / Proceed to Next Week">
+                📅 Proceed to Next Week ⏩
             </button>
         </nav>
 
@@ -233,7 +248,52 @@
                 </div>
             </section>
 
-            <!-- TAB 4: RACE WEEKEND -->
+            <!-- TAB 4: CALENDAR & WEEKLY TIMELINE -->
+            <section class="tab-pane" id="pane-calendar">
+                <div class="pane-grid-calendar">
+                    <!-- Left: Current Week Agenda & Activities -->
+                    <div class="panel-card week-agenda-card">
+                        <div class="card-header">
+                            <div>
+                                <span class="sub-tag" id="cal-current-week-lbl">Week 1 • Season 1</span>
+                                <h2 id="cal-current-title">🇲🇾 Official Sepang Pre-Season Test</h2>
+                                <small id="cal-current-dates">🗓️ Feb 16 – Feb 22, 2026</small>
+                            </div>
+                        </div>
+                        <p class="week-desc-txt" id="cal-current-desc">First official pre-season shakedown in Malaysia. Gather baseline aerodynamic and powertrain telemetry.</p>
+
+                        <div class="calendar-agenda-section">
+                            <div class="agenda-section-title">🏁 Weekly Scheduled Activities & Grand Prix Sessions</div>
+                            <div class="activities-list" id="cal-activities-list">
+                                <!-- Rendered dynamically by CalendarView.js -->
+                            </div>
+                        </div>
+
+                        <div class="week-advance-footer">
+                            <div class="proceed-status-box" id="cal-proceed-status">
+                                <!-- Dynamic status text -->
+                            </div>
+                            <button class="btn-proceed-week" id="btn-proceed-week">
+                                📅 Proceed to Next Week ⏩
+                            </button>
+                            <small class="advance-subtext">Advancing will auto-skip uncompleted optional activities and fast-forward through empty factory weeks.</small>
+                        </div>
+                    </div>
+
+                    <!-- Right: 38-Week Official Season Timeline -->
+                    <div class="panel-card season-timeline-card">
+                        <div class="card-header">
+                            <h2>🗓️ Official 2026 Season Schedule</h2>
+                            <small>Full 38-week MotoGP™ Championship calendar & development milestones</small>
+                        </div>
+                        <div class="season-timeline-grid" id="cal-season-timeline">
+                            <!-- Rendered dynamically by CalendarView.js -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: RACE WEEKEND -->
             <section class="tab-pane" id="pane-race">
                 <div class="pane-grid race-grid">
                     <!-- Left: Grand Prix Calendar & Event Controls -->
@@ -496,6 +556,39 @@
                 </div>
             </section>
         </main>
+
+        <!-- Bottom Calendar Dock Drawer (F1 Manager Style) -->
+        <div class="calendar-bottom-dock" id="calendar-bottom-dock">
+            <div class="dock-backdrop" id="dock-backdrop"></div>
+            <div class="dock-content-panel">
+                <div class="dock-header">
+                    <div class="dock-title-group">
+                        <span class="sub-tag" id="drawer-week-lbl">Week 1 • Season 1</span>
+                        <h3 id="drawer-week-title">🇲🇾 Official Sepang Pre-Season Test</h3>
+                        <small id="drawer-week-dates">🗓️ Feb 16 – Feb 22, 2026</small>
+                    </div>
+                    <div class="dock-controls">
+                        <button class="btn-close-dock" id="btn-close-cal-drawer" title="Close Agenda">✕</button>
+                    </div>
+                </div>
+                <p class="dock-desc-txt" id="drawer-week-desc">Gather baseline aerodynamic and powertrain telemetry.</p>
+
+                <div class="dock-days-scroll-area">
+                    <div class="dock-days-row" id="drawer-days-row">
+                        <!-- Rendered sequentially by CalendarView.js -->
+                    </div>
+                </div>
+
+                <div class="dock-footer-bar">
+                    <div class="dock-status-msg" id="drawer-proceed-status">
+                        <!-- Dynamic status message -->
+                    </div>
+                    <button class="btn-proceed-week btn-dock-advance" id="btn-drawer-proceed-week">
+                        📅 Proceed to Next Week ⏩
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <!-- Bottom Paddock Activity Logger -->
         <footer class="paddock-footer">

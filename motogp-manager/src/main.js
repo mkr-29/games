@@ -5,12 +5,14 @@ import { SaveManager } from './engine/SaveManager.js';
 import { TabsManager } from './ui/Tabs.js';
 import { UIComponents } from './ui/Components.js';
 import { RaceView } from './ui/RaceView.js';
+import { CalendarView } from './ui/CalendarView.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize UI Navigation & Event Listeners
     TabsManager.init();
     UIComponents.initEvents();
     RaceView.initEvents();
+    CalendarView.initEvents();
 
     // 2. Settings Event Handlers
     document.getElementById('btn-manual-save')?.addEventListener('click', () => {
@@ -52,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tickEngine.subscribe((state, rates) => {
         UIComponents.render(state, rates);
         RaceView.render(state);
+        CalendarView.render(state);
     });
 
     // 4. Start the tick loop

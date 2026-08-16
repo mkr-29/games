@@ -4,6 +4,7 @@ import { gameState } from '../engine/GameState.js';
 import { BikeSystem } from './BikeSystem.js';
 import { TIERS } from './PromotionSystem.js';
 import { RiderSystem } from './RiderSystem.js';
+import { CalendarSystem } from './CalendarSystem.js';
 
 // Official 2026 FIM MotoGP™ World Championship Calendar (22 Rounds)
 export const GP_CALENDAR = [
@@ -184,6 +185,7 @@ export class RaceSystem {
         rs.fpCompleted = true;
         rs.stage = 'PR';
         this.setFlag('GREEN', null, 0, 'Track clear');
+        this.syncCalendarActivity('race_fp1');
 
         gameState.addLog(`🏁 Free Practice 1 Complete at ${gp.title}! Setup Dialed In: ${setupMatch}%. Telemetry +35, RP +12.`);
 
@@ -194,6 +196,19 @@ export class RaceSystem {
         }
 
         return true;
+    }
+
+    static syncCalendarActivity(actionType) {
+        try {
+            const cal = CalendarSystem.getCalendarState();
+            const currentWeek = CalendarSystem.getCurrentWeek();
+            if (currentWeek && currentWeek.activities) {
+                const act = currentWeek.activities.find(a => a.actionType === actionType);
+                if (act) {
+                    cal.completedActivities[act.id] = 'completed';
+                }
+            }
+        } catch (e) {}
     }
 
     static getAISkillRange(tier) {
@@ -321,6 +336,7 @@ export class RaceSystem {
         rs.directQ2 = userPos <= directQ2Count;
         rs.practiceCompleted = true;
         rs.stage = 'Q1';
+        this.syncCalendarActivity('race_pr');
 
         if (rs.directQ2) {
             gameState.addLog(`🌟 TIMED PRACTICE SUCCESS: ${state.rider.name} finished P${userPos} and qualified DIRECTLY into Q2! (Time: ${this.formatLapTime(userBestLap)})`);
@@ -446,6 +462,7 @@ export class RaceSystem {
         const userPos = finalGrid.findIndex(r => r.isUser) + 1;
         rs.qpGridPosition = userPos;
         rs.q2Completed = true;
+        this.syncCalendarActivity('race_quali');
 
         const hasSprint = state.tier >= 3; // Only Premier Class MotoGP features Saturday Sprints
         rs.stage = hasSprint ? 'SPRINT' : 'RACE';
@@ -981,6 +998,7 @@ export class RaceSystem {
         rs.stage = 'RACE';
         rs.activeIncident = null;
         this.setFlag('GREEN', null, 0, 'Sprint Finished');
+        this.syncCalendarActivity('race_sprint');
 
         this.initChampionshipStandings();
 
@@ -1115,6 +1133,7 @@ export class RaceSystem {
             state.cash += prizeMoney;
             state.hype += hypeEarned;
             rs.seasonPoints += pointsEarned;
+            this.syncCalendarActivity('race_gp');
 
             gameState.addLog(`🏆 GRAND PRIX COMPLETE! ${state.rider.name} finished P${userPos}! Prize: +$${prizeMoney.toLocaleString()}, +${pointsEarned} PTS, +${hypeEarned} Hype.`);
 
