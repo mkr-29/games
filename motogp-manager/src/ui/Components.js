@@ -6,6 +6,7 @@ import { ResearchSystem, TECH_NODES } from '../systems/ResearchSystem.js';
 import { BikeSystem } from '../systems/BikeSystem.js';
 import { StaffSystem, CREW_TYPES } from '../systems/StaffSystem.js';
 import { PrestigeSystem, HERITAGE_PERKS } from '../systems/PrestigeSystem.js';
+import { PromotionSystem, TIERS } from '../systems/PromotionSystem.js';
 
 export class UIComponents {
     static activeTechCategory = 'all';
@@ -95,6 +96,7 @@ export class UIComponents {
 
         // 3. Dynamic Lists (In-Place DOM update)
         this.renderProducers(state, forceRebuild);
+        this.renderPromotionHub(state);
         this.renderTechTree(state, forceRebuild);
         this.renderStaff(state, forceRebuild);
         this.renderHeritage(state, forceRebuild);
@@ -461,6 +463,101 @@ export class UIComponents {
                     }
                     btn.textContent = `Claim Perk (${perk.cost} HT)`;
                     btn.disabled = !canAfford;
+                }
+            }
+        });
+    }
+
+    static renderPromotionHub(state) {
+        const container = document.getElementById('promotion-hub-content');
+        const currentTierBadge = document.getElementById('promotion-current-tier');
+        if (!container) return;
+
+        const status = PromotionSystem.getPromotionStatus(state);
+        const current = status.currentTier;
+        const next = status.nextTier;
+
+        if (currentTierBadge) {
+            currentTierBadge.textContent = current.name;
+        }
+
+        if (status.isMaxTier || !next) {
+            container.innerHTML = `
+                <div class="promotion-target-info">
+                    <h3>👑 Pinnacle of Motorsport: Premier Class MotoGP™</h3>
+                    <p class="promotion-target-desc">Your factory squad is competing at the absolute summit of Grand Prix racing against the best riders on Earth. Defend your World Championships and build a lasting dynasty!</p>
+                    <div class="promotion-perks-list">
+                        <span class="perk-pill">🏆 $25,000 GP Win Purses</span>
+                        <span class="perk-pill">💨 Factory Aero Winglets</span>
+                        <span class="perk-pill">⚡ 10x Sponsor Payouts</span>
+                        <span class="perk-pill">👑 280+ HP V4 Factory Prototypes</span>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const req = status.requirements;
+        const seasonMetIcon = req.seasonMet ? '✅' : '🔒';
+        const cashMetIcon = req.cashMet ? '✅' : '❌';
+        const hypeMetIcon = req.hypeMet ? '✅' : '❌';
+        const hpMetIcon = req.hpMet ? '✅' : '❌';
+
+        const seasonClass = req.seasonMet ? 'met' : 'unmet';
+        const cashClass = req.cashMet ? 'met' : 'unmet';
+        const hypeClass = req.hypeMet ? 'met' : 'unmet';
+        const hpClass = req.hpMet ? 'met' : 'unmet';
+
+        const btnDisabled = !status.canPromote;
+        const btnText = status.canPromote
+            ? `🚀 Upgrade Team to ${next.shortName} (-$${next.promotionCost.toLocaleString()})`
+            : `🔒 Requirements Incomplete for ${next.shortName}`;
+
+        container.innerHTML = `
+            <div class="promotion-hub-layout">
+                <div class="promotion-target-info">
+                    <h3>🎯 Next Category: ${next.name}</h3>
+                    <p class="promotion-target-desc">${next.description}</p>
+                    <div class="promotion-perks-list">
+                        <span class="perk-pill">💰 $${next.gpWinPrize.toLocaleString()} GP Win Purse</span>
+                        <span class="perk-pill">⚡ ${next.sponsorMulti}x Sponsorship Scaling</span>
+                        <span class="perk-pill">🏍️ ${next.baseHP}+ HP ${next.bikeModel}</span>
+                    </div>
+                </div>
+
+                <div class="promotion-requirements-box">
+                    <div class="req-grid">
+                        <div class="req-item">
+                            <span class="req-label">🗓️ Season Completed:</span>
+                            <span class="req-val ${seasonClass}">${seasonMetIcon} S${req.currentSeason} / S${req.requiredSeason}+</span>
+                        </div>
+                        <div class="req-item">
+                            <span class="req-label">💰 Capital Investment:</span>
+                            <span class="req-val ${cashClass}">${cashMetIcon} $${Math.floor(req.currentCash).toLocaleString()} / $${next.promotionCost.toLocaleString()}</span>
+                        </div>
+                        <div class="req-item">
+                            <span class="req-label">🔥 Team Reputation:</span>
+                            <span class="req-val ${hypeClass}">${hypeMetIcon} ${req.currentHype} / ${next.requiredHype} Hype</span>
+                        </div>
+                        <div class="req-item">
+                            <span class="req-label">🏍️ Bike Engine Spec:</span>
+                            <span class="req-val ${hpClass}">${hpMetIcon} ${req.currentHP} / ${next.requiredHP} HP</span>
+                        </div>
+                    </div>
+
+                    <button class="btn-promote-category" id="btn-promote-category" ${btnDisabled ? 'disabled' : ''}>
+                        ${btnText}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btn-promote-category')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (status.canPromote && status.nextTier) {
+                if (confirm(`Are you ready to promote your team to the ${status.nextTier.name}? This will invest $${status.nextTier.promotionCost.toLocaleString()} in factory prototype chassis and team licenses for a brand new season!`)) {
+                    PromotionSystem.promoteTeam();
+                    this.forceRender(true);
                 }
             }
         });

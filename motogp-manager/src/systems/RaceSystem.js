@@ -2,6 +2,7 @@
 
 import { gameState } from '../engine/GameState.js';
 import { BikeSystem } from './BikeSystem.js';
+import { TIERS } from './PromotionSystem.js';
 
 // Official 2026 FIM MotoGP™ World Championship Calendar (21 Rounds)
 export const GP_CALENDAR = [
@@ -72,61 +73,86 @@ export const TIRE_COMPOUNDS = {
     }
 };
 
-// Official 2026 Moto3™ Championship Rider Grid
+// Official 2026 Moto3™ Championship Rider Grid (26 Official MotoGP.com Confirmed Riders)
 const MOTO3_2026_RIDERS = [
-    { name: "D. Alonso", team: "CFMoto Gaviota Aspar" },
-    { name: "I. Ortola", team: "MT Helmets - MSI" },
-    { name: "C. Veijer", team: "Liqui Moly Husqvarna Intact" },
-    { name: "D. Holgado", team: "Red Bull GASGAS Tech3" },
-    { name: "A. Piqueras", team: "Leopard Racing Honda" },
-    { name: "J. Rueda", team: "Red Bull KTM Ajo" },
-    { name: "T. Suzuki", team: "Liqui Moly Husqvarna Intact" },
-    { name: "S. Nepa", team: "LEVELUP - MTA" },
-    { name: "A. Fernandez", team: "Leopard Racing Honda" },
-    { name: "R. Rossi", team: "CIP Green Power" },
-    { name: "M. Yamanaka", team: "MT Helmets - MSI" },
-    { name: "S. Ogden", team: "MLav Racing Honda" },
-    { name: "J. Esteban", team: "CFMoto Gaviota Aspar" },
-    { name: "N. Carraro", team: "LEVELUP - MTA" },
-    { name: "T. Furusato", team: "Honda Team Asia" }
+    { name: "M. Quiles", team: "CFMOTO Aspar Team" },
+    { name: "M. Morelli", team: "CFMOTO Aspar Team" },
+    { name: "A. Cruces", team: "CIP Green Power" },
+    { name: "S. Ogden", team: "CIP Green Power" },
+    { name: "C. Buchanan", team: "CODE Motorsports" },
+    { name: "R. Moodley", team: "CODE Motorsports" },
+    { name: "R. Yamanaka", team: "AEON Credit - MT Helmets - MSi" },
+    { name: "H. Danish", team: "AEON Credit - MT Helmets - MSi" },
+    { name: "V. Pratama", team: "Honda Team Asia" },
+    { name: "Z. Mitani", team: "Honda Team Asia" },
+
+    { name: "A. Fernandez", team: "Leopard Racing" },
+    { name: "J. Esteban", team: "LEVELUP - MTA" },
+    { name: "M. Bertelle", team: "LEVELUP - MTA" },
+    { name: "D. Muñoz", team: "LIQUI MOLY Dynavolt Intact GP" },
+    { name: "D. Almansa", team: "LIQUI MOLY Dynavolt Intact GP" },
+    { name: "A. Carpe", team: "Red Bull KTM Ajo" },
+    { name: "B. Uriarte", team: "Red Bull KTM Ajo" },
+    { name: "V. Perrone", team: "Red Bull KTM Tech3" },
+    { name: "R. Salmela", team: "Red Bull KTM Tech3" },
+    { name: "C. O'Gorman", team: "SIC58 Squadra Corse" },
+    { name: "L. Rammerstorfer", team: "SIC58 Squadra Corse" },
+    { name: "J. Rios", team: "Rivacold Snipers Team" },
+    { name: "N. Carraro", team: "Rivacold Snipers Team" },
+    { name: "J. Kelso", team: "FleetSafe Honda - MLav Racing" },
+    { name: "E. O'Shea", team: "FleetSafe Honda - MLav Racing" }
 ];
 
-// Official 2026 Moto2™ Championship Rider Grid
+// Official 2026 Moto2™ Championship Rider Grid (22 Confirmed Contenders)
 const MOTO2_2026_RIDERS = [
     { name: "S. Garcia", team: "MT Helmets - MSI Kalex" },
     { name: "A. Ogura", team: "MT Helmets - MSI Boscoscuro" },
     { name: "F. Aldeguer", team: "Sync SpeedUp Boscoscuro" },
-    { name: "J. Roberts", team: "OnlyFans American Racing" },
-    { name: "C. Vietti", team: "Red Bull KTM Ajo" },
     { name: "A. Lopez", team: "Sync SpeedUp Boscoscuro" },
+    { name: "J. Roberts", team: "OnlyFans American Racing" },
+    { name: "M. Ramirez", team: "OnlyFans American Racing" },
+    { name: "C. Vietti", team: "Red Bull KTM Ajo" },
+    { name: "D. Alonso", team: "Red Bull KTM Ajo Moto2" },
     { name: "M. Gonzalez", team: "QJMOTOR Gresini Moto2" },
+    { name: "A. Escrig", team: "KLINT Forward Factory Team" },
     { name: "T. Arbolino", team: "Elf Marc VDS Racing" },
+    { name: "F. Salac", team: "Elf Marc VDS Racing" },
     { name: "B. Baltus", team: "RW-Idrofoglia Racing" },
     { name: "Z. van den Goorbergh", team: "RW-Idrofoglia Racing" },
     { name: "A. Canet", team: "Fantic Racing Kalex" },
+    { name: "X. Cardelus", team: "Fantic Racing Kalex" },
     { name: "D. Binder", team: "Liqui Moly Husqvarna Intact" },
+    { name: "S. Agius", team: "Liqui Moly Husqvarna Intact" },
     { name: "I. Guevara", team: "CFMoto Aspar Team" },
-    { name: "D. Alonso", team: "Red Bull KTM Ajo Moto2" },
-    { name: "M. Ramirez", team: "OnlyFans American Racing" }
+    { name: "D. Holgado", team: "CFMoto Aspar Team" },
+    { name: "J. Masia", team: "Preicanos Racing Team" },
+    { name: "D. Munoz", team: "Preicanos Racing Team" }
 ];
 
-// Official 2026 Premier Class MotoGP™ Championship Rider Grid
+// Official 2026 Premier Class MotoGP™ Championship Rider Grid (22 Premier Prototypes)
 const MOTOGP_2026_RIDERS = [
     { name: "F. Bagnaia", team: "Ducati Lenovo Team" },
     { name: "M. Marquez", team: "Ducati Lenovo Team" },
     { name: "J. Martin", team: "Aprilia Racing Factory" },
+    { name: "M. Bezzecchi", team: "Aprilia Racing Factory" },
     { name: "P. Acosta", team: "Red Bull KTM Factory Racing" },
+    { name: "B. Binder", team: "Red Bull KTM Factory Racing" },
     { name: "E. Bastianini", team: "Red Bull KTM Tech3" },
     { name: "M. Vinales", team: "Red Bull KTM Tech3" },
     { name: "F. Quartararo", team: "Monster Energy Yamaha" },
-    { name: "A. Espargaro", team: "Aprilia Racing Factory" },
-    { name: "B. Binder", team: "Red Bull KTM Factory Racing" },
-    { name: "M. Bezzecchi", team: "Aprilia Racing Factory" },
+    { name: "A. Rins", team: "Monster Energy Yamaha" },
     { name: "F. Di Giannantonio", team: "Pertamina Enduro VR46" },
+    { name: "F. Morbidelli", team: "Pertamina Enduro VR46" },
     { name: "A. Marquez", team: "Gresini Racing MotoGP" },
+    { name: "F. Aldeguer", team: "Gresini Racing MotoGP" },
     { name: "J. Zarco", team: "CASTROL Honda LCR" },
+    { name: "S. Chantra", team: "IDEMITSU Honda LCR" },
     { name: "J. Mir", team: "Repsol Honda Team" },
-    { name: "L. Marini", team: "Repsol Honda Team" }
+    { name: "L. Marini", team: "Repsol Honda Team" },
+    { name: "J. Miller", team: "Prima Pramac Yamaha" },
+    { name: "M. Oliveira", team: "Prima Pramac Yamaha" },
+    { name: "R. Fernandez", team: "Trackhouse Racing Aprilia" },
+    { name: "A. Ogura", team: "Trackhouse Racing Aprilia" }
 ];
 
 export class RaceSystem {
@@ -137,14 +163,14 @@ export class RaceSystem {
     }
 
     static getTierRiders(tier) {
-        if (tier === 1 || tier === 2) return MOTO3_2026_RIDERS;
-        if (tier === 3) return MOTO2_2026_RIDERS;
+        if (tier === 1) return MOTO3_2026_RIDERS;
+        if (tier === 2) return MOTO2_2026_RIDERS;
         return MOTOGP_2026_RIDERS;
     }
 
     static getTierSpeedMultiplier(tier) {
-        if (tier === 1 || tier === 2) return 1.080;
-        if (tier === 3) return 1.035;
+        if (tier === 1) return 1.080;
+        if (tier === 2) return 1.035;
         return 1.000;
     }
 
@@ -181,12 +207,13 @@ export class RaceSystem {
         }
     }
 
-    static initChampionshipStandings() {
+    static initChampionshipStandings(force = false) {
         const state = gameState.getState();
         const rs = state.raceState;
         const tierRiders = this.getTierRiders(state.tier);
+        const expectedCount = tierRiders.length + 1;
 
-        if (!rs.championshipStandings || rs.championshipStandings.length === 0 || rs.championshipTier !== state.tier) {
+        if (force || !rs.championshipStandings || rs.championshipStandings.length !== expectedCount || rs.championshipTier !== state.tier) {
             const standings = tierRiders.map(ai => ({
                 name: ai.name,
                 team: ai.team,
@@ -349,21 +376,23 @@ export class RaceSystem {
 
         rs.leaderboard = practiceList;
 
-        const top10 = practiceList.slice(0, 10);
-        const bottom6 = practiceList.slice(10);
+        // Official Direct Q2 Cut: Top 14 in 26+ grid (or top 10 in smaller grids)
+        const directQ2Count = practiceList.length >= 20 ? 14 : 10;
+        const topDirect = practiceList.slice(0, directQ2Count);
+        const bottomQ1 = practiceList.slice(directQ2Count);
 
-        rs.q2DirectRiders = top10;
-        rs.q1Riders = bottom6;
+        rs.q2DirectRiders = topDirect;
+        rs.q1Riders = bottomQ1;
 
         const userPos = practiceList.findIndex(r => r.isUser) + 1;
-        rs.directQ2 = userPos <= 10;
+        rs.directQ2 = userPos <= directQ2Count;
         rs.practiceCompleted = true;
         rs.stage = 'Q1';
 
         if (rs.directQ2) {
             gameState.addLog(`🌟 TIMED PRACTICE SUCCESS: ${state.rider.name} finished P${userPos} and qualified DIRECTLY into Q2! (Time: ${this.formatLapTime(userBestLap)})`);
         } else {
-            gameState.addLog(`⚠️ TIMED PRACTICE: ${state.rider.name} finished P${userPos}. Must fight in Q1 Shootout for top 2 spots into Q2!`);
+            gameState.addLog(`⚠️ TIMED PRACTICE: ${state.rider.name} finished P${userPos}. Must fight in Q1 Shootout for top spots into Q2!`);
         }
 
         return true;
@@ -381,7 +410,8 @@ export class RaceSystem {
         const tierMult = this.getTierSpeedMultiplier(state.tier);
         const baseTrackSec = gp.baseSec * tierMult;
 
-        const q1Grid = rs.q1Riders || rs.leaderboard.slice(10);
+        const directQ2Count = (rs.q2DirectRiders && rs.q2DirectRiders.length) || 14;
+        const q1Grid = rs.q1Riders || rs.leaderboard.slice(directQ2Count);
 
         q1Grid.forEach(r => {
             const { bestLap, bestSectors } = this.simulateHotLap(r.score, r.consistency, baseTrackSec, gp.sectorRatios);
@@ -405,8 +435,10 @@ export class RaceSystem {
             r.lapTimeStr = this.formatLapTime(r.q1LapSec);
         });
 
-        const q1Graduates = q1Grid.slice(0, 2);
-        const q1Eliminated = q1Grid.slice(2);
+        // Top 4 promote into Q2 (or top 2 in smaller grids)
+        const q1GraduateCount = q1Grid.length >= 10 ? 4 : 2;
+        const q1Graduates = q1Grid.slice(0, q1GraduateCount);
+        const q1Eliminated = q1Grid.slice(q1GraduateCount);
 
         rs.q1Graduates = q1Graduates;
         rs.q1Eliminated = q1Eliminated;
@@ -417,14 +449,15 @@ export class RaceSystem {
         const userInQ1 = q1Grid.find(r => r.isUser);
         if (userInQ1) {
             const q1Pos = q1Grid.indexOf(userInQ1) + 1;
-            if (q1Pos <= 2) {
+            if (q1Pos <= q1GraduateCount) {
                 gameState.addLog(`🔥 Q1 GRADUATION! ${state.rider.name} finished P${q1Pos} in Q1 and advanced to Q2! (Time: ${this.formatLapTime(userInQ1.q1LapSec)})`);
             } else {
-                const finalGridPos = 12 + q1Pos;
+                const finalGridPos = directQ2Count + q1GraduateCount + (q1Pos - q1GraduateCount);
                 gameState.addLog(`⏱️ Q1 COMPLETE: ${state.rider.name} knocked out in Q1 (P${q1Pos}). Starting grid locked at P${finalGridPos}.`);
             }
         } else {
-            gameState.addLog(`⏱️ Q1 Shootout finished! ${q1Graduates[0].name} (${q1Graduates[0].lapTimeStr}) and ${q1Graduates[1].name} (${q1Graduates[1].lapTimeStr}) graduated to Q2.`);
+            const gradNames = q1Graduates.map(g => `${g.name} (${g.lapTimeStr})`).join(', ');
+            gameState.addLog(`⏱️ Q1 Shootout finished! Graduates to Q2: ${gradNames}.`);
         }
 
         return true;
@@ -442,9 +475,9 @@ export class RaceSystem {
         const tierMult = this.getTierSpeedMultiplier(state.tier);
         const baseTrackSec = gp.baseSec * tierMult;
 
-        const direct10 = rs.q2DirectRiders || rs.leaderboard.slice(0, 10);
-        const grad2 = rs.q1Graduates || [];
-        const q2List = [...direct10, ...grad2];
+        const directList = rs.q2DirectRiders || rs.leaderboard.slice(0, 14);
+        const gradList = rs.q1Graduates || [];
+        const q2List = [...directList, ...gradList];
 
         q2List.forEach(r => {
             const { bestLap, bestSectors } = this.simulateHotLap(r.score, r.consistency, baseTrackSec, gp.sectorRatios);
@@ -462,8 +495,8 @@ export class RaceSystem {
 
         q2List.sort((a, b) => a.q2LapSec - b.q2LapSec);
 
-        const lockedBottom4 = rs.q1Eliminated || [];
-        const finalGrid = [...q2List, ...lockedBottom4];
+        const lockedEliminatedQ1 = rs.q1Eliminated || [];
+        const finalGrid = [...q2List, ...lockedEliminatedQ1];
 
         const poleTime = q2List[0].q2LapSec;
         finalGrid.forEach((r, idx) => {
@@ -1029,14 +1062,15 @@ export class RaceSystem {
             gameState.addLog(`💥 SPRINT RESULT: ${state.rider.name} suffered a DNF in the Sprint Race.`);
         } else {
             const sprintPts = userPos <= 9 ? sprintPointsTable[userPos - 1] : 0;
-            const prizeMoney = userPos === 1 ? 800 : (userPos <= 3 ? 450 : (userPos <= 9 ? 200 : 50));
+            const tierDef = TIERS[state.tier] || TIERS[1];
+            const prizeMoney = userPos === 1 ? tierDef.sprintWinPrize : (userPos <= 3 ? tierDef.sprintPodiumPrize : (userPos <= 9 ? tierDef.sprintTop9Prize : Math.floor(tierDef.sprintTop9Prize * 0.25)));
             const hypeEarned = userPos === 1 ? 12 : (userPos <= 3 ? 8 : 4);
 
             state.cash += prizeMoney;
             state.hype += hypeEarned;
             rs.seasonPoints += sprintPts;
 
-            gameState.addLog(`⚡ SPRINT FINISH: ${winner.name} wins the Saturday Sprint! ${state.rider.name} crossed the line P${userPos} (+${sprintPts} Sprint PTS, +$${prizeMoney}, +${hypeEarned} Hype)!`);
+            gameState.addLog(`⚡ SPRINT FINISH: ${winner.name} wins the Saturday Sprint! ${state.rider.name} crossed the line P${userPos} (+${sprintPts} Sprint PTS, +$${prizeMoney.toLocaleString()}, +${hypeEarned} Hype)!`);
         }
 
         gameState.addLog(`🏁 Saturday Sprint Complete! Prepare your machine for the Sunday Main Grand Prix.`);
@@ -1101,24 +1135,25 @@ export class RaceSystem {
         if (userRider && userRider.dnf) {
             gameState.addLog(`💥 RACE RESULT: ${state.rider.name} suffered a DNF crash and scored 0 points.`);
         } else {
-            let prizeMoney = 150;
+            const tierDef = TIERS[state.tier] || TIERS[1];
+            let prizeMoney = Math.floor(tierDef.gpTop10Prize * 0.30);
             let pointsEarned = userPos <= 15 ? pointsTable[userPos - 1] : 0;
             let hypeEarned = 2;
 
             if (userPos === 1) {
-                prizeMoney = 1800;
+                prizeMoney = tierDef.gpWinPrize;
                 hypeEarned = 30;
             } else if (userPos <= 3) {
-                prizeMoney = 1000;
+                prizeMoney = tierDef.gpPodiumPrize;
                 hypeEarned = 18;
             } else if (userPos <= 10) {
-                prizeMoney = 500;
+                prizeMoney = tierDef.gpTop10Prize;
                 hypeEarned = 10;
             }
 
             if (rs.fastestLap && rs.fastestLap.riderName === state.rider.name && userPos <= 10) {
                 pointsEarned += 1;
-                prizeMoney += 250;
+                prizeMoney += Math.floor(tierDef.gpTop10Prize * 0.50);
             }
 
             if (state.heritagePerks.includes('heritage_paddock_brand')) {
@@ -1129,7 +1164,7 @@ export class RaceSystem {
             state.hype += hypeEarned;
             rs.seasonPoints += pointsEarned;
 
-            gameState.addLog(`🏆 GRAND PRIX COMPLETE! ${state.rider.name} finished P${userPos}! Prize: +$${prizeMoney}, +${pointsEarned} PTS, +${hypeEarned} Hype.`);
+            gameState.addLog(`🏆 GRAND PRIX COMPLETE! ${state.rider.name} finished P${userPos}! Prize: +$${prizeMoney.toLocaleString()}, +${pointsEarned} PTS, +${hypeEarned} Hype.`);
 
             if (Math.random() < 0.10) {
                 const injuries = [
@@ -1152,10 +1187,12 @@ export class RaceSystem {
         rs.currentGPIndex += 1;
         if (rs.currentGPIndex % GP_CALENDAR.length === 0) {
             state.season += 1;
+            state.seasonsCompleted = (state.seasonsCompleted || 0) + 1;
+            state.seasonsInCurrentTier = (state.seasonsInCurrentTier || 0) + 1;
+
             const champ = rs.championshipStandings[0];
             gameState.addLog(`🏆 WORLD CHAMPIONSHIP FINALE! ${champ.name} (${champ.team}) is crowned Season ${state.season - 1} World Champion with ${champ.points} PTS!`);
-
-            this.checkTierPromotion();
+            gameState.addLog(`🌟 SEASON EXPERIENCE: You have completed Season ${state.season - 1}! Check the Promotion Hub in your Garage to upgrade your category to Moto2™ or MotoGP™.`);
 
             rs.championshipStandings.forEach(s => {
                 s.points = 0;
@@ -1164,26 +1201,6 @@ export class RaceSystem {
                 s.podiums = 0;
                 s.fastestLaps = 0;
             });
-        }
-    }
-
-    static checkTierPromotion() {
-        const state = gameState.getState();
-        if (state.tier === 1 && state.bike.powerHP >= 70 && state.hype >= 25) {
-            state.tier = 2;
-            state.tierName = "Tier 2: Moto3 World Championship";
-            state.bike.modelName = "KTM / Honda Moto3 Factory Spec";
-            gameState.addLog(`🌟 PROMOTED TO TIER 2: Moto3 World Championship! Unlocked Wind Tunnels & CNC Machining!`);
-        } else if (state.tier === 2 && state.bike.powerHP >= 95 && state.hype >= 65) {
-            state.tier = 3;
-            state.tierName = "Tier 3: Moto2 World Championship";
-            state.bike.modelName = "Kalex Triumph 765cc Prototype";
-            gameState.addLog(`🌟 PROMOTED TO TIER 3: Moto2 World Championship! Unlocked VIP Hospitality & Cloud Telemetry!`);
-        } else if (state.tier === 3 && state.bike.powerHP >= 150 && state.hype >= 150) {
-            state.tier = 4;
-            state.tierName = "Tier 4: Premier Class MotoGP™ World Championship";
-            state.bike.modelName = "1000cc V4 Factory Prototype";
-            gameState.addLog(`👑 PROMOTED TO TIER 4: Premier Class MotoGP™! You are competing at the pinnacle of motorcycle racing!`);
         }
     }
 }

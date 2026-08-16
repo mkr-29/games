@@ -488,6 +488,138 @@ html, body {
     cursor: not-allowed;
 }
 
+/* Team Category Promotion Hub */
+.promotion-hub-card {
+    background: linear-gradient(135deg, rgba(255, 183, 0, 0.08) 0%, rgba(21, 24, 33, 0.95) 100%);
+    border: 1px solid rgba(255, 183, 0, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.promotion-hub-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 16px;
+    align-items: center;
+}
+
+@media (max-width: 960px) {
+    .promotion-hub-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.promotion-target-info h3 {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.promotion-target-desc {
+    font-size: 0.80rem;
+    color: var(--text-muted);
+    margin: 6px 0 12px 0;
+    line-height: 1.4;
+}
+
+.promotion-perks-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.perk-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-card);
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.72rem;
+    color: var(--accent-cyan);
+    font-weight: 600;
+}
+
+.promotion-requirements-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.req-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+@media (max-width: 480px) {
+    .req-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.req-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.req-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.req-val {
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.req-val.met {
+    color: var(--accent-green);
+}
+
+.req-val.unmet {
+    color: #ff4757;
+}
+
+.btn-promote-category {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent-gold) 0%, #d49700 100%);
+    color: #000;
+    border: none;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: var(--transition);
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(255, 183, 0, 0.3);
+}
+
+.btn-promote-category:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 183, 0, 0.5);
+}
+
+.btn-promote-category:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-dim);
+    box-shadow: none;
+}
+
 /* R&D Tech Tree */
 .rnd-categories-nav {
     display: flex;
