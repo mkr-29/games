@@ -1,7 +1,6 @@
-// RaceView.js - Interactive Race Weekend Dashboard, Timing Tower, Standings & Telemetry UI
-
 import { gameState } from '../engine/GameState.js';
 import { RaceSystem, GP_CALENDAR, TIRE_COMPOUNDS } from '../systems/RaceSystem.js';
+import { RiderSystem } from '../systems/RiderSystem.js';
 import { TrackRadarView } from './TrackRadarView.js';
 
 export class RaceView {
@@ -265,6 +264,9 @@ export class RaceView {
 
                 const isFastestLapHolder = rs.fastestLap && rs.fastestLap.riderName === r.name && !isDnf;
                 const flBadge = isFastestLapHolder ? '<span class="badge-fl">🟣 FL</span>' : '';
+                const favBadge = r.isFavTrack ? '<span class="badge-fav" style="font-size:10px; background:rgba(255,183,0,0.15); color:#ffb700; padding:1px 5px; border-radius:4px; margin-left:4px; border:1px solid rgba(255,183,0,0.3);" title="Favorite Track Boost">⭐ FAV</span>' : '';
+                const subBadge = r.isReplacement ? `<span class="badge-sub" style="font-size:10px; background:rgba(0,210,255,0.15); color:#00d2ff; padding:1px 5px; border-radius:4px; margin-left:4px; border:1px solid rgba(0,210,255,0.3);">🔄 SUB</span>` : '';
+                const injBadge = r.injury ? `<span class="badge-inj" style="font-size:10px; background:rgba(255,51,75,0.15); color:#ff4d6d; padding:1px 5px; border-radius:4px; margin-left:4px; border:1px solid rgba(255,51,75,0.3);" title="${r.injury.name}">🩺 INJ</span>` : '';
 
                 // Sector split chips
                 const sectors = r.lastSectors || [0, 0, 0, 0];
@@ -281,7 +283,7 @@ export class RaceView {
                     row.setAttribute('data-rider-name', r.name);
                     row.innerHTML = `
                         <td class="cell-pos">P${pos}</td>
-                        <td class="cell-name">${r.isUser ? '⭐ ' : ''}<span class="rider-name-txt">${r.name}</span> <span class="fl-slot"></span><small class="team-sub">${r.team}</small></td>
+                        <td class="cell-name">${r.isUser ? '⭐ ' : ''}<span class="rider-name-txt">${r.name}</span> <span class="fl-slot"></span><span class="status-slot"></span><small class="team-sub">${r.team}</small></td>
                         <td class="cell-tire"><span class="tire-pill" style="background:${compDef.color};">${compDef.badge}</span> <span class="tire-pct-lbl">${tirePct}%</span></td>
                         <td class="cell-gap">${gapText}</td>
                         <td class="cell-int">${intText}</td>
@@ -295,6 +297,11 @@ export class RaceView {
                 }
 
                 tbody.appendChild(row);
+
+                const statusSlot = row.querySelector('.status-slot');
+                if (statusSlot) {
+                    statusSlot.innerHTML = `${favBadge}${subBadge}${injBadge}`;
+                }
 
                 const targetClass = `${r.isUser ? 'user-rider' : ''} ${isDnf ? 'dnf-row' : ''} ${isFastestLapHolder ? 'fastest-lap-row' : ''}`.trim();
                 if (row.className !== targetClass) row.className = targetClass;
@@ -423,6 +430,8 @@ export class RaceView {
         const tbody = document.getElementById('championship-standings-body');
         if (!tbody) return;
 
+        const paddock = RiderSystem.getPaddockState();
+
         if (rs.championshipStandings && rs.championshipStandings.length > 0) {
             const emptyState = tbody.querySelector('.empty-state');
             if (emptyState) tbody.innerHTML = '';
@@ -431,13 +440,25 @@ export class RaceView {
                 const rank = idx + 1;
                 const rankBadge = rank === 1 ? '🥇 P1' : (rank === 2 ? '🥈 P2' : (rank === 3 ? '🥉 P3' : `P${rank}`));
 
+                const pRider = paddock.riders[r.id];
+                let statusBadge = '';
+                if (pRider && pRider.injury) {
+                    if (pRider.injury.severity === 'sidelined') {
+                        statusBadge = ` <span style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(255,51,75,0.18); color:#ff4d6d; border:1px solid rgba(255,51,75,0.4);" title="${pRider.injury.desc}">🏥 OUT (${pRider.injury.racesRemaining} GP)</span>`;
+                    } else {
+                        statusBadge = ` <span style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(255,183,0,0.18); color:#ffb700; border:1px solid rgba(255,183,0,0.4);" title="${pRider.injury.desc}">🩺 ${pRider.injury.name}</span>`;
+                    }
+                } else if (r.isUser && state.rider.injury) {
+                    statusBadge = ` <span style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(255,183,0,0.18); color:#ffb700; border:1px solid rgba(255,183,0,0.4);">🩺 ${state.rider.injury.name}</span>`;
+                }
+
                 let row = tbody.querySelector(`[data-standing-name="${CSS.escape(r.name)}"]`);
                 if (!row) {
                     row = document.createElement('tr');
                     row.setAttribute('data-standing-name', r.name);
                     row.innerHTML = `
                         <td class="cell-rank" style="font-weight:700;">${rankBadge}</td>
-                        <td class="cell-name">${r.isUser ? '⭐ ' : ''}${r.name}</td>
+                        <td class="cell-name">${r.isUser ? '⭐ ' : ''}<span class="standing-rider-name">${r.name}</span> <span class="standing-status-slot"></span></td>
                         <td class="cell-team">${r.team}</td>
                         <td class="cell-pts" style="font-weight:700; color:var(--accent-gold);">${r.points} PTS</td>
                         <td class="cell-wins">${r.wins}</td>
@@ -448,6 +469,11 @@ export class RaceView {
                 }
 
                 tbody.appendChild(row);
+
+                const statusSlot = row.querySelector('.standing-status-slot');
+                if (statusSlot && statusSlot.innerHTML !== statusBadge) {
+                    statusSlot.innerHTML = statusBadge;
+                }
 
                 const targetClass = r.isUser ? 'user-rider' : '';
                 if (row.className !== targetClass) row.className = targetClass;

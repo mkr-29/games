@@ -3,6 +3,7 @@
 import { gameState } from '../engine/GameState.js';
 import { BikeSystem } from './BikeSystem.js';
 import { TIERS } from './PromotionSystem.js';
+import { RiderSystem } from './RiderSystem.js';
 
 // Official 2026 FIM MotoGP™ World Championship Calendar (22 Rounds)
 export const GP_CALENDAR = [
@@ -74,88 +75,6 @@ export const TIRE_COMPOUNDS = {
     }
 };
 
-// Official 2026 Moto3™ Championship Rider Grid (26 Official MotoGP.com Confirmed Riders)
-const MOTO3_2026_RIDERS = [
-    { name: "M. Quiles", team: "CFMOTO Aspar Team" },
-    { name: "M. Morelli", team: "CFMOTO Aspar Team" },
-    { name: "A. Cruces", team: "CIP Green Power" },
-    { name: "S. Ogden", team: "CIP Green Power" },
-    { name: "C. Buchanan", team: "CODE Motorsports" },
-    { name: "R. Moodley", team: "CODE Motorsports" },
-    { name: "R. Yamanaka", team: "AEON Credit - MT Helmets - MSi" },
-    { name: "H. Danish", team: "AEON Credit - MT Helmets - MSi" },
-    { name: "V. Pratama", team: "Honda Team Asia" },
-    { name: "Z. Mitani", team: "Honda Team Asia" },
-
-    { name: "A. Fernandez", team: "Leopard Racing" },
-    { name: "J. Esteban", team: "LEVELUP - MTA" },
-    { name: "M. Bertelle", team: "LEVELUP - MTA" },
-    { name: "D. Muñoz", team: "LIQUI MOLY Dynavolt Intact GP" },
-    { name: "D. Almansa", team: "LIQUI MOLY Dynavolt Intact GP" },
-    { name: "A. Carpe", team: "Red Bull KTM Ajo" },
-    { name: "B. Uriarte", team: "Red Bull KTM Ajo" },
-    { name: "V. Perrone", team: "Red Bull KTM Tech3" },
-    { name: "R. Salmela", team: "Red Bull KTM Tech3" },
-    { name: "C. O'Gorman", team: "SIC58 Squadra Corse" },
-    { name: "L. Rammerstorfer", team: "SIC58 Squadra Corse" },
-    { name: "J. Rios", team: "Rivacold Snipers Team" },
-    { name: "N. Carraro", team: "Rivacold Snipers Team" },
-    { name: "J. Kelso", team: "FleetSafe Honda - MLav Racing" },
-    { name: "E. O'Shea", team: "FleetSafe Honda - MLav Racing" }
-];
-
-// Official 2026 Moto2™ Championship Rider Grid (22 Confirmed Contenders)
-const MOTO2_2026_RIDERS = [
-    { name: "S. Garcia", team: "MT Helmets - MSI Kalex" },
-    { name: "A. Ogura", team: "MT Helmets - MSI Boscoscuro" },
-    { name: "F. Aldeguer", team: "Sync SpeedUp Boscoscuro" },
-    { name: "A. Lopez", team: "Sync SpeedUp Boscoscuro" },
-    { name: "J. Roberts", team: "OnlyFans American Racing" },
-    { name: "M. Ramirez", team: "OnlyFans American Racing" },
-    { name: "C. Vietti", team: "Red Bull KTM Ajo" },
-    { name: "D. Alonso", team: "Red Bull KTM Ajo Moto2" },
-    { name: "M. Gonzalez", team: "QJMOTOR Gresini Moto2" },
-    { name: "A. Escrig", team: "KLINT Forward Factory Team" },
-    { name: "T. Arbolino", team: "Elf Marc VDS Racing" },
-    { name: "F. Salac", team: "Elf Marc VDS Racing" },
-    { name: "B. Baltus", team: "RW-Idrofoglia Racing" },
-    { name: "Z. van den Goorbergh", team: "RW-Idrofoglia Racing" },
-    { name: "A. Canet", team: "Fantic Racing Kalex" },
-    { name: "X. Cardelus", team: "Fantic Racing Kalex" },
-    { name: "D. Binder", team: "Liqui Moly Husqvarna Intact" },
-    { name: "S. Agius", team: "Liqui Moly Husqvarna Intact" },
-    { name: "I. Guevara", team: "CFMoto Aspar Team" },
-    { name: "D. Holgado", team: "CFMoto Aspar Team" },
-    { name: "J. Masia", team: "Preicanos Racing Team" },
-    { name: "D. Munoz", team: "Preicanos Racing Team" }
-];
-
-// Official 2026 Premier Class MotoGP™ Championship Rider Grid (22 Premier Prototypes)
-const MOTOGP_2026_RIDERS = [
-    { name: "F. Bagnaia", team: "Ducati Lenovo Team" },
-    { name: "M. Marquez", team: "Ducati Lenovo Team" },
-    { name: "J. Martin", team: "Aprilia Racing Factory" },
-    { name: "M. Bezzecchi", team: "Aprilia Racing Factory" },
-    { name: "P. Acosta", team: "Red Bull KTM Factory Racing" },
-    { name: "B. Binder", team: "Red Bull KTM Factory Racing" },
-    { name: "E. Bastianini", team: "Red Bull KTM Tech3" },
-    { name: "M. Vinales", team: "Red Bull KTM Tech3" },
-    { name: "F. Quartararo", team: "Monster Energy Yamaha" },
-    { name: "A. Rins", team: "Monster Energy Yamaha" },
-    { name: "F. Di Giannantonio", team: "Pertamina Enduro VR46" },
-    { name: "F. Morbidelli", team: "Pertamina Enduro VR46" },
-    { name: "A. Marquez", team: "Gresini Racing MotoGP" },
-    { name: "F. Aldeguer", team: "Gresini Racing MotoGP" },
-    { name: "J. Zarco", team: "CASTROL Honda LCR" },
-    { name: "S. Chantra", team: "IDEMITSU Honda LCR" },
-    { name: "J. Mir", team: "Repsol Honda Team" },
-    { name: "L. Marini", team: "Repsol Honda Team" },
-    { name: "J. Miller", team: "Prima Pramac Yamaha" },
-    { name: "M. Oliveira", team: "Prima Pramac Yamaha" },
-    { name: "R. Fernandez", team: "Trackhouse Racing Aprilia" },
-    { name: "A. Ogura", team: "Trackhouse Racing Aprilia" }
-];
-
 export class RaceSystem {
     static getCurrentGP() {
         const state = gameState.getState();
@@ -164,9 +83,7 @@ export class RaceSystem {
     }
 
     static getTierRiders(tier) {
-        if (tier === 1) return MOTO3_2026_RIDERS;
-        if (tier === 2) return MOTO2_2026_RIDERS;
-        return MOTOGP_2026_RIDERS;
+        return RiderSystem.getActiveGridRoster(tier);
     }
 
     static getTierSpeedMultiplier(tier) {
@@ -211,11 +128,12 @@ export class RaceSystem {
     static initChampionshipStandings(force = false) {
         const state = gameState.getState();
         const rs = state.raceState;
-        const tierRiders = this.getTierRiders(state.tier);
+        const tierRiders = RiderSystem.getTierDatabase(state.tier);
         const expectedCount = tierRiders.length + 1;
 
         if (force || !rs.championshipStandings || rs.championshipStandings.length !== expectedCount || rs.championshipTier !== state.tier) {
             const standings = tierRiders.map(ai => ({
+                id: ai.id,
                 name: ai.name,
                 team: ai.team,
                 isUser: false,
@@ -227,6 +145,7 @@ export class RaceSystem {
             }));
 
             standings.push({
+                id: 'user',
                 name: state.rider.name,
                 team: "Your Team",
                 isUser: true,
@@ -254,6 +173,7 @@ export class RaceSystem {
 
         const bikeStats = BikeSystem.getBikeStats();
         const gp = this.getCurrentGP();
+        const tierRiders = this.getTierRiders(state.tier);
 
         const setupMatch = Math.min(99, 72 + Math.floor(bikeStats.overallRating * 0.35) + Math.floor(Math.random() * 8));
         rs.setupMatch = setupMatch;
@@ -266,6 +186,13 @@ export class RaceSystem {
         this.setFlag('GREEN', null, 0, 'Track clear');
 
         gameState.addLog(`🏁 Free Practice 1 Complete at ${gp.title}! Setup Dialed In: ${setupMatch}%. Telemetry +35, RP +12.`);
+
+        const favsAtThisTrack = tierRiders.filter(r => r.favoriteTracks && r.favoriteTracks.includes(gp.id));
+        if (favsAtThisTrack.length > 0) {
+            const favNames = favsAtThisTrack.slice(0, 3).map(f => f.name).join(', ');
+            gameState.addLog(`⭐ SPECIALIST FOCUS: ${gp.title} is a favorite circuit for ${favNames}! Expect fierce lap times.`);
+        }
+
         return true;
     }
 
@@ -321,20 +248,25 @@ export class RaceSystem {
         const setupBonus = ((rs.setupMatch || 75) - 70) * 0.15;
         const userScore = (bikeStats.overallRating * 0.45) + (riderSkill * 0.45) + trackBonus + setupBonus;
 
-        const aiRange = this.getAISkillRange(state.tier);
         const tierRiders = this.getTierRiders(state.tier);
 
-        const practiceList = tierRiders.map((ai, idx) => {
-            const rangeSpan = aiRange.max - aiRange.min;
-            const rankRatio = (tierRiders.length - idx) / tierRiders.length;
-            const aiScore = aiRange.min + (rankRatio * rangeSpan) + (Math.random() * 3 - 1.5);
-            const aiConsistency = 70 + Math.floor(rankRatio * 20);
+        const practiceList = tierRiders.map(ai => {
+            const aiScore = RiderSystem.calculateRiderPerformanceScore(ai, gp.id, rs.weather, state.tier);
+            const aiConsistency = ai.consistency || 75;
             const { bestLap, bestSectors } = this.simulateHotLap(aiScore, aiConsistency, baseTrackSec, gp.sectorRatios);
 
             return {
+                id: ai.id,
                 name: ai.name,
                 team: ai.team,
                 isUser: false,
+                isReplacement: ai.isReplacement || false,
+                favoriteTracks: ai.favoriteTracks || [],
+                isFavTrack: ai.favoriteTracks ? ai.favoriteTracks.includes(gp.id) : false,
+                speed: ai.speed || 80,
+                racecraft: ai.racecraft || 80,
+                tireMgmt: ai.tireMgmt || 80,
+                injury: ai.injury || null,
                 score: aiScore,
                 consistency: aiConsistency,
                 bestLapSec: bestLap,
@@ -857,6 +789,15 @@ export class RaceSystem {
                 const crashSector = Math.floor(Math.random() * 4) + 1;
                 this.setFlag('YELLOW', crashSector, 1, `${r.name} crashed in Sector ${crashSector}`);
                 gameState.addLog(`💥 CRASH! ${r.name} (${r.team}) suffered a ${r.dnfReason}! DNF on Lap ${currentLap}.`);
+
+                const inj = RiderSystem.processRiderCrash(r.id, r.name, false, state.tier);
+                if (inj) {
+                    if (inj.severity === 'sidelined') {
+                        gameState.addLog(`🏥 MEDICAL ALERT: ${r.name} sustained a ${inj.name} and is SIDELINED for ${inj.racesRemaining} Grand Prix! A reserve test rider will substitute next round.`);
+                    } else {
+                        gameState.addLog(`🩺 MEDICAL UPDATE: ${r.name} sustained ${inj.name} (-${inj.penalty}% pace penalty for ${inj.racesRemaining} race).`);
+                    }
+                }
                 return;
             }
 
@@ -1196,6 +1137,7 @@ export class RaceSystem {
         }
 
         rs.currentGPIndex += 1;
+        RiderSystem.advancePaddockAfterRace(state.tier, rs.currentGPIndex);
         if (rs.currentGPIndex % GP_CALENDAR.length === 0) {
             state.season += 1;
             state.seasonsCompleted = (state.seasonsCompleted || 0) + 1;

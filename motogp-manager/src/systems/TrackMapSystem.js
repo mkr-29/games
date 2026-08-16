@@ -1,7 +1,33 @@
-// TrackMapSystem.js - Authentic 2D Grand Prix Circuit Geometries & Telemetry Splines for All 21 Rounds
+// TrackMapSystem.js - Authentic 2D Grand Prix Circuit Geometries & Telemetry Splines for All 22 Rounds
 
 export const CIRCUIT_GEOMETRIES = {
-    // 1. Qatar - Lusail International Circuit (16 Turns, Clockwise)
+    // 1. Thailand - Chang International Circuit (Buriram) (12 Turns, Clockwise)
+    thailand: {
+        id: 'thailand',
+        name: 'Chang International Circuit (Buriram)',
+        viewBox: '0 0 1020 520',
+        path: 'M 25 470 L 210 80 C 220 60, 245 65, 275 75 L 660 140 C 720 150, 850 170, 950 190 C 985 200, 995 240, 965 260 L 350 170 C 310 170, 280 200, 260 230 L 170 340 C 140 380, 155 425, 205 425 C 245 425, 270 410, 290 375 L 360 270 C 380 260, 420 260, 470 265 L 590 285 C 620 290, 630 310, 630 340 L 640 430 C 640 465, 620 485, 580 485 C 520 450, 450 420, 380 470 L 60 485 C 30 485, 15 485, 25 470 Z',
+        sectors: [0.24, 0.50, 0.75, 1.00],
+        straightZones: [[0.0, 0.08], [0.10, 0.32], [0.85, 0.98]], // Main straight, 1.000km Back Straight (T1-T3), and bottom straight (T11-T12)
+        brakingZones: [0.08, 0.32, 0.48, 0.70, 0.98], // T1, T3 (heaviest), T5, T8, T12 (final hairpin)
+        startFinish: { x: 55, y: 380, angle: -65 },
+        turns: [
+            { num: 1, x: 220, y: 75 },
+            { num: 2, x: 660, y: 140 },
+            { num: 3, x: 975, y: 230 },
+            { num: 4, x: 310, y: 175 },
+            { num: 5, x: 150, y: 390 },
+            { num: 6, x: 255, y: 410 },
+            { num: 7, x: 360, y: 265 },
+            { num: 8, x: 615, y: 305 },
+            { num: 9, x: 625, y: 475 },
+            { num: 10, x: 480, y: 430 },
+            { num: 11, x: 370, y: 475 },
+            { num: 12, x: 30, y: 480 }
+        ]
+    },
+
+    // 2. Qatar - Lusail International Circuit (16 Turns, Clockwise)
     qatar: {
         id: 'qatar',
         name: 'Lusail International Circuit',
@@ -294,6 +320,34 @@ export const CIRCUIT_GEOMETRIES = {
         ]
     },
 
+    // 12. Czech Republic - Automotodrom Brno (14 Turns, Clockwise)
+    brno: {
+        id: 'brno',
+        name: 'Automotodrom Brno',
+        viewBox: '0 0 560 360',
+        path: 'M 180 290 L 420 290 C 455 290, 480 265, 465 235 L 430 180 C 415 155, 430 130, 460 115 L 500 95 C 530 80, 530 45, 495 35 L 390 35 C 355 35, 335 60, 310 85 L 260 135 C 235 160, 205 160, 180 135 L 140 95 C 115 70, 80 80, 70 115 L 60 180 C 50 220, 80 255, 120 265 L 180 290 Z',
+        sectors: [0.25, 0.50, 0.75, 1.00],
+        straightZones: [[0.0, 0.22], [0.45, 0.60]], // Main straight & hillside back straight
+        brakingZones: [0.22, 0.44, 0.70, 0.94],
+        startFinish: { x: 180, y: 290, angle: 0 },
+        turns: [
+            { num: 1, x: 455, y: 285 },
+            { num: 2, x: 465, y: 235 },
+            { num: 3, x: 430, y: 180 },
+            { num: 4, x: 460, y: 115 },
+            { num: 5, x: 515, y: 80 },
+            { num: 6, x: 495, y: 35 },
+            { num: 7, x: 390, y: 35 },
+            { num: 8, x: 310, y: 85 },
+            { num: 9, x: 260, y: 135 },
+            { num: 10, x: 180, y: 135 },
+            { num: 11, x: 140, y: 95 },
+            { num: 12, x: 70, y: 115 },
+            { num: 13, x: 60, y: 180 },
+            { num: 14, x: 120, y: 265 }
+        ]
+    },
+
     // 11. Great Britain - Silverstone Circuit (18 Turns, Clockwise)
     silverstone: {
         id: 'silverstone',
@@ -441,52 +495,88 @@ export const CIRCUIT_GEOMETRIES = {
         ]
     },
 
-    // 16. Kazakhstan - Sokol Racetrack (13 Turns)
-    sokol: {
-        id: 'sokol',
-        name: 'Sokol Racetrack',
-        viewBox: '0 0 500 320',
-        path: 'M 360 280 L 85 280 C 50 280, 35 250, 60 215 C 85 180, 135 190, 165 160 C 195 130, 175 90, 215 60 C 255 30, 335 40, 375 70 C 415 100, 455 80, 470 115 C 485 150, 460 190, 425 205 C 390 220, 400 255, 435 265 C 460 275, 445 280, 405 280 Z',
-        sectors: [0.25, 0.50, 0.75, 1.00],
-        straightZones: [[0.0, 0.24], [0.50, 0.64]],
-        brakingZones: [0.25, 0.48, 0.74, 0.98],
-        startFinish: { x: 360, y: 280, angle: 180 }
-    },
-
-    // 17. Indonesia - Pertamina Mandalika Circuit (17 Turns)
+    // 18. Indonesia - Pertamina Mandalika Circuit (17 Turns, Clockwise)
     mandalika: {
         id: 'mandalika',
         name: 'Pertamina Mandalika Circuit',
-        viewBox: '0 0 500 320',
-        path: 'M 360 280 L 90 280 C 55 280, 40 250, 60 215 C 80 180, 130 190, 160 160 C 190 130, 175 90, 210 65 C 245 40, 310 45, 345 75 C 380 105, 420 85, 440 115 C 460 145, 440 185, 410 200 C 380 215, 390 250, 420 260 C 445 270, 435 280, 395 280 Z',
+        viewBox: '0 0 760 980',
+        path: 'M 300 135 L 640 55 C 665 50, 680 65, 680 90 L 680 235 C 680 255, 665 265, 640 265 L 610 265 C 590 265, 580 280, 580 300 C 580 320, 595 335, 620 350 L 690 410 C 710 425, 715 445, 715 470 L 715 565 C 715 585, 705 605, 685 630 L 615 705 C 595 720, 575 725, 555 725 C 525 725, 505 740, 485 760 L 415 820 L 195 940 C 165 955, 150 940, 150 905 L 150 745 C 150 725, 165 710, 195 700 L 285 660 C 305 650, 315 630, 315 600 L 315 435 C 315 405, 300 385, 275 375 L 190 355 C 160 350, 140 330, 115 295 L 60 180 C 45 155, 45 125, 55 95 L 75 45 C 85 20, 115 20, 125 45 L 125 140 C 125 165, 135 170, 160 165 L 300 135 Z',
         sectors: [0.25, 0.50, 0.75, 1.00],
-        straightZones: [[0.0, 0.23], [0.50, 0.62]],
-        brakingZones: [0.24, 0.48, 0.73, 0.97],
-        startFinish: { x: 360, y: 280, angle: 180 }
+        straightZones: [[0.0, 0.15], [0.55, 0.70]], // 507m Start/Finish Straight & T9-T10 full throttle run
+        brakingZones: [0.15, 0.28, 0.42, 0.68, 0.90, 0.98],
+        startFinish: { x: 300, y: 135, angle: 12 },
+        turns: [
+            { num: 1, x: 670, y: 65 },
+            { num: 2, x: 670, y: 255 },
+            { num: 3, x: 600, y: 265 },
+            { num: 4, x: 580, y: 310 },
+            { num: 5, x: 710, y: 430 },
+            { num: 6, x: 715, y: 575 },
+            { num: 7, x: 605, y: 715 },
+            { num: 8, x: 505, y: 740 },
+            { num: 9, x: 415, y: 820 },
+            { num: 10, x: 165, y: 940 },
+            { num: 11, x: 160, y: 725 },
+            { num: 12, x: 305, y: 650 },
+            { num: 13, x: 305, y: 400 },
+            { num: 14, x: 175, y: 355 },
+            { num: 15, x: 45, y: 165 },
+            { num: 16, x: 100, y: 20 },
+            { num: 17, x: 135, y: 170 }
+        ]
     },
 
-    // 18. Japan - Mobility Resort Motegi (14 Turns)
+    // 17. Japan - Mobility Resort Motegi (14 Turns, Clockwise)
     motegi: {
         id: 'motegi',
         name: 'Mobility Resort Motegi',
-        viewBox: '0 0 500 320',
-        path: 'M 360 280 L 95 280 C 60 280, 45 250, 65 215 C 85 180, 140 195, 170 165 C 195 135, 175 95, 210 70 C 245 45, 310 50, 345 80 C 380 110, 425 90, 445 120 C 465 150, 445 190, 415 205 C 385 220, 395 255, 425 265 C 450 275, 440 280, 400 280 Z',
-        sectors: [0.24, 0.50, 0.76, 1.00],
-        straightZones: [[0.0, 0.22], [0.50, 0.65]], // Downhill bridge straight to Hairpin
-        brakingZones: [0.24, 0.48, 0.72, 0.98],
-        startFinish: { x: 360, y: 280, angle: 180 }
+        viewBox: '0 0 700 440',
+        path: 'M 400 380 L 160 380 C 135 380, 125 365, 125 345 C 125 325, 135 310, 160 310 L 400 285 C 425 285, 440 270, 440 250 C 440 230, 425 215, 395 215 L 155 260 C 125 265, 115 245, 130 220 L 165 170 C 180 150, 210 145, 255 145 L 340 145 C 360 145, 375 130, 375 110 C 375 80, 400 70, 430 75 L 500 110 C 525 125, 545 120, 540 90 L 515 25 C 510 5, 535 5, 540 25 L 625 315 C 630 335, 615 345, 590 345 L 500 345 C 475 345, 455 360, 450 380 Z',
+        sectors: [0.24, 0.49, 0.74, 1.00],
+        straightZones: [[0.0, 0.18], [0.52, 0.74]], // Main straight & 762m downhill back straight to Turn 11
+        brakingZones: [0.18, 0.32, 0.50, 0.74, 0.94], // T1, T3, T5, T11 (heaviest braking zone), T12
+        startFinish: { x: 300, y: 380, angle: 180 },
+        turns: [
+            { num: 1, x: 135, y: 375 },
+            { num: 2, x: 135, y: 320 },
+            { num: 3, x: 425, y: 285 },
+            { num: 4, x: 420, y: 220 },
+            { num: 5, x: 120, y: 250 },
+            { num: 6, x: 175, y: 155 },
+            { num: 7, x: 355, y: 145 },
+            { num: 8, x: 400, y: 75 },
+            { num: 9, x: 535, y: 115 },
+            { num: 10, x: 525, y: 12 },
+            { num: 11, x: 620, y: 335 },
+            { num: 12, x: 505, y: 345 },
+            { num: 13, x: 455, y: 375 }
+        ]
     },
 
-    // 19. Australia - Phillip Island Grand Prix Circuit (12 Turns)
+    // 19. Australia - Phillip Island Grand Prix Circuit (12 Turns, Counter-Clockwise)
     phillip_island: {
         id: 'phillip_island',
         name: 'Phillip Island Grand Prix Circuit',
-        viewBox: '0 0 500 320',
-        path: 'M 370 285 L 80 285 C 45 285, 35 250, 60 215 C 85 180, 140 195, 170 160 C 200 125, 180 80, 220 50 C 260 20, 340 30, 380 60 C 420 90, 460 70, 475 105 C 490 140, 465 180, 430 195 C 395 210, 405 250, 440 260 C 465 270, 450 285, 410 285 Z',
-        sectors: [0.23, 0.50, 0.76, 1.00],
-        straightZones: [[0.0, 0.25], [0.50, 0.65]], // Gardner Straight
-        brakingZones: [0.25, 0.48, 0.72, 0.97],
-        startFinish: { x: 370, y: 285, angle: 180 }
+        viewBox: '0 0 760 500',
+        path: 'M 100 310 L 520 310 C 570 310, 610 330, 630 380 L 655 440 C 675 490, 740 490, 740 430 L 640 260 C 615 240, 540 220, 480 210 L 460 205 C 435 200, 435 180, 460 175 L 570 170 C 600 170, 600 120, 560 110 L 480 90 C 420 95, 360 85, 310 40 C 270 5, 210 20, 160 80 L 150 135 C 145 150, 155 155, 170 145 C 140 100, 70 100, 35 140 L 15 220 C 5 270, 30 310, 100 310 Z',
+        sectors: [0.23, 0.48, 0.74, 1.00],
+        straightZones: [[0.85, 0.12], [0.30, 0.40]], // 900m Gardner Straight & T2-T3 Stoner Sweeper run
+        brakingZones: [0.12, 0.28, 0.46, 0.72], // T1 (Doohan), T4 (Miller Corner), T6 (Siberia), T10 (MG corner)
+        startFinish: { x: 310, y: 310, angle: 0 },
+        turns: [
+            { num: 1, x: 575, y: 335 },
+            { num: 2, x: 710, y: 470 },
+            { num: 3, x: 610, y: 240 },
+            { num: 4, x: 445, y: 190 },
+            { num: 5, x: 520, y: 170 },
+            { num: 6, x: 595, y: 140 },
+            { num: 7, x: 480, y: 90 },
+            { num: 8, x: 380, y: 95 },
+            { num: 9, x: 230, y: 20 },
+            { num: 10, x: 150, y: 150 },
+            { num: 11, x: 75, y: 110 },
+            { num: 12, x: 25, y: 290 }
+        ]
     },
 
     // 20. Malaysia - Sepang International Circuit (15 Turns)

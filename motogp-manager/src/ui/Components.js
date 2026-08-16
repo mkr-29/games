@@ -199,76 +199,152 @@ export class UIComponents {
 
         if (forceRebuild) container.innerHTML = '';
 
+        // Group tech nodes by branch
+        const branches = {};
         TECH_NODES.forEach(tech => {
-            if (this.activeTechCategory !== 'all' && tech.category !== this.activeTechCategory) {
-                const existing = container.querySelector(`[data-tech-id="${tech.id}"]`);
-                if (existing) existing.remove();
-                return;
-            }
+            if (this.activeTechCategory !== 'all' && tech.category !== this.activeTechCategory) return;
+            if (state.tier < tech.unlockedAtTier) return;
 
-            if (state.tier < tech.unlockedAtTier) {
-                const existing = container.querySelector(`[data-tech-id="${tech.id}"]`);
-                if (existing) existing.remove();
-                return;
-            }
+            const bName = tech.branch || 'General Research';
+            if (!branches[bName]) branches[bName] = [];
+            branches[bName].push(tech);
+        });
 
-            const isUnlocked = state.unlockedTech.includes(tech.id);
-            const isAvailable = ResearchSystem.isTechAvailable(tech.id);
-            const canAfford = ResearchSystem.canAfford(tech.id);
+        // Clean up empty branch sections
+        const existingBranchSections = container.querySelectorAll('.tech-branch-section');
+        existingBranchSections.forEach(sec => {
+            const bName = sec.getAttribute('data-branch-name');
+            if (!branches[bName] || branches[bName].length === 0) sec.remove();
+        });
 
-            let costText = [];
-            if (tech.cost.science) costText.push(`${tech.cost.science} RP`);
-            if (tech.cost.parts) costText.push(`${tech.cost.parts} Parts`);
-            if (tech.cost.cash) costText.push(`$${tech.cost.cash}`);
-            if (tech.cost.telemetry) costText.push(`${tech.cost.telemetry} Tel`);
-
-            let card = container.querySelector(`[data-tech-id="${tech.id}"]`);
-            if (!card) {
-                card = document.createElement('div');
-                card.className = `tech-card ${isUnlocked ? 'unlocked' : ''}`;
-                card.setAttribute('data-tech-id', tech.id);
-
-                card.innerHTML = `
-                    <div>
-                        <div class="tech-title">${tech.icon} ${tech.name}</div>
-                        <div class="tech-desc">${tech.desc}</div>
+        // Render each branch
+        Object.entries(branches).forEach(([branchName, nodes]) => {
+            let branchSec = container.querySelector(`[data-branch-name="${CSS.escape(branchName)}"]`);
+            if (!branchSec) {
+                branchSec = document.createElement('div');
+                branchSec.className = 'tech-branch-section';
+                branchSec.setAttribute('data-branch-name', branchName);
+                branchSec.innerHTML = `
+                    <div class="tech-branch-header">
+                        <div class="tech-branch-title">🌿 ${branchName}</div>
+                        <div class="tech-branch-progress">0/0 Upgraded</div>
                     </div>
-                    <div class="tech-footer">
-                        <div class="tech-cost">Cost: ${costText.join(' + ')}</div>
-                        <div class="tech-action"></div>
-                    </div>
+                    <div class="tech-tree-nodes"></div>
                 `;
-
-                container.appendChild(card);
+                container.appendChild(branchSec);
             }
 
-            if (isUnlocked && !card.classList.contains('unlocked')) {
-                card.classList.add('unlocked');
-            }
+            const nodesContainer = branchSec.querySelector('.tech-tree-nodes');
+            const progressEl = branchSec.querySelector('.tech-branch-progress');
 
-            const actionBox = card.querySelector('.tech-action');
-            if (actionBox) {
-                if (isUnlocked) {
-                    if (!actionBox.querySelector('.unlocked-tag')) {
-                        actionBox.innerHTML = `<span class="sub-tag unlocked-tag" style="color:var(--accent-green);">✓ UNLOCKED</span>`;
+            let unlockedCount = 0;
+
+            nodes.sort((a, b) => (a.tierLevel || 1) - (b.tierLevel || 1));
+
+            nodes.forEach(tech => {
+                const isUnlocked = state.unlockedTech.includes(tech.id);
+                if (isUnlocked) unlockedCount++;
+
+                const isAvailable = ResearchSystem.isTechAvailable(tech.id);
+                const canAfford = ResearchSystem.canAfford(tech.id);
+
+                let costText = [];
+                if (tech.cost.science) costText.push(`${tech.cost.science} RP`);
+                if (tech.cost.parts) costText.push(`${tech.cost.parts} Parts`);
+                if (tech.cost.cash) costText.push(`$${tech.cost.cash}`);
+                if (tech.cost.telemetry) costText.push(`${tech.cost.telemetry} Tel`);
+
+                const tierLvl = tech.tierLevel || 1;
+                const tierPillText = tierLvl === 1 ? 'T1 Entry' : (tierLvl === 2 ? 'T2 Advanced' : 'T3 Factory Spec');
+
+                // Prereq text
+                let prereqHtml = '';
+                if (tech.prereq && tech.prereq.length > 0) {
+                    const prereqTech = TECH_NODES.find(t => t.id === tech.prereq[0]);
+                    const prereqName = prereqTech ? prereqTech.name : tech.prereq[0];
+                    const prereqMet = state.unlockedTech.includes(tech.prereq[0]);
+                    if (!prereqMet && !isUnlocked) {
+                        prereqHtml = `<div class="tech-prereq-info">🔗 Requires: ${prereqName}</div>`;
                     }
-                } else {
-                    let btn = actionBox.querySelector('.btn-buy');
-                    if (!btn) {
-                        btn = document.createElement('button');
-                        btn.className = 'btn-buy';
-                        btn.setAttribute('data-tech', tech.id);
-                        btn.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            if (ResearchSystem.unlockTech(tech.id)) {
-                                this.forceRender();
-                            }
-                        });
-                        actionBox.innerHTML = '';
-                        actionBox.appendChild(btn);
+                }
+
+                let card = nodesContainer.querySelector(`[data-tech-id="${tech.id}"]`);
+                if (!card) {
+                    card = document.createElement('div');
+                    card.setAttribute('data-tech-id', tech.id);
+                    card.innerHTML = `
+                        <div>
+                            <div class="tech-card-top">
+                                <span class="tech-tier-pill tier-pill-${tierLvl}">${tierPillText}</span>
+                                <span class="tech-stat-badge">${tech.statBonus || ''}</span>
+                            </div>
+                            <div class="tech-title">${tech.icon} ${tech.name}</div>
+                            <div class="tech-desc">${tech.desc}</div>
+                            <div class="tech-prereq-slot"></div>
+                        </div>
+                        <div class="tech-footer">
+                            <div class="tech-cost">Cost: ${costText.join(' + ')}</div>
+                            <div class="tech-action">
+                                <button class="btn-buy" data-tech="${tech.id}">Upgrade Component</button>
+                            </div>
+                        </div>
+                    `;
+
+                    const btn = card.querySelector('.btn-buy');
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        if (ResearchSystem.unlockTech(tech.id)) {
+                            this.forceRender();
+                        }
+                    });
+
+                    nodesContainer.appendChild(card);
+                }
+
+                const cardClass = `tech-card ${isUnlocked ? 'unlocked' : ''} ${(!isUnlocked && !isAvailable) ? 'locked-prereq' : ''}`.trim();
+                if (card.className !== cardClass) card.className = cardClass;
+
+                const costEl = card.querySelector('.tech-cost');
+                const costStr = `Cost: ${costText.join(' + ')}`;
+                if (costEl && costEl.textContent !== costStr) costEl.textContent = costStr;
+
+                const prereqSlot = card.querySelector('.tech-prereq-slot');
+                if (prereqSlot && prereqSlot.innerHTML !== prereqHtml) prereqSlot.innerHTML = prereqHtml;
+
+                const actionBox = card.querySelector('.tech-action');
+                if (actionBox) {
+                    if (isUnlocked) {
+                        if (!actionBox.querySelector('.unlocked-tag')) {
+                            actionBox.innerHTML = `<span class="sub-tag unlocked-tag" style="color:var(--accent-green); font-weight:700;">✓ UPGRADED</span>`;
+                        }
+                    } else {
+                        let btn = actionBox.querySelector('.btn-buy');
+                        if (!btn) {
+                            btn = document.createElement('button');
+                            btn.className = 'btn-buy';
+                            btn.setAttribute('data-tech', tech.id);
+                            btn.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                if (ResearchSystem.unlockTech(tech.id)) {
+                                    this.forceRender();
+                                }
+                            });
+                            actionBox.innerHTML = '';
+                            actionBox.appendChild(btn);
+                        }
+                        const btnText = isAvailable ? 'Upgrade Component' : 'Locked (Prereqs)';
+                        if (btn.textContent !== btnText) btn.textContent = btnText;
+                        const shouldDisable = !(isAvailable && canAfford);
+                        if (btn.disabled !== shouldDisable) btn.disabled = shouldDisable;
                     }
-                    btn.textContent = isAvailable ? 'Unlock Tech' : 'Locked (Prereqs)';
-                    btn.disabled = !(isAvailable && canAfford);
+                }
+            });
+
+            if (progressEl) {
+                progressEl.textContent = `${unlockedCount}/${nodes.length} Upgraded`;
+                if (unlockedCount === nodes.length) {
+                    progressEl.style.color = 'var(--accent-green)';
+                    progressEl.style.background = 'rgba(0, 230, 118, 0.12)';
                 }
             }
         });
