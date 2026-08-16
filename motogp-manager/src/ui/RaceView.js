@@ -11,10 +11,16 @@ export class RaceView {
             const state = gameState.getState();
             const rs = state.raceState;
 
-            if (rs.stage === 'FP') {
-                RaceSystem.runFreePractice();
-            } else if (rs.stage === 'QP') {
-                RaceSystem.runQualifying();
+            if (rs.stage === 'FP1' || rs.stage === 'FP') {
+                RaceSystem.runFP1();
+            } else if (rs.stage === 'PR') {
+                RaceSystem.runTimedPractice();
+            } else if (rs.stage === 'Q1') {
+                RaceSystem.runQ1();
+            } else if (rs.stage === 'Q2') {
+                RaceSystem.runQ2();
+            } else if (rs.stage === 'SPRINT' && !rs.raceInProgress) {
+                RaceSystem.startSprintRace();
             } else if (rs.stage === 'RACE' && !rs.raceInProgress) {
                 RaceSystem.startGrandPrixRace();
             }
@@ -70,14 +76,21 @@ export class RaceView {
         this.updateText('gp-track-info', `Length: ${gp.lengthKm} km | Focus: ${gp.type.toUpperCase()}${setupStr}${weatherStr}${tireStr}${injuryStr}`);
 
         // Update Weather Label above progress bar
-        this.updateText('race-weather-lbl', `${weatherIcon} • Track Temp: ${rs.trackTempC || 28}°C`);
+        const sessionTag = rs.sessionType === 'SPRINT' ? '⚡ SATURDAY SPRINT' : (rs.stage === 'RACE' ? '🏆 SUNDAY GRAND PRIX' : '⏱️ PRACTICE / QUALIFYING');
+        this.updateText('race-weather-lbl', `${sessionTag} • ${weatherIcon} • ${rs.trackTempC || 28}°C`);
 
         // Stage Steps Active State
         const stepFp = document.getElementById('stage-step-fp');
-        if (stepFp) stepFp.className = `stage-step ${rs.stage === 'FP' ? 'active' : ''}`;
+        if (stepFp) stepFp.className = `stage-step ${(rs.stage === 'FP1' || rs.stage === 'FP') ? 'active' : ''}`;
+
+        const stepPr = document.getElementById('stage-step-pr');
+        if (stepPr) stepPr.className = `stage-step ${rs.stage === 'PR' ? 'active' : ''}`;
 
         const stepQp = document.getElementById('stage-step-qp');
-        if (stepQp) stepQp.className = `stage-step ${rs.stage === 'QP' ? 'active' : ''}`;
+        if (stepQp) stepQp.className = `stage-step ${(rs.stage === 'Q1' || rs.stage === 'Q2') ? 'active' : ''}`;
+
+        const stepSprint = document.getElementById('stage-step-sprint');
+        if (stepSprint) stepSprint.className = `stage-step ${rs.stage === 'SPRINT' ? 'active' : ''}`;
 
         const stepRace = document.getElementById('stage-step-race');
         if (stepRace) stepRace.className = `stage-step ${rs.stage === 'RACE' ? 'active' : ''}`;
@@ -88,24 +101,42 @@ export class RaceView {
         const badgeReady = document.getElementById('race-ready-badge');
 
         if (badgeReady) {
-            badgeReady.style.display = (rs.stage === 'FP' || rs.stage === 'QP') ? 'inline-block' : 'none';
+            badgeReady.style.display = (rs.stage === 'FP1' || rs.stage === 'FP' || rs.stage === 'PR' || rs.stage === 'Q1' || rs.stage === 'Q2') ? 'inline-block' : 'none';
         }
 
         if (btnStage) {
-            if (rs.stage === 'FP') {
+            if (rs.stage === 'FP1' || rs.stage === 'FP') {
                 btnStage.textContent = "🚀 Run Free Practice 1";
                 btnStage.disabled = false;
                 if (stratBox) stratBox.style.display = "none";
-            } else if (rs.stage === 'QP') {
-                btnStage.textContent = "⏱️ Run Qualifying Shootout";
+            } else if (rs.stage === 'PR') {
+                btnStage.textContent = "⏱️ Run Timed Practice (Top 10 Direct Q2 Cut)";
                 btnStage.disabled = false;
                 if (stratBox) stratBox.style.display = "none";
-            } else if (rs.stage === 'RACE') {
+            } else if (rs.stage === 'Q1') {
+                btnStage.textContent = "🔥 Run Q1 Shootout (Top 2 to Q2)";
+                btnStage.disabled = false;
+                if (stratBox) stratBox.style.display = "none";
+            } else if (rs.stage === 'Q2') {
+                btnStage.textContent = "👑 Run Q2 Pole Position Shootout";
+                btnStage.disabled = false;
+                if (stratBox) stratBox.style.display = "none";
+            } else if (rs.stage === 'SPRINT') {
                 if (rs.raceInProgress) {
-                    btnStage.textContent = "🏎️ Race in Progress...";
+                    btnStage.textContent = "⚡ Saturday Sprint in Progress...";
                     btnStage.disabled = true;
                 } else {
-                    btnStage.textContent = `🏁 Start Grand Prix (Grid P${rs.qpGridPosition || 1})`;
+                    const sprintLaps = Math.max(4, Math.floor(gp.laps / 2));
+                    btnStage.textContent = `⚡ Start Saturday Sprint (${sprintLaps} Laps | Grid P${rs.qpGridPosition || 1})`;
+                    btnStage.disabled = false;
+                }
+                if (stratBox) stratBox.style.display = "block";
+            } else if (rs.stage === 'RACE') {
+                if (rs.raceInProgress) {
+                    btnStage.textContent = "🏆 Grand Prix in Progress...";
+                    btnStage.disabled = true;
+                } else {
+                    btnStage.textContent = `🏁 Start Sunday Grand Prix (${gp.laps} Laps | Grid P${rs.qpGridPosition || 1})`;
                     btnStage.disabled = false;
                 }
                 if (stratBox) stratBox.style.display = "block";
@@ -138,7 +169,8 @@ export class RaceView {
         this.renderPitWallIncident(rs);
 
         // Live Lap Counter & Fill Bar
-        this.updateText('race-lap-counter', `Lap ${rs.currentLap} / ${gp.laps}`);
+        const maxLaps = rs.sessionType === 'SPRINT' ? Math.max(4, Math.floor(gp.laps / 2)) : gp.laps;
+        this.updateText('race-lap-counter', `Lap ${rs.currentLap} / ${maxLaps}`);
         const fillBar = document.getElementById('race-lap-fill');
         if (fillBar) fillBar.style.width = `${rs.trackProgress}%`;
 
@@ -280,7 +312,7 @@ export class RaceView {
         } else {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" class="empty-state">No telemetry recorded yet. Complete Free Practice & Qualifying to generate grid telemetry.</td>
+                    <td colspan="11" class="empty-state">No telemetry recorded yet. Run FP1 & Timed Practice to generate grid data.</td>
                 </tr>
             `;
         }
@@ -366,6 +398,7 @@ export class RaceView {
                         <td class="cell-team">${r.team}</td>
                         <td class="cell-pts" style="font-weight:700; color:var(--accent-gold);">${r.points} PTS</td>
                         <td class="cell-wins">${r.wins}</td>
+                        <td class="cell-sprints">${r.sprintWins || 0}</td>
                         <td class="cell-podiums">${r.podiums}</td>
                         <td class="cell-fls">${r.fastestLaps || 0}</td>
                     `;
@@ -385,6 +418,9 @@ export class RaceView {
                 const winsCell = row.querySelector('.cell-wins');
                 if (winsCell && winsCell.textContent !== String(r.wins)) winsCell.textContent = String(r.wins);
 
+                const sprintsCell = row.querySelector('.cell-sprints');
+                if (sprintsCell && sprintsCell.textContent !== String(r.sprintWins || 0)) sprintsCell.textContent = String(r.sprintWins || 0);
+
                 const podCell = row.querySelector('.cell-podiums');
                 if (podCell && podCell.textContent !== String(r.podiums)) podCell.textContent = String(r.podiums);
 
@@ -394,7 +430,7 @@ export class RaceView {
         } else {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="empty-state">No championship points recorded yet. Complete races to earn World Championship points.</td>
+                    <td colspan="8" class="empty-state">No championship points recorded yet. Complete races to earn World Championship points.</td>
                 </tr>
             `;
         }

@@ -596,48 +596,67 @@ body {
 .race-stage-flow {
     display: flex;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     margin: 8px 0;
+    overflow-x: auto;
 }
 
 .stage-step {
     flex: 1;
+    min-width: 90px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border-card);
     border-radius: var(--radius-sm);
-    padding: 8px;
+    padding: 6px 8px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     opacity: 0.5;
+    transition: var(--transition);
 }
 
 .stage-step.active {
     opacity: 1;
     border-color: var(--accent-cyan);
-    background: rgba(0, 210, 255, 0.08);
+    background: rgba(0, 210, 255, 0.10);
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.15);
+}
+
+#stage-step-sprint.active {
+    border-color: var(--accent-gold);
+    background: rgba(255, 183, 0, 0.12);
+    box-shadow: 0 0 12px rgba(255, 183, 0, 0.2);
+}
+
+#stage-step-race.active {
+    border-color: var(--primary-red);
+    background: rgba(225, 6, 0, 0.15);
+    box-shadow: 0 0 12px var(--primary-red-glow);
 }
 
 .step-num {
     background: rgba(255, 255, 255, 0.1);
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: 0.70rem;
+    flex-shrink: 0;
 }
 
 .step-text strong {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
 }
 
 .step-text small {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     color: var(--text-muted);
+    white-space: nowrap;
 }
 
 /* Strategy Buttons */

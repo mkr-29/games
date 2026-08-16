@@ -1,10 +1,9 @@
-// RaceSystem.js - Official 2026 Grand Prix Calendar, Moto3/Moto2/MotoGP Grid & Dynamic Physics Engine
+// RaceSystem.js - Official 2026 Grand Prix Weekend Format (FP1, Timed Practice, Q1/Q2 Shootouts, Sprint Race & Grand Prix)
 
 import { gameState } from '../engine/GameState.js';
 import { BikeSystem } from './BikeSystem.js';
 
 // Official 2026 FIM MotoGP™ World Championship Calendar (21 Rounds)
-// baseSec is benchmark MotoGP dry flying lap time in seconds
 export const GP_CALENDAR = [
     { id: 'qatar', title: "Qatar Grand Prix (Lusail)", flag: "🇶🇦", lengthKm: 5.380, type: "High Speed & Night Straight", favors: "hp", laps: 12, baseSec: 108.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
     { id: 'portugal', title: "Portuguese Grand Prix (Portimão)", flag: "🇵🇹", lengthKm: 4.592, type: "Elevation Rollercoaster", favors: "chassis", laps: 12, baseSec: 98.4, sectorRatios: [0.25, 0.25, 0.26, 0.24] },
@@ -29,7 +28,7 @@ export const GP_CALENDAR = [
     { id: 'valencia', title: "Gran Premio de Valencia (Finale)", flag: "🇪🇸", lengthKm: 4.005, type: "Tight Stadium Arena Finale", favors: "chassis", laps: 12, baseSec: 89.9, sectorRatios: [0.24, 0.26, 0.25, 0.25] }
 ];
 
-// Tire Compound Specs & Characteristics
+// Tire Compound Specs
 export const TIRE_COMPOUNDS = {
     soft: {
         id: 'soft',
@@ -37,7 +36,7 @@ export const TIRE_COMPOUNDS = {
         shortName: 'SOFT',
         badge: 'S',
         color: '#ff334b',
-        paceDelta: -0.35, // 0.35s faster initially
+        paceDelta: -0.35,
         wearRate: 7.5,
         cliffWear: 28
     },
@@ -47,7 +46,7 @@ export const TIRE_COMPOUNDS = {
         shortName: 'MED',
         badge: 'M',
         color: '#ffb700',
-        paceDelta: 0.00, // baseline
+        paceDelta: 0.00,
         wearRate: 4.5,
         cliffWear: 22
     },
@@ -57,7 +56,7 @@ export const TIRE_COMPOUNDS = {
         shortName: 'HARD',
         badge: 'H',
         color: '#e0e0e0',
-        paceDelta: 0.28, // 0.28s slower initially, but resilient
+        paceDelta: 0.28,
         wearRate: 2.6,
         cliffWear: 18
     },
@@ -67,7 +66,7 @@ export const TIRE_COMPOUNDS = {
         shortName: 'WET',
         badge: 'W',
         color: '#00d2ff',
-        paceDelta: 4.20, // Rain baseline pace
+        paceDelta: 4.20,
         wearRate: 3.8,
         cliffWear: 20
     }
@@ -144,9 +143,9 @@ export class RaceSystem {
     }
 
     static getTierSpeedMultiplier(tier) {
-        if (tier === 1 || tier === 2) return 1.080; // Moto3 ~7-8s slower than MotoGP
-        if (tier === 3) return 1.035; // Moto2 ~3-4s slower than MotoGP
-        return 1.000; // MotoGP Premier Class
+        if (tier === 1 || tier === 2) return 1.080;
+        if (tier === 3) return 1.035;
+        return 1.000;
     }
 
     static formatLapTime(lapSec) {
@@ -173,6 +172,7 @@ export class RaceSystem {
                 isUser: false,
                 points: 0,
                 wins: 0,
+                sprintWins: 0,
                 podiums: 0,
                 fastestLaps: 0
             }));
@@ -183,6 +183,7 @@ export class RaceSystem {
                 isUser: true,
                 points: 0,
                 wins: 0,
+                sprintWins: 0,
                 podiums: 0,
                 fastestLaps: 0
             });
@@ -192,10 +193,13 @@ export class RaceSystem {
         }
     }
 
-    static runFreePractice() {
+    // ==========================================
+    // 1. FREE PRACTICE 1 (FP1)
+    // ==========================================
+    static runFP1() {
         const state = gameState.getState();
         const rs = state.raceState;
-        if (rs.stage !== 'FP') return false;
+        if (rs.stage !== 'FP1' && rs.stage !== 'FP') return false;
 
         this.initChampionshipStandings();
 
@@ -209,7 +213,7 @@ export class RaceSystem {
         state.science = Math.min(state.scienceMax, state.science + 12);
 
         rs.fpCompleted = true;
-        rs.stage = 'QP';
+        rs.stage = 'PR'; // Advance to Timed Practice
 
         gameState.addLog(`🏁 Free Practice 1 Complete at ${gp.title}! Setup Dialed In: ${setupMatch}%. Telemetry +35, RP +12.`);
         return true;
@@ -222,19 +226,37 @@ export class RaceSystem {
         return { min: 86, max: 98 };
     }
 
-    static runQualifying() {
+    static simulateHotLap(score, consistency = 75, baseTrackSec, sectorRatios) {
+        const paceOffset = (92 - score) * (baseTrackSec * 0.0018);
+        let bestLap = 999;
+        let bestSectors = [];
+
+        for (let lap = 1; lap <= 3; lap++) {
+            const variance = ((Math.random() - 0.5) * 2) * ((105 - consistency) * 0.006);
+            const lapSec = baseTrackSec + paceOffset + variance;
+            if (lapSec < bestLap) {
+                bestLap = lapSec;
+                const s1 = bestLap * sectorRatios[0] + (Math.random() * 0.1 - 0.05);
+                const s2 = bestLap * sectorRatios[1] + (Math.random() * 0.1 - 0.05);
+                const s3 = bestLap * sectorRatios[2] + (Math.random() * 0.1 - 0.05);
+                const s4 = bestLap - (s1 + s2 + s3);
+                bestSectors = [s1, s2, s3, s4];
+            }
+        }
+        return { bestLap, bestSectors };
+    }
+
+    // ==========================================
+    // 2. TIMED PRACTICE (PR - Decides Direct Q2 Cut)
+    // ==========================================
+    static runTimedPractice() {
         const state = gameState.getState();
         const rs = state.raceState;
-        if (rs.stage !== 'QP') return false;
-
-        this.initChampionshipStandings();
+        if (rs.stage !== 'PR') return false;
 
         const bikeStats = BikeSystem.getBikeStats();
         let riderSkill = state.rider.overallSkill;
-
-        if (state.rider.injury) {
-            riderSkill = Math.max(20, riderSkill - state.rider.injury.penalty);
-        }
+        if (state.rider.injury) riderSkill = Math.max(20, riderSkill - state.rider.injury.penalty);
 
         const gp = this.getCurrentGP();
         const tierMult = this.getTierSpeedMultiplier(state.tier);
@@ -252,34 +274,12 @@ export class RaceSystem {
         const aiRange = this.getAISkillRange(state.tier);
         const tierRiders = this.getTierRiders(state.tier);
 
-        // Simulate 3 hot laps for each rider to find their optimal pole lap
-        const calculateHotLap = (score, consistency = 75) => {
-            const paceOffset = (92 - score) * (baseTrackSec * 0.0018);
-            let bestLap = 999;
-            let bestSectors = [];
-
-            for (let lap = 1; lap <= 3; lap++) {
-                const variance = ((Math.random() - 0.5) * 2) * ((105 - consistency) * 0.006);
-                const lapSec = baseTrackSec + paceOffset + variance;
-                if (lapSec < bestLap) {
-                    bestLap = lapSec;
-                    // Sector splits
-                    const s1 = bestLap * gp.sectorRatios[0] + (Math.random() * 0.1 - 0.05);
-                    const s2 = bestLap * gp.sectorRatios[1] + (Math.random() * 0.1 - 0.05);
-                    const s3 = bestLap * gp.sectorRatios[2] + (Math.random() * 0.1 - 0.05);
-                    const s4 = bestLap - (s1 + s2 + s3);
-                    bestSectors = [s1, s2, s3, s4];
-                }
-            }
-            return { bestLap, bestSectors };
-        };
-
-        const grid = tierRiders.map((ai, idx) => {
+        const practiceList = tierRiders.map((ai, idx) => {
             const rangeSpan = aiRange.max - aiRange.min;
             const rankRatio = (tierRiders.length - idx) / tierRiders.length;
             const aiScore = aiRange.min + (rankRatio * rangeSpan) + (Math.random() * 3 - 1.5);
             const aiConsistency = 70 + Math.floor(rankRatio * 20);
-            const { bestLap, bestSectors } = calculateHotLap(aiScore, aiConsistency);
+            const { bestLap, bestSectors } = this.simulateHotLap(aiScore, aiConsistency, baseTrackSec, gp.sectorRatios);
 
             return {
                 name: ai.name,
@@ -287,51 +287,189 @@ export class RaceSystem {
                 isUser: false,
                 score: aiScore,
                 consistency: aiConsistency,
-                qualifyingLapSec: bestLap,
-                qualifyingSectors: bestSectors,
+                bestLapSec: bestLap,
+                lastLapSec: bestLap,
+                lastLapStr: this.formatLapTime(bestLap),
+                bestLapStr: this.formatLapTime(bestLap),
+                lastSectors: bestSectors,
+                lastSectorColors: ['yellow', 'yellow', 'yellow', 'yellow'],
+                personalBestSectors: [...bestSectors],
                 dnf: false
             };
         });
 
         const userConsistency = state.rider.consistency || 65;
-        const { bestLap: userBestLap, bestSectors: userBestSectors } = calculateHotLap(userScore, userConsistency);
+        const { bestLap: userBestLap, bestSectors: userBestSectors } = this.simulateHotLap(userScore, userConsistency, baseTrackSec, gp.sectorRatios);
 
-        grid.push({
+        practiceList.push({
             name: state.rider.name,
             team: "Your Team",
             isUser: true,
             score: userScore,
             consistency: userConsistency,
-            qualifyingLapSec: userBestLap,
-            qualifyingSectors: userBestSectors,
+            bestLapSec: userBestLap,
+            lastLapSec: userBestLap,
+            lastLapStr: this.formatLapTime(userBestLap),
+            bestLapStr: this.formatLapTime(userBestLap),
+            lastSectors: userBestSectors,
+            lastSectorColors: ['yellow', 'yellow', 'yellow', 'yellow'],
+            personalBestSectors: [...userBestSectors],
             dnf: false
         });
 
-        // Sort grid by fastest qualifying lap time
-        grid.sort((a, b) => a.qualifyingLapSec - b.qualifyingLapSec);
+        // Sort by fastest practice lap
+        practiceList.sort((a, b) => a.bestLapSec - b.bestLapSec);
 
-        const poleTime = grid[0].qualifyingLapSec;
-        grid.forEach((r, idx) => {
-            r.gridPosition = idx + 1;
-            r.gapSeconds = idx === 0 ? 0 : r.qualifyingLapSec - poleTime;
-            r.lapTimeStr = this.formatLapTime(r.qualifyingLapSec);
-            r.bestLapSec = r.qualifyingLapSec;
-            r.bestLapStr = r.lapTimeStr;
-            r.lastLapSec = r.qualifyingLapSec;
-            r.lastLapStr = r.lapTimeStr;
-            r.lastSectors = r.qualifyingSectors;
+        const practiceLeader = practiceList[0].bestLapSec;
+        practiceList.forEach((r, idx) => {
+            r.gapSeconds = idx === 0 ? 0 : r.bestLapSec - practiceLeader;
+            r.intervalSeconds = idx === 0 ? 0 : r.bestLapSec - practiceList[idx - 1].bestLapSec;
+        });
+
+        rs.leaderboard = practiceList;
+
+        // Top 10 advance directly to Q2, Bottom 6 go to Q1
+        const top10 = practiceList.slice(0, 10);
+        const bottom6 = practiceList.slice(10);
+
+        rs.q2DirectRiders = top10;
+        rs.q1Riders = bottom6;
+
+        const userPos = practiceList.findIndex(r => r.isUser) + 1;
+        rs.directQ2 = userPos <= 10;
+        rs.practiceCompleted = true;
+        rs.stage = 'Q1';
+
+        if (rs.directQ2) {
+            gameState.addLog(`🌟 TIMED PRACTICE SUCCESS: ${state.rider.name} finished P${userPos} and qualified DIRECTLY into Q2! (Time: ${this.formatLapTime(userBestLap)})`);
+        } else {
+            gameState.addLog(`⚠️ TIMED PRACTICE: ${state.rider.name} finished P${userPos}. Must fight in Q1 Shootout for top 2 spots into Q2!`);
+        }
+
+        return true;
+    }
+
+    // ==========================================
+    // 3. QUALIFYING 1 (Q1 Shootout)
+    // ==========================================
+    static runQ1() {
+        const state = gameState.getState();
+        const rs = state.raceState;
+        if (rs.stage !== 'Q1') return false;
+
+        const gp = this.getCurrentGP();
+        const tierMult = this.getTierSpeedMultiplier(state.tier);
+        const baseTrackSec = gp.baseSec * tierMult;
+
+        const q1Grid = rs.q1Riders || rs.leaderboard.slice(10);
+
+        // Run Q1 shootout for the bottom riders
+        q1Grid.forEach(r => {
+            const { bestLap, bestSectors } = this.simulateHotLap(r.score, r.consistency, baseTrackSec, gp.sectorRatios);
+            r.q1LapSec = bestLap;
+            r.q1Sectors = bestSectors;
+            r.lastLapSec = bestLap;
+            r.lastLapStr = this.formatLapTime(bestLap);
+            r.bestLapSec = bestLap;
+            r.bestLapStr = r.lastLapStr;
+            r.lapTimeStr = r.lastLapStr;
+            r.lastSectors = bestSectors;
             r.lastSectorColors = ['yellow', 'yellow', 'yellow', 'yellow'];
-            r.personalBestSectors = [...r.qualifyingSectors];
+            r.personalBestSectors = [...bestSectors];
+        });
+
+        q1Grid.sort((a, b) => a.q1LapSec - b.q1LapSec);
+
+        const q1Leader = q1Grid[0].q1LapSec;
+        q1Grid.forEach((r, idx) => {
+            r.gapSeconds = idx === 0 ? 0 : r.q1LapSec - q1Leader;
+            r.lapTimeStr = this.formatLapTime(r.q1LapSec);
+        });
+
+        // Top 2 promote into Q2
+        const q1Graduates = q1Grid.slice(0, 2);
+        const q1Eliminated = q1Grid.slice(2); // Locked into P13–P16 on grid
+
+        rs.q1Graduates = q1Graduates;
+        rs.q1Eliminated = q1Eliminated; // Grid positions P13, P14, P15, P16
+        rs.q1Completed = true;
+        rs.stage = 'Q2';
+
+        // Set leaderboard to display Q1 classification
+        rs.leaderboard = q1Grid;
+
+        const userInQ1 = q1Grid.find(r => r.isUser);
+        if (userInQ1) {
+            const q1Pos = q1Grid.indexOf(userInQ1) + 1;
+            if (q1Pos <= 2) {
+                gameState.addLog(`🔥 Q1 GRADUATION! ${state.rider.name} finished P${q1Pos} in Q1 and advanced to Q2! (Time: ${this.formatLapTime(userInQ1.q1LapSec)})`);
+            } else {
+                const finalGridPos = 12 + q1Pos;
+                gameState.addLog(`⏱️ Q1 COMPLETE: ${state.rider.name} knocked out in Q1 (P${q1Pos}). Starting grid locked at P${finalGridPos}.`);
+            }
+        } else {
+            gameState.addLog(`⏱️ Q1 Shootout finished! ${q1Graduates[0].name} (${q1Graduates[0].lapTimeStr}) and ${q1Graduates[1].name} (${q1Graduates[1].lapTimeStr}) graduated to Q2.`);
+        }
+
+        return true;
+    }
+
+    // ==========================================
+    // 4. QUALIFYING 2 (Q2 Pole Position Shootout)
+    // ==========================================
+    static runQ2() {
+        const state = gameState.getState();
+        const rs = state.raceState;
+        if (rs.stage !== 'Q2') return false;
+
+        const gp = this.getCurrentGP();
+        const tierMult = this.getTierSpeedMultiplier(state.tier);
+        const baseTrackSec = gp.baseSec * tierMult;
+
+        // 12 Q2 Contenders: 10 from Practice + 2 from Q1
+        const direct10 = rs.q2DirectRiders || rs.leaderboard.slice(0, 10);
+        const grad2 = rs.q1Graduates || [];
+        const q2List = [...direct10, ...grad2];
+
+        q2List.forEach(r => {
+            const { bestLap, bestSectors } = this.simulateHotLap(r.score, r.consistency, baseTrackSec, gp.sectorRatios);
+            r.q2LapSec = bestLap;
+            r.q2Sectors = bestSectors;
+            r.bestLapSec = bestLap;
+            r.bestLapStr = this.formatLapTime(bestLap);
+            r.lastLapSec = bestLap;
+            r.lastLapStr = r.bestLapStr;
+            r.lapTimeStr = r.bestLapStr;
+            r.lastSectors = bestSectors;
+            r.lastSectorColors = ['yellow', 'yellow', 'yellow', 'yellow'];
+            r.personalBestSectors = [...bestSectors];
+        });
+
+        q2List.sort((a, b) => a.q2LapSec - b.q2LapSec);
+
+        // Combine Q2 top 12 with locked Q1 bottom 4 (16 total riders)
+        const lockedBottom4 = rs.q1Eliminated || [];
+        const finalGrid = [...q2List, ...lockedBottom4];
+
+        const poleTime = q2List[0].q2LapSec;
+        finalGrid.forEach((r, idx) => {
+            r.gridPosition = idx + 1;
+            const lapSec = r.q2LapSec || r.q1LapSec || r.bestLapSec;
+            r.gapSeconds = idx === 0 ? 0 : lapSec - poleTime;
+            r.lapTimeStr = this.formatLapTime(lapSec);
             r.accumulatedRaceTime = 0;
             r.tireCondition = 100;
         });
 
-        const userPos = grid.findIndex(r => r.isUser) + 1;
+        rs.grid = finalGrid;
+        rs.leaderboard = finalGrid;
+        const userPos = finalGrid.findIndex(r => r.isUser) + 1;
         rs.qpGridPosition = userPos;
-        rs.stage = 'RACE';
-        rs.leaderboard = grid;
+        rs.q2Completed = true;
+        rs.stage = 'SPRINT'; // Next stage is Saturday Sprint Race
 
-        gameState.addLog(`⏱️ Qualifying Shootout complete! ${state.rider.name} locked in P${userPos} on the grid! (Pole time: ${this.formatLapTime(poleTime)}, Gap: +${(userBestLap - poleTime).toFixed(3)}s)`);
+        const poleRider = finalGrid[0];
+        gameState.addLog(`👑 POLE POSITION! ${poleRider.name} takes POLE with ${this.formatLapTime(poleTime)}! ${state.rider.name} starts P${userPos} for both Sprint & Grand Prix!`);
         return true;
     }
 
@@ -343,11 +481,44 @@ export class RaceSystem {
         gameState.addLog(`🛞 Tire compound selected: ${TIRE_COMPOUNDS[compoundId].name} (${TIRE_COMPOUNDS[compoundId].badge})`);
     }
 
+    // ==========================================
+    // 5. SATURDAY SPRINT RACE (50% Distance & Points)
+    // ==========================================
+    static startSprintRace() {
+        const state = gameState.getState();
+        const rs = state.raceState;
+        if (rs.stage !== 'SPRINT' || rs.raceInProgress) return false;
+
+        rs.sessionType = 'SPRINT';
+        rs.raceInProgress = true;
+        rs.currentLap = 1;
+        rs.trackProgress = 0;
+        rs.weather = (Math.random() < 0.20) ? "wet" : "dry";
+        rs.trackTempC = rs.weather === 'wet' ? 20 : Math.floor(27 + Math.random() * 10);
+        rs.tireCondition = 100;
+        rs.activeIncident = null;
+        rs.lapHistory = [];
+        rs.fastestLap = null;
+        rs.sessionFastestSectors = [999, 999, 999, 999];
+
+        const gp = this.getCurrentGP();
+        rs.totalLaps = Math.max(4, Math.floor(gp.laps / 2)); // 50% Distance
+
+        this.prepareGridRidersForRace(rs);
+
+        gameState.addLog(`⚡ LIGHTS OUT! Saturday Sprint Race underway at ${gp.title} (${rs.totalLaps} Laps, Flat-Out Sprint Pace)!`);
+        return true;
+    }
+
+    // ==========================================
+    // 6. SUNDAY MAIN GRAND PRIX (100% Distance)
+    // ==========================================
     static startGrandPrixRace() {
         const state = gameState.getState();
         const rs = state.raceState;
         if (rs.stage !== 'RACE' || rs.raceInProgress) return false;
 
+        rs.sessionType = 'RACE';
         rs.raceInProgress = true;
         rs.currentLap = 1;
         rs.trackProgress = 0;
@@ -359,7 +530,16 @@ export class RaceSystem {
         rs.fastestLap = null;
         rs.sessionFastestSectors = [999, 999, 999, 999];
 
-        // Ensure proper tire choice for weather
+        const gp = this.getCurrentGP();
+        rs.totalLaps = gp.laps; // 100% Distance
+
+        this.prepareGridRidersForRace(rs);
+
+        gameState.addLog(`🏆 LIGHTS OUT! Sunday Grand Prix Race underway at ${gp.title} (${rs.totalLaps} Laps)!`);
+        return true;
+    }
+
+    static prepareGridRidersForRace(rs) {
         if (rs.weather === 'wet' && rs.tireCompound !== 'wet') {
             rs.tireCompound = 'wet';
             rs.tireType = 'wet';
@@ -368,41 +548,35 @@ export class RaceSystem {
             rs.tireType = 'slicks';
         }
 
-        const gp = this.getCurrentGP();
-        rs.totalLaps = gp.laps;
+        const sourceGrid = rs.grid && rs.grid.length > 0 ? rs.grid : rs.leaderboard;
+        const dryCompounds = ['medium', 'medium', 'soft', 'hard'];
 
-        if (rs.leaderboard && rs.leaderboard.length > 0) {
-            const dryCompounds = ['medium', 'medium', 'soft', 'hard'];
-            rs.leaderboard.forEach((r, idx) => {
-                r.dnf = false;
-                r.accumulatedRaceTime = 0;
-                r.lastLapSec = 0;
-                r.lastLapStr = '--:--.---';
-                r.bestLapSec = 999;
-                r.bestLapStr = '--:--.---';
-                r.lastSectors = [0, 0, 0, 0];
-                r.lastSectorColors = ['yellow', 'yellow', 'yellow', 'yellow'];
-                r.personalBestSectors = [999, 999, 999, 999];
-                r.tireCondition = 100;
+        rs.leaderboard = sourceGrid.map((r, idx) => {
+            const riderCopy = { ...r };
+            riderCopy.dnf = false;
+            riderCopy.accumulatedRaceTime = 0;
+            riderCopy.lastLapSec = 0;
+            riderCopy.lastLapStr = '--:--.---';
+            riderCopy.bestLapSec = 999;
+            riderCopy.bestLapStr = '--:--.---';
+            riderCopy.lastSectors = [0, 0, 0, 0];
+            riderCopy.lastSectorColors = ['yellow', 'yellow', 'yellow', 'yellow'];
+            riderCopy.personalBestSectors = [999, 999, 999, 999];
+            riderCopy.tireCondition = 100;
 
-                // AI Compound selection
-                if (!r.isUser) {
-                    if (rs.weather === 'wet') {
-                        r.tireCompound = 'wet';
-                    } else {
-                        r.tireCompound = dryCompounds[Math.floor(Math.random() * dryCompounds.length)];
-                    }
+            if (!riderCopy.isUser) {
+                if (rs.weather === 'wet') {
+                    riderCopy.tireCompound = 'wet';
                 } else {
-                    r.tireCompound = rs.tireCompound;
+                    riderCopy.tireCompound = (rs.sessionType === 'SPRINT' && Math.random() < 0.5) ? 'soft' : dryCompounds[Math.floor(Math.random() * dryCompounds.length)];
                 }
+            } else {
+                riderCopy.tireCompound = rs.tireCompound;
+            }
 
-                // Grid start gap staggered
-                r.gapSeconds = idx === 0 ? 0 : idx * 0.05;
-            });
-        }
-
-        gameState.addLog(`🚀 LIGHTS OUT AND AWAY WE GO! Grand Prix Race underway at ${gp.title} (${rs.weather.toUpperCase()} track, ${rs.trackTempC}°C)!`);
-        return true;
+            riderCopy.gapSeconds = idx === 0 ? 0 : idx * 0.05;
+            return riderCopy;
+        });
     }
 
     static setStrategy(strategy) {
@@ -427,7 +601,7 @@ export class RaceSystem {
             if (userRider) {
                 userRider.tireCompound = 'wet';
                 userRider.tireCondition = 100;
-                userRider.accumulatedRaceTime += 18.5; // Pit lane transit time
+                userRider.accumulatedRaceTime += 18.5;
             }
             gameState.addLog(`🛠️ BOX BOX! Switched to WET Michelin tires (+18.5s pit lane transit). Full rain grip restored!`);
         } else if (choiceAction === 'stay_slicks') {
@@ -448,8 +622,7 @@ export class RaceSystem {
 
         if (!rs.raceInProgress) return;
 
-        // Base visual progress speed across the lap bar
-        let lapProgressRate = 18.0; // ~5.5s per simulated lap
+        let lapProgressRate = rs.sessionType === 'SPRINT' ? 22.0 : 18.0;
         if (rs.strategy === 'push') lapProgressRate *= 1.12;
         if (rs.strategy === 'conserve') lapProgressRate *= 0.90;
 
@@ -457,17 +630,19 @@ export class RaceSystem {
             lapProgressRate *= 0.65;
         }
 
-        const prevProgress = rs.trackProgress;
         rs.trackProgress += lapProgressRate * delta;
 
-        // Check if full lap completed
         if (rs.trackProgress >= 100) {
             rs.trackProgress = 0;
             this.simulateCompletedLap();
 
             rs.currentLap += 1;
             if (rs.currentLap > rs.totalLaps) {
-                this.finishRace();
+                if (rs.sessionType === 'SPRINT') {
+                    this.finishSprintRace();
+                } else {
+                    this.finishRace();
+                }
             } else {
                 this.processMidRaceIncidents();
             }
@@ -491,17 +666,12 @@ export class RaceSystem {
             userSkill = Math.max(20, userSkill - state.rider.injury.penalty);
         }
 
-        // Track evolution: rubber builds up (-0.15s to -0.30s by mid-race)
         const trackEvolution = -Math.min(0.25, (currentLap / totalLaps) * 0.25);
+        const fuelWeightDelta = ((totalLaps - currentLap + 1) / totalLaps) * (rs.sessionType === 'SPRINT' ? 0.40 : 0.75);
 
-        // Fuel burn: starts at +0.75s heavy, sheds ~0.06s per lap
-        const fuelWeightDelta = ((totalLaps - currentLap + 1) / totalLaps) * 0.75;
-
-        // Lap-by-lap simulation for each active rider
         rs.leaderboard.forEach(r => {
             if (r.dnf) return;
 
-            // 1. Performance Base
             let riderScore = r.score;
             let consistency = r.consistency || 70;
             let strategy = r.isUser ? rs.strategy : (Math.random() < 0.2 ? 'push' : (Math.random() < 0.15 ? 'conserve' : 'balanced'));
@@ -519,11 +689,10 @@ export class RaceSystem {
                 consistency = state.rider.consistency || 65;
             }
 
-            // 2. Base Pace from performance score
             const paceOffset = (92 - riderScore) * (baseBenchmarkSec * 0.0016);
             let lapPace = baseBenchmarkSec + paceOffset + trackEvolution + fuelWeightDelta;
 
-            // 3. Lap 1 Standing Start & T1 Congestion
+            // Lap 1 Standing Start
             if (currentLap === 1) {
                 const gridRank = r.gridPosition || 10;
                 const launchSkill = r.isUser ? (state.rider.braking || 60) : 75;
@@ -531,60 +700,55 @@ export class RaceSystem {
                 lapPace += startPenalty;
             }
 
-            // 4. Tire Degradation Curve
+            // Tire Wear
             let wearMult = 1.0;
             if (strategy === 'push') wearMult = 1.75;
             if (strategy === 'conserve') wearMult = 0.55;
 
-            // Decrement tire condition
             const lapWear = (compoundDef.wearRate * wearMult) * (12 / totalLaps);
             r.tireCondition = Math.max(0, (r.tireCondition || 100) - lapWear);
             if (r.isUser) rs.tireCondition = r.tireCondition;
 
-            // Tire wear pace penalty (non-linear drop)
             let tirePaceLoss = 0;
             if (r.tireCondition < 75 && r.tireCondition >= 45) {
                 tirePaceLoss = ((75 - r.tireCondition) / 30) * 0.35;
             } else if (r.tireCondition < 45 && r.tireCondition >= compoundDef.cliffWear) {
                 tirePaceLoss = 0.35 + (((45 - r.tireCondition) / (45 - compoundDef.cliffWear)) * 0.65);
             } else if (r.tireCondition < compoundDef.cliffWear) {
-                // The cliff: severe degradation
                 const cliffDepth = (compoundDef.cliffWear - r.tireCondition) / compoundDef.cliffWear;
                 tirePaceLoss = 1.00 + (Math.pow(cliffDepth, 1.8) * 2.2);
             }
 
             lapPace += (compoundDef.paceDelta + tirePaceLoss);
 
-            // 5. Engine Map / Push Strategy
-            if (strategy === 'push') lapPace -= 0.52;
+            // Strategy power delta
+            if (strategy === 'push') lapPace -= (rs.sessionType === 'SPRINT' ? 0.58 : 0.52);
             if (strategy === 'conserve') lapPace += 0.44;
 
-            // 6. Weather Penalty
+            // Weather Penalty
             if (rs.weather === 'wet') {
                 if (compoundKey !== 'wet') {
-                    // Slicks on wet track: disastrous loss
                     lapPace += 8.5 + (Math.random() * 4.0);
                     if (Math.random() < 0.25) {
                         r.dnf = true;
                         r.dnfReason = 'Lowside crash in wet on slick tires';
-                        gameState.addLog(`💥 CRASH! ${r.name} (${r.team}) suffered a violent highside in the rain on slick tires! DNF on Lap ${currentLap}.`);
+                        gameState.addLog(`💥 CRASH! ${r.name} (${r.team}) slid into the gravel in the rain on slick tires! DNF.`);
                         return;
                     }
                 }
             } else {
                 if (compoundKey === 'wet') {
-                    // Wet tires on dry track: severe overheating
                     lapPace += 4.5;
                     r.tireCondition = Math.max(0, r.tireCondition - 15);
                 }
             }
 
-            // 7. Rider Consistency & Gaussian Lap Variance
+            // Consistency Jitter
             const varianceAmp = ((105 - consistency) / 100) * 0.35;
             const lapJitter = (Math.random() - 0.5) * 2 * varianceAmp;
             lapPace += lapJitter;
 
-            // 8. Micro-mistakes & Near-Misses
+            // Micro-mistakes
             let eventNote = '';
             const mistakeRoll = Math.random();
             if (strategy === 'push' && mistakeRoll < 0.08) {
@@ -592,25 +756,21 @@ export class RaceSystem {
                 lapPace += mistakeLostSec;
                 eventNote = `Wide at Turn 4 (+${mistakeLostSec.toFixed(2)}s)`;
                 if (r.isUser) {
-                    gameState.addLog(`⚠️ MOMENT! ${r.name} missed the apex and ran wide on Lap ${currentLap} (+${mistakeLostSec.toFixed(2)}s)!`);
+                    gameState.addLog(`⚠️ MOMENT! ${r.name} ran wide on Lap ${currentLap} (+${mistakeLostSec.toFixed(2)}s)!`);
                 }
             } else if (r.tireCondition < 20 && mistakeRoll < 0.12) {
                 const slideLostSec = 0.60 + (Math.random() * 0.60);
                 lapPace += slideLostSec;
-                eventNote = `Massive rear slide (+${slideLostSec.toFixed(2)}s)`;
-                if (r.isUser) {
-                    gameState.addLog(`⚠️ TIRE WARNING! ${r.name} had a rear tire blowout slide (+${slideLostSec.toFixed(2)}s loss)!`);
-                }
+                eventNote = `Rear slide save (+${slideLostSec.toFixed(2)}s)`;
             }
 
-            // 9. Calculate Sector Splits
+            // Sectors
             const s1 = (lapPace * gp.sectorRatios[0]) + (Math.random() * 0.08 - 0.04);
             const s2 = (lapPace * gp.sectorRatios[1]) + (Math.random() * 0.08 - 0.04);
             const s3 = (lapPace * gp.sectorRatios[2]) + (Math.random() * 0.08 - 0.04);
             const s4 = lapPace - (s1 + s2 + s3);
             const sectors = [s1, s2, s3, s4];
 
-            // 10. Sector Colors (Purple = Session Fastest, Green = Personal Best, Yellow = Standard)
             const sectorColors = [];
             for (let i = 0; i < 4; i++) {
                 if (sectors[i] < (rs.sessionFastestSectors[i] || 999)) {
@@ -630,7 +790,6 @@ export class RaceSystem {
             r.lastLapSec = lapPace;
             r.lastLapStr = this.formatLapTime(lapPace);
 
-            // 11. Check Personal Best & Race Fastest Lap
             if (lapPace < r.bestLapSec) {
                 r.bestLapSec = lapPace;
                 r.bestLapStr = r.lastLapStr;
@@ -646,13 +805,11 @@ export class RaceSystem {
                     lapNum: currentLap
                 };
                 eventNote = '🟣 FASTEST LAP';
-                gameState.addLog(`🟣 NEW FASTEST LAP! ${r.name} clocked a blistering ${r.lastLapStr} on Lap ${currentLap}!`);
+                gameState.addLog(`🟣 FASTEST LAP! ${r.name} clocked ${r.lastLapStr} on Lap ${currentLap}!`);
             }
 
-            // 12. Accumulate Race Time
             r.accumulatedRaceTime += lapPace;
 
-            // 13. Record Telemetry History for User
             if (r.isUser) {
                 rs.lapHistory.push({
                     lap: currentLap,
@@ -668,14 +825,12 @@ export class RaceSystem {
             }
         });
 
-        // Sort Leaderboard by Accumulated Race Time
         rs.leaderboard.sort((a, b) => {
             if (a.dnf && !b.dnf) return 1;
             if (!a.dnf && b.dnf) return -1;
             return a.accumulatedRaceTime - b.accumulatedRaceTime;
         });
 
-        // Compute Gaps & Intervals
         const leaderTime = rs.leaderboard[0].accumulatedRaceTime;
         rs.leaderboard.forEach((r, idx) => {
             if (r.dnf) {
@@ -697,63 +852,113 @@ export class RaceSystem {
 
         const rand = Math.random();
 
-        // Sudden Rain Incident (Flag-to-Flag Decision)
-        if (rs.weather === 'dry' && rs.currentLap >= 4 && rs.currentLap <= 7 && rand < 0.15) {
+        if (rs.weather === 'dry' && rs.currentLap >= 3 && rs.currentLap <= 6 && rand < 0.12) {
             rs.weather = 'wet';
             rs.activeIncident = {
                 id: 'weather_rain',
                 title: '🌧️ SUDDEN RAIN SHOWER!',
-                desc: 'Rain is pouring over the asphalt! Track is wet. Do you want to pit for wet tires or gamble on slicks?',
+                desc: 'Rain is falling over the asphalt! Track is wet. Do you want to pit for wet tires?',
                 choices: [
-                    { label: '🛞 Pit for Wet Michelin Tires (Flag-to-Flag)', action: 'pit_wet' },
+                    { label: '🛞 Pit for Wet Michelin Tires', action: 'pit_wet' },
                     { label: '⚠️ Stay on Slicks (Gamble in the Wet)', action: 'stay_slicks' }
                 ]
             };
-            gameState.addLog(`🌧️ WEATHER ALERT: Sudden rain shower on Lap ${rs.currentLap}! Pit Wall prompt active.`);
+            gameState.addLog(`🌧️ WEATHER ALERT: Rain falling on Lap ${rs.currentLap}! Pit Wall alert active.`);
             return;
         }
 
-        // Random AI crash
-        if (rand < 0.12) {
+        if (rand < 0.10) {
             const activeAI = rs.leaderboard.filter(r => !r.isUser && !r.dnf);
             if (activeAI.length > 0) {
                 const victim = activeAI[Math.floor(Math.random() * activeAI.length)];
                 victim.dnf = true;
                 victim.dnfReason = 'Gravel trap lowside';
                 victim.accumulatedRaceTime = 99999;
-                gameState.addLog(`💥 CRASH! ${victim.name} (${victim.team}) lost the front into the gravel! DNF on Lap ${rs.currentLap}.`);
+                gameState.addLog(`💥 CRASH! ${victim.name} (${victim.team}) crashed in Turn 1! DNF on Lap ${rs.currentLap}.`);
             }
-        }
-
-        // Engine Temp Spikes in Push Mode
-        if (rs.strategy === 'push' && rand > 0.85) {
-            rs.activeIncident = {
-                id: 'engine_temp',
-                title: '⚠️ HIGH ENGINE COOLANT TEMP!',
-                desc: 'Engine coolant temp is spiking in Power 1 Map! Switch to Tire Saver/Eco to save the engine?',
-                choices: [
-                    { label: '🔧 Switch to Eco Map (Save Engine)', action: 'eco_map' },
-                    { label: '🔥 Keep Pushing (Risk Engine Blowout)', action: 'risk_push' }
-                ]
-            };
-            gameState.addLog(`⚠️ PIT WALL WARNING: Engine temp alarm on Lap ${rs.currentLap}!`);
         }
     }
 
+    // ==========================================
+    // 7. SPRINT RACE FINISH (Official Sprint Points: 12 down to 1)
+    // ==========================================
+    static finishSprintRace() {
+        const state = gameState.getState();
+        const rs = state.raceState;
+
+        rs.raceInProgress = false;
+        rs.sprintCompleted = true;
+        rs.stage = 'RACE'; // Advance to Sunday Main Grand Prix!
+        rs.activeIncident = null;
+
+        this.initChampionshipStandings();
+
+        // Official FIM MotoGP Sprint Points Table: Top 9 riders score points
+        const sprintPointsTable = [12, 9, 7, 6, 5, 4, 3, 2, 1];
+
+        rs.leaderboard.forEach((r, idx) => {
+            if (r.dnf) return;
+            const pos = idx + 1;
+            const pts = pos <= 9 ? sprintPointsTable[pos - 1] : 0;
+
+            const standingRider = rs.championshipStandings.find(s => s.name === r.name);
+            if (standingRider) {
+                standingRider.points += pts;
+                if (pos === 1) standingRider.sprintWins = (standingRider.sprintWins || 0) + 1;
+            }
+        });
+
+        rs.championshipStandings.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            if ((b.wins + (b.sprintWins || 0)) !== (a.wins + (a.sprintWins || 0))) {
+                return (b.wins + (b.sprintWins || 0)) - (a.wins + (a.sprintWins || 0));
+            }
+            return b.podiums - a.podiums;
+        });
+
+        const userRider = rs.leaderboard.find(r => r.isUser);
+        const userPos = rs.leaderboard.findIndex(r => r.isUser) + 1;
+        const winner = rs.leaderboard[0];
+
+        if (userRider && userRider.dnf) {
+            gameState.addLog(`💥 SPRINT RESULT: ${state.rider.name} suffered a DNF in the Sprint Race.`);
+        } else {
+            const sprintPts = userPos <= 9 ? sprintPointsTable[userPos - 1] : 0;
+            const prizeMoney = userPos === 1 ? 800 : (userPos <= 3 ? 450 : (userPos <= 9 ? 200 : 50));
+            const hypeEarned = userPos === 1 ? 12 : (userPos <= 3 ? 8 : 4);
+
+            state.cash += prizeMoney;
+            state.hype += hypeEarned;
+            rs.seasonPoints += sprintPts;
+
+            gameState.addLog(`⚡ SPRINT FINISH: ${winner.name} wins the Saturday Sprint! ${state.rider.name} crossed the line P${userPos} (+${sprintPts} Sprint PTS, +$${prizeMoney}, +${hypeEarned} Hype)!`);
+        }
+
+        gameState.addLog(`🏁 Saturday Sprint Complete! Prepare your machine for the Sunday Main Grand Prix.`);
+    }
+
+    // ==========================================
+    // 8. SUNDAY GRAND PRIX FINISH (Full 25 Points)
+    // ==========================================
     static finishRace() {
         const state = gameState.getState();
         const rs = state.raceState;
 
         rs.raceInProgress = false;
-        rs.stage = 'FP';
+        rs.stage = 'FP1'; // Reset stage to FP1 for the next GP
         rs.fpCompleted = false;
+        rs.practiceCompleted = false;
+        rs.q1Completed = false;
+        rs.q2Completed = false;
+        rs.sprintCompleted = false;
+        rs.directQ2 = false;
         rs.activeIncident = null;
 
         this.initChampionshipStandings();
 
+        // Official FIM MotoGP Full Grand Prix Points Table: Top 15 riders score
         const pointsTable = [25, 20, 16, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
 
-        // Award standard points
         rs.leaderboard.forEach((r, idx) => {
             if (r.dnf) return;
             const pos = idx + 1;
@@ -767,7 +972,7 @@ export class RaceSystem {
             }
         });
 
-        // Award +1 point for Fastest Lap if finished in top 10
+        // +1 bonus for fastest lap if finished in top 10
         if (rs.fastestLap) {
             const flRiderPos = rs.leaderboard.findIndex(r => r.name === rs.fastestLap.riderName) + 1;
             if (flRiderPos >= 1 && flRiderPos <= 10) {
@@ -780,7 +985,6 @@ export class RaceSystem {
             }
         }
 
-        // Sort Championship Standings
         rs.championshipStandings.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
             if (b.wins !== a.wins) return b.wins - a.wins;
@@ -808,7 +1012,6 @@ export class RaceSystem {
                 hypeEarned = 10;
             }
 
-            // Fastest Lap bonus for user
             if (rs.fastestLap && rs.fastestLap.riderName === state.rider.name && userPos <= 10) {
                 pointsEarned += 1;
                 prizeMoney += 250;
@@ -855,6 +1058,7 @@ export class RaceSystem {
             rs.championshipStandings.forEach(s => {
                 s.points = 0;
                 s.wins = 0;
+                s.sprintWins = 0;
                 s.podiums = 0;
                 s.fastestLaps = 0;
             });

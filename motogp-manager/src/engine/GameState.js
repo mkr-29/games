@@ -79,10 +79,17 @@ export const INITIAL_STATE = {
     // Race Calendar & Interactive State
     raceState: {
         currentGPIndex: 0, // Index in GP calendar
-        stage: "FP", // "FP", "QP", "RACE", "COMPLETED"
+        stage: "FP1", // "FP1", "PR", "Q1", "Q2", "SPRINT", "RACE"
+        sessionType: "RACE", // "SPRINT" or "RACE"
         strategy: "balanced", // "balanced", "push", "conserve"
         fpCompleted: false,
+        practiceCompleted: false,
+        directQ2: false, // Top 10 in Practice get direct Q2 entry
+        q1Completed: false,
+        q2Completed: false,
+        sprintCompleted: false,
         qpGridPosition: 12,
+        grid: [], // Final starting grid for Sprint & Main GP
         raceInProgress: false,
         currentLap: 0,
         totalLaps: 12,
