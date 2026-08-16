@@ -1,8 +1,9 @@
-// CalendarSystem.js - F1 & MotoGP Manager Style Season Calendar & Sequential Day-by-Day Progression Engine
-
 import { gameState } from '../engine/GameState.js';
 import { GP_CALENDAR, RaceSystem } from './RaceSystem.js';
 import { RiderSystem } from './RiderSystem.js';
+import { isDev } from '../config/env.js';
+import { PreSeasonTestView } from '../ui/PreSeasonTestView.js';
+import { LongRunSimView } from '../ui/LongRunSimView.js';
 
 export const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Midweek'];
 
@@ -18,8 +19,8 @@ export const SEASON_WEEKS_TEMPLATE = [
         desc: "First official pre-season shakedown in Malaysia. Gather baseline aerodynamic and powertrain telemetry.",
         activities: [
             { id: 'w1_shakedown', title: 'Bike Systems & Electronics Map', day: 'Wednesday', required: false, reward: { telemetry: 60, science: 25 }, desc: 'Check sensors and calibrate baseline throttle maps.' },
-            { id: 'w1_test_main', title: 'Official Sepang Timing Day (Mandatory Test)', day: 'Friday', required: true, reward: { telemetry: 120, science: 60 }, desc: 'Run mandatory full-day testing laps for official FIM timing.' },
-            { id: 'w1_long_run', title: 'Race Pace Long-Run Simulation (20 Laps)', day: 'Saturday', required: false, reward: { telemetry: 80, science: 40, hype: 15 }, desc: 'Evaluate tire degradation over race distance.' }
+            { id: 'w1_test_main', title: 'Official Sepang Timing Day (Mandatory Test)', day: 'Friday', required: true, actionType: 'preseason_test', reward: { telemetry: 120, science: 60 }, desc: 'Run mandatory full-day testing laps for official FIM timing and select your season prototype.' },
+            { id: 'w1_long_run', title: 'Race Pace Long-Run Simulation (20 Laps)', day: 'Saturday', required: false, actionType: 'long_run_sim', reward: { telemetry: 80, science: 40, hype: 15 }, desc: 'Evaluate tire degradation over race distance with live telemetry and engineering conclusions.' }
         ]
     },
     {
@@ -482,6 +483,26 @@ export class CalendarSystem {
                 seasonWeeks: JSON.parse(JSON.stringify(SEASON_WEEKS_TEMPLATE)),
                 isDrawerOpen: false
             };
+        } else {
+            // Always synchronize seasonWeeks metadata (actionType, title, desc, required, reward) from SEASON_WEEKS_TEMPLATE
+            // so saved states from older versions automatically receive new actionTypes and interactive links!
+            if (!state.calendar.seasonWeeks || state.calendar.seasonWeeks.length === 0) {
+                state.calendar.seasonWeeks = JSON.parse(JSON.stringify(SEASON_WEEKS_TEMPLATE));
+            } else {
+                SEASON_WEEKS_TEMPLATE.forEach((tmplWeek, wIdx) => {
+                    if (!state.calendar.seasonWeeks[wIdx]) {
+                        state.calendar.seasonWeeks[wIdx] = JSON.parse(JSON.stringify(tmplWeek));
+                    } else {
+                        state.calendar.seasonWeeks[wIdx].type = tmplWeek.type;
+                        state.calendar.seasonWeeks[wIdx].title = tmplWeek.title;
+                        state.calendar.seasonWeeks[wIdx].circuitId = tmplWeek.circuitId;
+                        state.calendar.seasonWeeks[wIdx].gpId = tmplWeek.gpId;
+                        state.calendar.seasonWeeks[wIdx].roundIndex = tmplWeek.roundIndex;
+                        state.calendar.seasonWeeks[wIdx].desc = tmplWeek.desc;
+                        state.calendar.seasonWeeks[wIdx].activities = tmplWeek.activities.map(tmplAct => ({ ...tmplAct }));
+                    }
+                });
+            }
         }
         return state.calendar;
     }
@@ -607,6 +628,18 @@ export class CalendarSystem {
             return false;
         }
 
+        // If this is the Official Pre-Season Test activity, open PreSeasonTestView
+        if (act.actionType === 'preseason_test' || act.id === 'w1_test_main') {
+            PreSeasonTestView.open();
+            return true;
+        }
+
+        // If this is the Race Pace Long-Run Simulation activity, open LongRunSimView
+        if (act.actionType === 'long_run_sim' || act.id === 'w1_long_run') {
+            LongRunSimView.open();
+            return true;
+        }
+
         if (cal.completedActivities[activityId] === 'completed') return true;
 
         // Apply resource rewards if any
@@ -693,6 +726,46 @@ export class CalendarSystem {
         }
 
         gameState.addLog(`📅 Advanced to Week ${newWeek.weekNumber}: ${newWeek.title} (${newWeek.dateRange})`);
+        return true;
+    }
+
+    /**
+     * [DEV ONLY] Rewinds to the previous week on the calendar
+     */
+    static rewindToPreviousWeek() {
+        if (!isDev()) {
+            gameState.addLog("⚠️ Week rewind is only permitted in DEV environment.");
+            return false;
+        }
+
+        const state = gameState.getState();
+        const cal = this.getCalendarState();
+
+        if (cal.currentWeekIndex <= 0) {
+            gameState.addLog("⏪ [DEV] Already at Week 1 (Season Start). Cannot rewind further.");
+            return false;
+        }
+
+        // Move back 1 week
+        cal.currentWeekIndex -= 1;
+
+        const targetWeek = this.getCurrentWeek();
+
+        // Reset completion status for the activities in the rewound week so they can be re-run/tested
+        if (targetWeek && targetWeek.activities) {
+            targetWeek.activities.forEach(a => {
+                delete cal.completedActivities[a.id];
+            });
+        }
+
+        // If rewound into a race week, update current GP round and reset race stage to FP1
+        if (targetWeek.type === 'race_week' && typeof targetWeek.roundIndex === 'number') {
+            state.raceState.currentGPRound = targetWeek.roundIndex;
+            state.raceState.stage = 'FP1';
+            state.raceState.raceInProgress = false;
+        }
+
+        gameState.addLog(`⏪ [DEV] Rewound to Week ${targetWeek.weekNumber}: ${targetWeek.title} (${targetWeek.dateRange})`);
         return true;
     }
 }

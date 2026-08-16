@@ -98,9 +98,14 @@
                     <span class="nav-icon">⚙️</span> Settings
                 </button>
             </div>
-            <button class="btn-nav-proceed" id="btn-header-proceed-week" title="Open Agenda / Proceed to Next Week">
-                📅 Proceed to Next Week ⏩
-            </button>
+            <div class="nav-proceed-group">
+                <button class="btn-nav-proceed btn-nav-dev-rewind" id="btn-header-prev-week" title="[DEV] Rewind 1 Week" style="display:none;">
+                    ⏪ Prev Week [DEV]
+                </button>
+                <button class="btn-nav-proceed" id="btn-header-proceed-week" title="Open Agenda / Proceed to Next Week">
+                    📅 Proceed to Next Week ⏩
+                </button>
+            </div>
         </nav>
 
         <!-- Main Content Area -->
@@ -273,9 +278,14 @@
                             <div class="proceed-status-box" id="cal-proceed-status">
                                 <!-- Dynamic status text -->
                             </div>
-                            <button class="btn-proceed-week" id="btn-proceed-week">
-                                📅 Proceed to Next Week ⏩
-                            </button>
+                            <div class="advance-buttons-row">
+                                <button class="btn-proceed-week btn-dev-rewind" id="btn-cal-prev-week" style="display:none;">
+                                    ⏪ Prev Week [DEV]
+                                </button>
+                                <button class="btn-proceed-week" id="btn-proceed-week">
+                                    📅 Proceed to Next Week ⏩
+                                </button>
+                            </div>
                             <small class="advance-subtext">Advancing will auto-skip uncompleted optional activities and fast-forward through empty factory weeks.</small>
                         </div>
                     </div>
@@ -583,9 +593,232 @@
                     <div class="dock-status-msg" id="drawer-proceed-status">
                         <!-- Dynamic status message -->
                     </div>
-                    <button class="btn-proceed-week btn-dock-advance" id="btn-drawer-proceed-week">
-                        📅 Proceed to Next Week ⏩
-                    </button>
+                    <div class="dock-btn-group">
+                        <button class="btn-proceed-week btn-dev-rewind" id="btn-drawer-prev-week" style="display:none;">
+                            ⏪ Prev Week [DEV]
+                        </button>
+                        <button class="btn-proceed-week btn-dock-advance" id="btn-drawer-proceed-week">
+                            📅 Proceed to Next Week ⏩
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pre-Season Test Modal (Official Sepang FIM Timing Day & Prototype Selection) -->
+        <div class="custom-modal-overlay" id="preseason-test-modal" style="display:none;">
+            <div class="modal-backdrop" id="preseason-test-backdrop"></div>
+            <div class="modal-window wide-modal">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-title-pill">
+                            <span class="flag-icon">🇲🇾</span>
+                            <span class="title-main">Official Sepang Pre-Season Test</span>
+                            <span class="badge-f1">FIM TIMING DAY</span>
+                        </div>
+                        <p class="modal-subtitle">Sepang International Circuit • 5.543 km • 15 Turns • Tropical Heat 34°C • Prototype Development</p>
+                    </div>
+                    <button class="btn-close-modal" id="btn-close-preseason-test" title="Close Session">✕</button>
+                </div>
+
+                <div class="modal-body-scroll">
+                    <!-- Session Clock & Track Stint Action Bar -->
+                    <div class="test-session-bar">
+                        <div class="session-timer-box">
+                            <span class="timer-lbl">⏱️ TRACK TIME REMAINING</span>
+                            <div class="timer-display" id="test-session-clock">60:00</div>
+                            <div class="timer-bar"><div class="timer-bar-fill" id="test-clock-bar-fill" style="width: 100%;"></div></div>
+                        </div>
+
+                        <div class="stint-controls-group">
+                            <div class="stint-compound-select">
+                                <span class="ctrl-lbl">Stint Tire:</span>
+                                <div class="stint-compound-btns">
+                                    <button class="test-compound-btn" data-compound="soft"><span class="compound-badge badge-soft">S</span> Soft</button>
+                                    <button class="test-compound-btn active" data-compound="medium"><span class="compound-badge badge-med">M</span> Medium</button>
+                                    <button class="test-compound-btn" data-compound="hard"><span class="compound-badge badge-hard">H</span> Hard</button>
+                                </div>
+                            </div>
+
+                            <div class="stint-run-btns">
+                                <span class="ctrl-lbl">Dispatch to Track:</span>
+                                <div class="stint-btn-row">
+                                    <button class="btn-sec btn-test-stint" data-mins="5">⚡ 5-Min Shakedown (~2-3 Laps)</button>
+                                    <button class="btn-race-primary btn-test-stint" data-mins="10">🚀 10-Min Stint (~5 Laps)</button>
+                                    <button class="btn-sec btn-test-stint" data-mins="15">🔥 15-Min Long Stint (~7-8 Laps)</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2 Prototypes Side-by-Side Comparison -->
+                    <div class="section-divider-title">
+                        <span>🏍️ FACTORY BIKE PROTOTYPES (SPEC A vs SPEC B)</span>
+                    </div>
+                    <div class="prototypes-comparison-grid" id="test-prototypes-grid">
+                        <!-- Rendered by PreSeasonTestView.js -->
+                    </div>
+
+                    <!-- Rider Pit Radio Telemetry Feedback -->
+                    <div class="section-divider-title">
+                        <span>🎙️ RIDER PIT WALL TELEMETRY & IMPRESSIONS</span>
+                    </div>
+                    <div class="rider-radio-feed-container" id="test-rider-radio-feed">
+                        <!-- Rendered by PreSeasonTestView.js -->
+                    </div>
+
+                    <!-- Live FIM Sepang Test Timing Tower -->
+                    <div class="section-divider-title">
+                        <span>⏱️ OFFICIAL FIM SEPANG TEST TIMING TOWER</span>
+                    </div>
+                    <div class="timing-tower-table-container">
+                        <table class="timing-tower-table">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Rider / Machine</th>
+                                    <th>Best Lap</th>
+                                    <th>Gap</th>
+                                    <th>S1</th>
+                                    <th>S2</th>
+                                    <th>S3</th>
+                                    <th>S4</th>
+                                    <th>Top Trap</th>
+                                    <th>Laps</th>
+                                </tr>
+                            </thead>
+                            <tbody id="test-timing-tower-body">
+                                <!-- Dynamic Leaderboard Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 20-Lap Race Pace Long-Run Simulation Modal -->
+        <div class="custom-modal-overlay" id="long-run-sim-modal" style="display:none;">
+            <div class="modal-backdrop" id="long-run-sim-backdrop"></div>
+            <div class="modal-window medium-modal">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-title-pill">
+                            <span class="flag-icon">🏁</span>
+                            <span class="title-main">Race Pace Long-Run Simulation</span>
+                            <span class="badge-f1">20 LAPS</span>
+                        </div>
+                        <p class="modal-subtitle">Full Grand Prix Distance Degradation Analysis & Fuel Burn Diagnostics</p>
+                    </div>
+                    <button class="btn-close-modal" id="btn-close-long-run-sim" title="Close">✕</button>
+                </div>
+
+                <div class="modal-body-scroll">
+                    <!-- Setup Screen -->
+                    <div class="longrun-setup-panel" id="longrun-setup-panel">
+                        <h3 class="setup-heading">Configure 20-Lap Simulation Stint</h3>
+                        <p class="setup-sub">Select tire compound and engine power map to benchmark degradation curves against simulated race distance.</p>
+
+                        <div class="longrun-choices-grid">
+                            <div class="choice-group">
+                                <h4>Select Tire Compound</h4>
+                                <div class="longrun-compound-cards">
+                                    <button class="choice-card longrun-compound-btn" data-compound="soft">
+                                        <div class="card-top"><span class="compound-badge badge-soft">S</span> <strong>Soft Compound</strong></div>
+                                        <p>Max initial grip (Laps 1-6). Rapid thermal wear and steep cliff past Lap 12.</p>
+                                    </button>
+                                    <button class="choice-card longrun-compound-btn active" data-compound="medium">
+                                        <div class="card-top"><span class="compound-badge badge-med">M</span> <strong>Medium Compound</strong></div>
+                                        <p>Balanced pace and linear wear. Strong consistency through 18 laps.</p>
+                                    </button>
+                                    <button class="choice-card longrun-compound-btn" data-compound="hard">
+                                        <div class="card-top"><span class="compound-badge badge-hard">H</span> <strong>Hard Compound</strong></div>
+                                        <p>Slow warm-up (Laps 1-2). Ultra-durable grip with negligible cliff.</p>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="choice-group">
+                                <h4>Select Engine & Fuel Map</h4>
+                                <div class="longrun-map-cards">
+                                    <button class="choice-card longrun-map-btn" data-map="push">
+                                        <strong>🔥 Push Hard (PWR 1)</strong>
+                                        <p>+0.30s faster raw pace. +25% higher tire thermal load & fuel consumption.</p>
+                                    </button>
+                                    <button class="choice-card longrun-map-btn active" data-map="balanced">
+                                        <strong>⚖️ Balanced (PWR 2)</strong>
+                                        <p>Standard fuel flow and linear tire conservation.</p>
+                                    </button>
+                                    <button class="choice-card longrun-map-btn" data-map="conserve">
+                                        <strong>🛡️ Tire Saver (PWR 3)</strong>
+                                        <p>-0.28s pace. Prevents wheelspin, preserving tire shoulders.</p>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setup-launch-box">
+                            <button class="btn-race-primary btn-launch-large" id="btn-start-20lap-sim">
+                                🚀 Launch 20-Lap Simulation Run
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Simulation & Summary Dashboard -->
+                    <div class="longrun-live-panel" id="longrun-live-panel" style="display:none;">
+                        <!-- Top Metrics Summary Cards -->
+                        <div class="longrun-metrics-grid" id="longrun-metrics-grid">
+                            <!-- Dynamic Cards -->
+                        </div>
+
+                        <!-- Chief Engineer Verdict -->
+                        <div class="longrun-verdict-card" id="longrun-report-panel">
+                            <div class="verdict-header">
+                                <h3>📊 Chief Race Engineer Report & Verdict</h3>
+                                <span class="sub-tag" style="background:var(--accent-green); color:#000; font-weight:700;">TELEMETRY COMPLETE</span>
+                            </div>
+                            <div class="verdict-body" id="longrun-verdict-body">
+                                <!-- Dynamic Verdict Text -->
+                            </div>
+                            <div class="verdict-footer">
+                                <button class="btn-race-primary" id="btn-accept-engineering-report">
+                                    ✓ Accept Engineering Report & Claim Telemetry (+80 Tel, +40 RP)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 20-Lap Telemetry Table -->
+                        <div class="section-divider-title" style="margin-top:20px;">
+                            <span>📈 20-LAP PROGRESSIVE TELEMETRY & TIRE DEGRADATION</span>
+                        </div>
+                        <div class="telemetry-table-container">
+                            <table class="telemetry-table">
+                                <thead>
+                                    <tr>
+                                        <th>Lap</th>
+                                        <th>Lap Time</th>
+                                        <th>S1</th>
+                                        <th>S2</th>
+                                        <th>S3</th>
+                                        <th>S4</th>
+                                        <th>Tire Life</th>
+                                        <th>Tire Temp</th>
+                                        <th>Fuel Load</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="longrun-telemetry-body">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Live Pit Radio Feed -->
+                        <div class="section-divider-title" style="margin-top:20px;">
+                            <span>📻 PIT WALL TELEMETRY & RADIO TRANSCRIPT</span>
+                        </div>
+                        <div class="longrun-radio-container" id="longrun-radio-feed">
+                            <!-- Dynamic radio bubbles -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

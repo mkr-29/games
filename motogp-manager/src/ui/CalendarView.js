@@ -1,9 +1,10 @@
-// CalendarView.js - Interactive Top-Nav Next Week Button & Sequential Day-by-Day Bottom Dock UI
-
 import { gameState } from '../engine/GameState.js';
 import { CalendarSystem } from '../systems/CalendarSystem.js';
 import { RaceSystem } from '../systems/RaceSystem.js';
 import { UIComponents } from './Components.js';
+import { PreSeasonTestView } from './PreSeasonTestView.js';
+import { LongRunSimView } from './LongRunSimView.js';
+import { isDev } from '../config/env.js';
 
 export class CalendarView {
     static isDrawerOpen = false;
@@ -17,6 +18,12 @@ export class CalendarView {
                 this.handleHeaderNextWeekClick();
             });
         }
+
+        // [DEV] Header Prev Week Button
+        document.getElementById('btn-header-prev-week')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.handleRewindWeek();
+        });
 
         // Drawer Backdrop click to close
         document.getElementById('dock-backdrop')?.addEventListener('click', (e) => {
@@ -36,11 +43,31 @@ export class CalendarView {
             this.handleProceedWeek();
         });
 
+        // [DEV] Drawer Prev Week Button
+        document.getElementById('btn-drawer-prev-week')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.handleRewindWeek();
+        });
+
         // Main Tab Proceed Button (if in calendar pane)
         document.getElementById('btn-proceed-week')?.addEventListener('click', (e) => {
             e.preventDefault();
             this.handleProceedWeek();
         });
+
+        // [DEV] Calendar Tab Prev Week Button
+        document.getElementById('btn-cal-prev-week')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.handleRewindWeek();
+        });
+    }
+
+    static handleRewindWeek() {
+        if (!isDev()) return;
+        if (CalendarSystem.rewindToPreviousWeek()) {
+            UIComponents.forceRender(true);
+            this.render(gameState.getState(), true);
+        }
     }
 
     static toggleDrawer(open = null) {
@@ -160,6 +187,31 @@ export class CalendarView {
             if (paneProceedBtn.disabled !== !check.canProceed) paneProceedBtn.disabled = !check.canProceed;
             const targetOpacity = check.canProceed ? '1' : '0.5';
             if (paneProceedBtn.style.opacity !== targetOpacity) paneProceedBtn.style.opacity = targetOpacity;
+        }
+
+        // 4b. Update [DEV] Rewind Buttons
+        const devMode = isDev();
+        const canRewind = devMode && cal.currentWeekIndex > 0;
+
+        const headerPrevBtn = document.getElementById('btn-header-prev-week');
+        if (headerPrevBtn) {
+            headerPrevBtn.style.display = devMode ? 'inline-flex' : 'none';
+            headerPrevBtn.disabled = !canRewind;
+            headerPrevBtn.style.opacity = canRewind ? '1' : '0.4';
+        }
+
+        const drawerPrevBtn = document.getElementById('btn-drawer-prev-week');
+        if (drawerPrevBtn) {
+            drawerPrevBtn.style.display = devMode ? 'inline-flex' : 'none';
+            drawerPrevBtn.disabled = !canRewind;
+            drawerPrevBtn.style.opacity = canRewind ? '1' : '0.4';
+        }
+
+        const panePrevBtn = document.getElementById('btn-cal-prev-week');
+        if (panePrevBtn) {
+            panePrevBtn.style.display = devMode ? 'inline-flex' : 'none';
+            panePrevBtn.disabled = !canRewind;
+            panePrevBtn.style.opacity = canRewind ? '1' : '0.4';
         }
 
         // 5. Render Season Timeline
@@ -291,23 +343,50 @@ export class CalendarView {
                         btnRow.innerHTML = '';
 
                         if (targetState === 'completed') {
-                            btnRow.innerHTML = `<span class="sub-tag unlocked-tag" style="color:var(--accent-green); font-weight:700;">✓ ATTENDED</span>`;
+                            if (act.actionType === 'preseason_test' || act.id === 'w1_test_main') {
+                                btnRow.innerHTML = `<button class="btn-buy" style="padding:4px 8px; font-size:0.72rem; background:rgba(0,230,118,0.15); color:var(--accent-green); border:1px solid var(--accent-green); cursor:pointer;">✓ ATTENDED (View Data)</button>`;
+                                btnRow.querySelector('button')?.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    CalendarView.toggleDrawer(false);
+                                    PreSeasonTestView.open();
+                                });
+                            } else if (act.actionType === 'long_run_sim' || act.id === 'w1_long_run') {
+                                btnRow.innerHTML = `<button class="btn-buy" style="padding:4px 8px; font-size:0.72rem; background:rgba(0,230,118,0.15); color:var(--accent-green); border:1px solid var(--accent-green); cursor:pointer;">✓ ATTENDED (View Debrief)</button>`;
+                                btnRow.querySelector('button')?.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    CalendarView.toggleDrawer(false);
+                                    LongRunSimView.open();
+                                });
+                            } else {
+                                btnRow.innerHTML = `<span class="sub-tag unlocked-tag" style="color:var(--accent-green); font-weight:700;">✓ ATTENDED</span>`;
+                            }
                         } else if (targetState === 'skipped') {
                             btnRow.innerHTML = `<span class="sub-tag" style="color:var(--text-muted);">⏭️ SKIPPED</span>`;
                         } else if (targetState === 'locked') {
                             btnRow.innerHTML = `<span class="sub-tag locked-tag" style="opacity:0.6;">🔒 Complete Earlier Days</span>`;
                         } else {
                             // Active and pending! Create buttons once and attach click listeners
+                            const isTestMain = act.actionType === 'preseason_test' || act.id === 'w1_test_main';
+                            const isLongRun = act.actionType === 'long_run_sim' || act.id === 'w1_long_run';
+
                             const attendBtn = document.createElement('button');
                             attendBtn.className = act.required ? 'btn-race-primary' : 'btn-buy';
                             attendBtn.style.padding = '5px 10px';
                             attendBtn.style.fontSize = '0.75rem';
-                            attendBtn.textContent = act.actionType ? '🏁 Attend / Launch' : '⚡ Attend Activity';
+                            attendBtn.textContent = (isTestMain || isLongRun || act.actionType) ? '🏁 Attend / Launch' : '⚡ Attend Activity';
 
                             attendBtn.addEventListener('click', (e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                if (act.actionType) {
+                                if (isTestMain) {
+                                    CalendarView.toggleDrawer(false);
+                                    PreSeasonTestView.open();
+                                } else if (isLongRun) {
+                                    CalendarView.toggleDrawer(false);
+                                    LongRunSimView.open();
+                                } else if (act.actionType) {
                                     CalendarView.toggleDrawer(false);
                                     const raceTabBtn = document.getElementById('tab-btn-race');
                                     if (raceTabBtn) raceTabBtn.click();

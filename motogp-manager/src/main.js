@@ -6,6 +6,8 @@ import { TabsManager } from './ui/Tabs.js';
 import { UIComponents } from './ui/Components.js';
 import { RaceView } from './ui/RaceView.js';
 import { CalendarView } from './ui/CalendarView.js';
+import { PreSeasonTestView } from './ui/PreSeasonTestView.js';
+import { LongRunSimView } from './ui/LongRunSimView.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize UI Navigation & Event Listeners
@@ -13,6 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
     UIComponents.initEvents();
     RaceView.initEvents();
     CalendarView.initEvents();
+    PreSeasonTestView.initEvents();
+    LongRunSimView.initEvents();
 
     // 2. Settings Event Handlers
     document.getElementById('btn-manual-save')?.addEventListener('click', () => {
