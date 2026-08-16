@@ -2,6 +2,7 @@
 
 import { gameState } from '../engine/GameState.js';
 import { RaceSystem, GP_CALENDAR, TIRE_COMPOUNDS } from '../systems/RaceSystem.js';
+import { TrackRadarView } from './TrackRadarView.js';
 
 export class RaceView {
     static initEvents() {
@@ -79,6 +80,8 @@ export class RaceView {
         const sessionTag = rs.sessionType === 'SPRINT' ? '⚡ SATURDAY SPRINT' : (rs.stage === 'RACE' ? '🏆 SUNDAY GRAND PRIX' : '⏱️ PRACTICE / QUALIFYING');
         this.updateText('race-weather-lbl', `${sessionTag} • ${weatherIcon} • ${rs.trackTempC || 28}°C`);
 
+        const hasSprint = state.tier >= 3;
+
         // Stage Steps Active State
         const stepFp = document.getElementById('stage-step-fp');
         if (stepFp) stepFp.className = `stage-step ${(rs.stage === 'FP1' || rs.stage === 'FP') ? 'active' : ''}`;
@@ -90,10 +93,17 @@ export class RaceView {
         if (stepQp) stepQp.className = `stage-step ${(rs.stage === 'Q1' || rs.stage === 'Q2') ? 'active' : ''}`;
 
         const stepSprint = document.getElementById('stage-step-sprint');
-        if (stepSprint) stepSprint.className = `stage-step ${rs.stage === 'SPRINT' ? 'active' : ''}`;
+        if (stepSprint) {
+            stepSprint.style.display = hasSprint ? 'flex' : 'none';
+            stepSprint.className = `stage-step ${rs.stage === 'SPRINT' ? 'active' : ''}`;
+        }
 
         const stepRace = document.getElementById('stage-step-race');
-        if (stepRace) stepRace.className = `stage-step ${rs.stage === 'RACE' ? 'active' : ''}`;
+        if (stepRace) {
+            stepRace.className = `stage-step ${rs.stage === 'RACE' ? 'active' : ''}`;
+            const numEl = stepRace.querySelector('.step-num');
+            if (numEl) numEl.textContent = hasSprint ? '5' : '4';
+        }
 
         // Stage Action Button Label & Strategy Box visibility
         const btnStage = document.getElementById('btn-start-race-stage');
@@ -179,6 +189,9 @@ export class RaceView {
 
         const liveDot = document.getElementById('live-indicator');
         if (liveDot) liveDot.style.display = rs.raceInProgress ? 'inline' : 'none';
+
+        // Live 2D Track GPS Radar
+        TrackRadarView.render(state);
 
         // Live Timing Tower Leaderboard Table
         this.renderLiveLeaderboard(rs);

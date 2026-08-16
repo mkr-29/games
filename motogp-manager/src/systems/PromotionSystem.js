@@ -9,6 +9,7 @@ export const TIERS = {
         name: "Tier 1: Moto3™ World Championship",
         shortName: "Moto3™",
         category: "moto3",
+        hasSprint: false,
         bikeModel: "KTM / Honda 250cc Factory Spec",
         baseHP: 60,
         promotionCost: 0,
@@ -18,17 +19,15 @@ export const TIERS = {
         gpWinPrize: 1800,
         gpPodiumPrize: 1000,
         gpTop10Prize: 500,
-        sprintWinPrize: 800,
-        sprintPodiumPrize: 450,
-        sprintTop9Prize: 200,
         sponsorMulti: 1.0,
-        description: "Entry class of Grand Prix racing with lightweight 250cc 4-stroke single cylinder prototypes."
+        description: "Entry class of Grand Prix racing with lightweight 250cc 4-stroke single cylinder prototypes (No Sprints)."
     },
     2: {
         id: 2,
         name: "Tier 2: Moto2™ World Championship",
         shortName: "Moto2™",
         category: "moto2",
+        hasSprint: false,
         bikeModel: "Kalex Triumph 765cc Triple Prototype",
         baseHP: 140,
         promotionCost: 25000, // $25,000 Capital required
@@ -38,17 +37,15 @@ export const TIERS = {
         gpWinPrize: 6500,
         gpPodiumPrize: 3800,
         gpTop10Prize: 1800,
-        sprintWinPrize: 2800,
-        sprintPodiumPrize: 1500,
-        sprintTop9Prize: 750,
         sponsorMulti: 3.5,
-        description: "Intermediate class powered by official Triumph 765cc engines and pure prototype chassis (Kalex & Boscoscuro)."
+        description: "Intermediate class powered by official Triumph 765cc engines and prototype chassis (No Sprints)."
     },
     3: {
         id: 3,
         name: "Tier 3: Premier Class MotoGP™",
         shortName: "MotoGP™",
         category: "motogp",
+        hasSprint: true,
         bikeModel: "1000cc V4 Factory Prototype (280+ HP)",
         baseHP: 280,
         promotionCost: 100000, // $100,000 Capital required

@@ -513,10 +513,16 @@ export class RaceSystem {
         const userPos = finalGrid.findIndex(r => r.isUser) + 1;
         rs.qpGridPosition = userPos;
         rs.q2Completed = true;
-        rs.stage = 'SPRINT';
+
+        const hasSprint = state.tier >= 3; // Only Premier Class MotoGP features Saturday Sprints
+        rs.stage = hasSprint ? 'SPRINT' : 'RACE';
 
         const poleRider = finalGrid[0];
-        gameState.addLog(`👑 POLE POSITION! ${poleRider.name} takes POLE with ${this.formatLapTime(poleTime)}! ${state.rider.name} starts P${userPos} for both Sprint & Grand Prix!`);
+        if (hasSprint) {
+            gameState.addLog(`👑 POLE POSITION! ${poleRider.name} takes POLE with ${this.formatLapTime(poleTime)}! ${state.rider.name} starts P${userPos} for both Saturday Sprint & Sunday Grand Prix!`);
+        } else {
+            gameState.addLog(`👑 POLE POSITION! ${poleRider.name} takes POLE with ${this.formatLapTime(poleTime)}! ${state.rider.name} starts P${userPos} for the Sunday Grand Prix!`);
+        }
         return true;
     }
 
@@ -529,11 +535,15 @@ export class RaceSystem {
     }
 
     // ==========================================
-    // 5. SATURDAY SPRINT RACE (50% Distance & Points)
+    // 5. SATURDAY SPRINT RACE (MotoGP Premier Class Only - 50% Distance)
     // ==========================================
     static startSprintRace() {
         const state = gameState.getState();
         const rs = state.raceState;
+        if (state.tier < 3) {
+            gameState.addLog("⚠️ Sprint races are exclusive to the Premier Class MotoGP™.");
+            return false;
+        }
         if (rs.stage !== 'SPRINT' || rs.raceInProgress) return false;
 
         rs.sessionType = 'SPRINT';

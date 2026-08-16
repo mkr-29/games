@@ -1064,6 +1064,180 @@ html, body {
     font-weight: 400;
 }
 
+/* ==========================================
+   LIVE 2D TRACK GPS RADAR & MINI-MAP
+   ========================================== */
+.track-radar-container {
+    background: radial-gradient(circle at center, rgba(16, 22, 34, 0.95) 0%, rgba(8, 11, 18, 0.98) 100%);
+    border: 1px solid rgba(0, 210, 255, 0.25);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-top: 10px;
+    margin-bottom: 6px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6), 0 4px 16px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.track-radar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.radar-title-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-family: var(--font-heading);
+    letter-spacing: 0.5px;
+    color: #fff;
+}
+
+.radar-live-icon {
+    display: inline-block;
+    animation: radar-pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes radar-pulse {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 6px #00d2ff); }
+    100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+.radar-circuit-tag {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.70rem;
+    color: var(--accent-cyan);
+}
+
+.radar-legend-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dot-sample {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.dot-sample.user-dot {
+    background: #00d2ff;
+    box-shadow: 0 0 6px #00d2ff;
+}
+
+.dot-sample.leader-dot {
+    background: #ffb700;
+}
+
+.dot-sample.slip-dot {
+    background: #00d2ff;
+}
+
+.dot-sample.battle-dot {
+    background: #ff334b;
+}
+
+.track-radar-viewport {
+    position: relative;
+    width: 100%;
+    max-height: 240px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    box-sizing: border-box;
+}
+
+.track-radar-svg {
+    width: 100%;
+    height: auto;
+    max-height: 230px;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.8));
+    display: block;
+}
+
+/* Track outlines */
+.track-normal {
+    stroke: #121620;
+    transition: stroke 0.3s ease;
+}
+
+.track-yellow-flag {
+    stroke: #ffb700;
+    animation: yellow-track-pulse 1s infinite alternate ease-in-out;
+}
+
+@keyframes yellow-track-pulse {
+    0% { stroke: #121620; filter: none; }
+    100% { stroke: #ffb700; filter: drop-shadow(0 0 8px #ffb700); }
+}
+
+.track-red-flag {
+    stroke: #ff334b;
+    animation: red-track-pulse 0.6s infinite alternate ease-in-out;
+}
+
+@keyframes red-track-pulse {
+    0% { stroke: #121620; }
+    100% { stroke: #ff334b; filter: drop-shadow(0 0 10px #ff334b); }
+}
+
+.radar-caution-overlay {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 183, 0, 0.9);
+    color: #000;
+    font-weight: 800;
+    font-size: 0.70rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    box-shadow: 0 0 12px rgba(255, 183, 0, 0.6);
+    animation: caution-banner-pulse 1s infinite alternate;
+}
+
+@keyframes caution-banner-pulse {
+    0% { opacity: 0.85; transform: scale(0.98); }
+    100% { opacity: 1; transform: scale(1.02); }
+}
+
+.radar-weather-badge {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
 /* Fastest Lap Banner */
 .fastest-lap-banner {
     background: linear-gradient(90deg, rgba(168, 85, 247, 0.25) 0%, rgba(30, 27, 75, 0.4) 100%);
