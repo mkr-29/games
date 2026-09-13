@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prison Manager - Facility Simulation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      <div id="game-container">
+        <!-- TOP APP BAR -->
+        <header class="top-bar">
+          <div class="top-bar-left">
+            <div class="logo">
+              <span class="logo-badge">🏛️ PM</span>
+              <div class="logo-meta">
+                <span class="logo-title">PRISON MANAGER</span>
+                <span class="logo-sub">Correctional Facility Simulator</span>
+              </div>
+            </div>
+            <div class="quick-actions">
+              <button id="save-btn" class="ui-btn secondary-btn" title="Save Game state to file">💾 Save</button>
+              <button id="load-btn" class="ui-btn secondary-btn" title="Load Game state from file">📂 Load</button>
+            </div>
+          </div>
+
+          <div class="top-bar-center">
+            <div class="clock-panel">
+              <span class="clock-icon">🕒</span>
+              <div class="header">
+                <p id="header-time-text">Day 1 • 08:00 AM</p>
+              </div>
+            </div>
+            <div class="time-controls">
+              <button id="pause-btn" class="ui-btn ctrl-btn" title="Pause / Resume Time">⏸ Pause</button>
+              <button id="speed-btn" class="ui-btn ctrl-btn speed" title="Cycle Game Speed">1x</button>
+              <button id="emergency-btn" class="ui-btn ctrl-btn emergency" title="Trigger Emergency Drill">🚨 Alert</button>
+            </div>
+          </div>
+
+          <div class="top-bar-right">
+            <div class="facility-status-tag">
+              <span class="status-dot online"></span>
+              <span>NORMAL SECURITY</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- MAIN LAYOUT (SIDEBAR + GRID) -->
+        <div class="main-layout">
+          <!-- LEFT SIDEBAR NAVIGATION -->
+          <aside class="sidebar-section">
+            <div class="sidebar-heading">FACILITY MANAGEMENT</div>
+            <nav class="sidebar-nav">
+              <a href="#" class="sidebar-item active" data-section="overview">
+                <span class="item-icon">📊</span>
+                <span class="item-label">Overview</span>
+              </a>
+              <a href="#" class="sidebar-item" data-section="inmates">
+                <span class="item-icon">👥</span>
+                <span class="item-label">Inmates</span>
+                <span class="item-badge" id="sidebar-inmate-badge">3</span>
+              </a>
+              <a href="#" class="sidebar-item" data-section="staff">
+                <span class="item-icon">👮</span>
+                <span class="item-label">Staff</span>
+                <span class="item-badge" id="sidebar-staff-badge">2</span>
+              </a>
+              <a href="#" class="sidebar-item" data-section="finances">
+                <span class="item-icon">🏦</span>
+                <span class="item-label">Finances</span>
+                <span class="item-badge green" id="sidebar-finance-badge">$</span>
+              </a>
+            </nav>
+            <div class="sidebar-footer">
+              <div class="tip-card">
+                <span class="tip-icon">💡</span>
+                <p>Click any inmate or staff on the grid to inspect details and assign tasks.</p>
+              </div>
+            </div>
+          </aside>
+
+          <!-- GRID VIEWPORT -->
+          <main class="grid-viewport" id="grid-viewport">
+            <div class="grid-wrapper">
+              <div id="prison-grid"></div>
+            </div>
+          </main>
+        </div>
+
+        <!-- BOTTOM DOCK: TELEMETRY STATS & CONSTRUCTION TOOLBAR -->
+        <footer class="bottom-dock">
+          <!-- STATS TELEMETRY -->
+          <div class="hud-stats-group">
+            <div class="hud-stat-pill" title="Current Inmate Population">
+              <span class="hud-stat-icon">👥</span>
+              <div class="hud-stat-info">
+                <span class="hud-stat-label">Inmates</span>
+                <span class="hud-stat-val" id="inmate-count">3</span>
+              </div>
+            </div>
+
+            <div class="hud-stat-pill" title="Security & Staff Members">
+              <span class="hud-stat-icon">👮</span>
+              <div class="hud-stat-info">
+                <span class="hud-stat-label">Staff</span>
+                <span class="hud-stat-val" id="staff-count">2</span>
+              </div>
+            </div>
+
+            <div class="hud-stat-pill budget-pill" id="budget" title="Treasury Balance - Click to open Financial Dashboard">
+              <span class="hud-stat-icon">💰</span>
+              <div class="hud-stat-info">
+                <span class="hud-stat-label">Treasury</span>
+                <span class="hud-stat-val" id="budget-amount">$10,000</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BUILD MENU DOCK -->
+          <div class="build-dock">
+            <div class="build-dock-header">
+              <span class="build-dock-title">CONSTRUCTION TOOLBAR</span>
+              <button id="cancel-build-btn" class="cancel-btn" style="display: none;">✕ Cancel Selection</button>
+            </div>
+            <div id="build-menu" class="build-menu-scroll"></div>
+          </div>
+        </footer>
+      </div>
+
+      <!-- MODALS -->
+      <div id="entity-modal"></div>
+      <div id="finance-modal"></div>
+      <div id="management-modal"></div>
+      <div id="toast-notification"></div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

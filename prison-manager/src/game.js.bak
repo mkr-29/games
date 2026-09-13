@@ -1,0 +1,940 @@
+// Main entry point for the Prison Manager game
+import './config.js';
+import './helpers.js';
+
+// Game State
+let gameState = {
+  entities: [],
+  structures: [],
+  selectedBuildType: null,
+  isBuilding: false,
+  inmates: [],
+  staff: [],
+  budget: CONFIG.STARTING_BUDGET,
+  day: CONFIG.STARTING_DAY,
+  timeOfDay: CONFIG.STARTING_TIME
+};
+
+// Game Control State
+let controlState = {
+  currentSpeedIndex: 1, // Start at 1x
+  isPaused: false,
+  lastTimestamp: 0
+};
+
+// DOM Elements Cache
+let domElements = {};
+
+// Initialize the game
+function initGame() {
+  cacheDomElements();
+  setupGrid();
+  createInitialEntities();
+  setupEventListeners();
+  startGameLoop();
+}
+
+// Cache DOM elements for easy access
+function cacheDomElements() {
+  // Ensure #app exists
+  let app = document.getElementById('app');
+  if (!app) {
+    app = document.createElement('div');
+    app.id = 'app';
+    document.body.appendChild(app);
+  }
+
+  // Function to get or create element by id
+  const getOrCreateId = (id, tag = 'div') => {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement(tag);
+      el.id = id;
+      app.appendChild(el);
+    }
+    return el;
+  };
+
+  // Function to get or create element by class name within app
+  const getOrCreateClass = (className, tag = 'div') => {
+    let el = app.querySelector('.' + className);
+    if (!el) {
+      el = document.createElement(tag);
+      el.className = className;
+      app.appendChild(el);
+      // If it's header, ensure it contains a p
+      if (className === 'header' && tag === 'div') {
+        const p = document.createElement('p');
+        el.appendChild(p);
+      }
+    }
+    return el;
+  };
+
+  // Get or create main elements
+  domElements = {
+    prisonGrid: getOrCreateId('prison-grid'),
+    buildMenu: getOrCreateId('build-menu'),
+    pauseBtn: getOrCreateId('pause-btn', 'button'),
+    speedBtn: getOrCreateId('speed-btn', 'button'),
+    emergencyBtn: getOrCreateId('emergency-btn', 'button'),
+    saveBtn: getOrCreateId('save-btn', 'button'),
+    loadBtn: getOrCreateId('load-btn', 'button'),
+    inmateCountEl: getOrCreateId('inmate-count'),
+    staffCountEl: getOrCreateId('staff-count'),
+    budgetEl: getOrCreateId('budget'),
+    headerTimeEl: getOrCreateClass('header', 'div').querySelector('p')
+  };
+  domElements.saveBtn.textContent = 'Save';
+  domElements.loadBtn.textContent = 'Load';
+
+  // Create build options if buildMenu exists and has no options yet
+  if (domElements.buildMenu && domElements.buildMenu.children.length === 0) {
+    const buildTypes = [
+      { type: 'wall', label: 'Wall' },
+      { type: 'door', label: 'Door' },
+      { type: 'cell', label: 'Cell' },
+      { type: 'canteen', label: 'Canteen' },
+      { type: 'yard', label: 'Yard' }
+    ];
+    buildTypes.forEach(bt => {
+      const btn = document.createElement('button');
+      btn.className = 'build-option';
+      btn.dataset.type = bt.type;
+      btn.textContent = bt.label;
+      domElements.buildMenu.appendChild(btn);
+    });
+  }
+
+  // Create entity modal if missing
+  const entityModal = getOrCreateId('entity-modal');
+  // Ensure modal has some basic structure (optional)
+  if (entityModal.children.length === 0) {
+    entityModal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modal-title"></h3>
+          <button class="close-btn" id="close-modal">×</button>
+        </div>
+        <div id="modal-content"></div>
+      </div>
+    `;
+  }
+
+  // Create sidebar section if missing
+  const sidebarSection = getOrCreateClass('sidebar-section', 'nav');
+  if (sidebarSection.children.length === 0) {
+    sidebarSection.innerHTML = `
+      <a href="#" data-section="overview">Overview</a>
+      <a href="#" data-section="inmates">Inmates</a>
+      <a href="#" data-section="staff">Staff</a>
+      <a href="#" data-section="finances">Finances</a>
+    `;
+  }
+}
+
+// Setup the game grid
+function setupGrid() {
+  const grid = domElements.prisonGrid;
+  grid.style.width = `${CONFIG.GRID_SIZE * CONFIG.CELL_SIZE}px`;
+  grid.style.height = `${CONFIG.GRID_SIZE * CONFIG.CELL_SIZE}px`;
+
+  // Create grid cells for visual reference
+  for (let y = 0; y < CONFIG.GRID_SIZE; y++) {
+    for (let x = 0; x < CONFIG.GRID_SIZE; x++) {
+      const cell = document.createElement('div');
+      cell.className = 'grid-cell';
+      cell.style.left = `${x * CONFIG.CELL_SIZE}px`;
+      cell.style.top = `${y * CONFIG.CELL_SIZE}px`;
+      cell.style.width = `${CONFIG.CELL_SIZE}px`;
+      cell.style.height = `${CONFIG.CELL_SIZE}px`;
+      grid.appendChild(cell);
+    }
+  }
+}
+
+// Create initial game entities
+function createInitialEntities() {
+  // Create perimeter walls
+  createWall(0, 0, CONFIG.GRID_SIZE, 1); // Top wall
+  createWall(0, CONFIG.GRID_SIZE-1, CONFIG.GRID_SIZE, 1); // Bottom wall
+  createWall(0, 0, 1, CONFIG.GRID_SIZE); // Left wall
+  createWall(CONFIG.GRID_SIZE-1, 0, 1, CONFIG.GRID_SIZE); // Right wall
+
+  // Create entrance
+  createDoor(Math.floor(CONFIG.GRID_SIZE/2) - 1, 0, 2, 1);
+
+  // Create initial staff
+  createGuard(5, 5);
+  createGuard(5, 6);
+
+  // Create initial inmates
+  createInmate(10, 10);
+  createInmate(12, 12);
+  createInmate(8, 14);
+
+  updateStats();
+}
+
+// Create a wall structure
+function createWall(x, y, width, height) {
+  const wall = {
+    id: Helpers.generateId('wall'),
+    type: 'wall',
+    x: x, y: y, width: width, height: height,
+    element: null
+  };
+
+  gameState.structures.push(wall);
+  renderStructure(wall);
+  return wall;
+}
+
+// Create a door structure
+function createDoor(x, y, width, height) {
+  const door = {
+    id: Helpers.generateId('door'),
+    type: 'door',
+    x: x, y: y, width: width, height: height,
+    element: null,
+    isOpen: true
+  };
+
+  gameState.structures.push(door);
+  renderStructure(door);
+  return door;
+}
+
+// Create an inmate entity
+function createInmate(x, y) {
+  const inmate = {
+    id: Helpers.generateId('inmate'),
+    type: 'inmate',
+    x: x, y: y,
+    name: `Inmate ${gameState.inmates.length + 1}`,
+    needs: {
+      hunger: Math.random() * 0.3,
+      hygiene: Math.random() * 0.3,
+      health: 1.0,
+      comfort: Math.random() * 0.5,
+      family: Math.random() * 0.4,
+      recreation: Math.random() * 0.5
+    },
+    temperament: {
+      aggression: Math.random() * 0.5,
+      cooperativeness: Math.random() * 0.7,
+      intelligence: Math.random() * 0.6
+    },
+    skills: {
+      license_plates: Math.random() * 0.5,
+      laundry: Math.random() * 0.5,
+      kitchen: Math.random() * 0.5,
+      farming: Math.random() * 0.5,
+      maintenance: Math.random() * 0.5,
+      tailoring: Math.random() * 0.5,
+      carpentry: Math.random() * 0.5,
+      metalwork: Math.random() * 0.5
+    },
+    status: {
+      isIdle: false,
+      isWorking: false,
+      isInCell: false,
+      isInYard: false,
+      contraband: [],
+      gangAffiliation: null,
+      reputation: {
+        guards: 0,
+        inmates: 0,
+        warden: 0
+      },
+      health: 1.0,
+      energy: 1.0,
+      stress: Math.random() * 0.3
+    },
+    schedule: {
+      currentActivity: 'idle',
+      activityStartTime: performance.now(),
+      activityEndTime: performance.now() + (60 * 60 * 1000), // 1 hour
+      nextActivity: 'idle'
+    },
+    element: null
+  };
+
+  gameState.entities.push(inmate);
+  gameState.inmates.push(inmate);
+  renderEntity(inmate);
+  return inmate;
+}
+
+// Create a guard entity
+function createGuard(x, y) {
+  const guard = {
+    id: Helpers.generateId('guard'),
+    type: 'guard',
+    x: x, y: y,
+    name: `Guard ${gameState.staff.length + 1}`,
+    role: 'GUARD',
+    attributes: {
+      vigilance: 0.7 + Math.random() * 0.3,
+      compassion: 0.5 + Math.random() * 0.3,
+      authority: 0.6 + Math.random() * 0.4,
+      stamina: 0.7 + Math.random() * 0.3,
+      stressResistance: 0.6 + Math.random() * 0.4
+    },
+    status: {
+      isOnDuty: true,
+      currentAssignment: 'patrol',
+      fatigue: Math.random() * 0.3,
+      stress: Math.random() * 0.3,
+      morale: 0.7 + Math.random() * 0.3,
+      health: 1.0
+    },
+    schedule: {
+      shiftStart: '06:00',
+      shiftEnd: '18:00',
+      breakTimes: [{start: '12:00', end: '12:30'}],
+      overtimeHours: 0
+    },
+    performance: {
+      effectiveness: 0.7 + Math.random() * 0.3,
+      reliability: 0.7 + Math.random() * 0.3,
+      incidentResponse: 0.6 + Math.random() * 0.4,
+      inmateRelations: 0.6 + Math.random() * 0.4
+    },
+    element: null
+  };
+
+  gameState.entities.push(guard);
+  gameState.staff.push(guard);
+  renderEntity(guard);
+  return guard;
+}
+
+// Render an entity to the screen
+function renderEntity(entity) {
+  // Remove existing element if any
+  if (entity.element && entity.element.parentNode) {
+    entity.element.parentNode.removeChild(entity.element);
+  }
+
+  const element = document.createElement('div');
+  element.className = `entity ${entity.type}`;
+  element.style.left = `${entity.x * CONFIG.CELL_SIZE + (CONFIG.CELL_SIZE - 20) / 2}px`;
+  element.style.top = `${entity.y * CONFIG.CELL_SIZE + (CONFIG.CELL_SIZE - 20) / 2}px`;
+
+  // Add tooltip/info on click
+  element.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showEntityDetails(entity);
+  });
+
+  // Add drag capability for building/testing
+  if (gameState.isBuilding) {
+    element.style.cursor = 'pointer';
+  }
+
+  domElements.prisonGrid.appendChild(element);
+  entity.element = element;
+}
+
+// Render a structure to the screen
+function renderStructure(structure) {
+  // Remove existing element if any
+  if (structure.element && structure.element.parentNode) {
+    structure.element.parentNode.removeChild(structure.element);
+  }
+
+  const element = document.createElement('div');
+  element.className = `structure ${structure.type}`;
+  element.style.left = `${structure.x * CONFIG.CELL_SIZE}px`;
+  element.style.top = `${structure.y * CONFIG.CELL_SIZE}px`;
+  element.style.width = `${structure.width * CONFIG.CELL_SIZE}px`;
+  element.style.height = `${structure.height * CONFIG.CELL_SIZE}px`;
+
+  // For doors, show open/closed state
+  if (structure.type === 'door') {
+    element.style.backgroundColor = structure.isOpen ? '#8e44ad' : '#5d216f';
+    element.style.opacity = structure.isOpen ? 0.7 : 1.0;
+  }
+
+  domElements.prisonGrid.appendChild(element);
+  structure.element = element;
+}
+
+// Show entity details in a modal
+function showEntityDetails(entity) {
+  const modal = document.getElementById('entity-modal');
+  const title = document.getElementById('modal-title');
+  const content = document.getElementById('modal-content');
+
+  title.textContent = `${entity.type.charAt(0).toUpperCase() + entity.type.slice(1)}: ${entity.name || entity.id}`;
+
+  let details = '';
+  if (entity.type === 'inmate') {
+    details = `
+      <div class="form-group">
+        <strong>Security Level:</strong> Medium
+      </div>
+      <div class="form-group">
+        <strong>Needs:</strong>
+        <div>Hunger: ${Helpers.formatPercent(entity.needs.hunger)}%</div>
+        <div>Hygiene: ${Helpers.formatPercent(entity.needs.hygiene)}%</div>
+        <div>Health: ${Helpers.formatPercent(entity.needs.health)}%</div>
+        <div>Comfort: ${Helpers.formatPercent(entity.needs.comfort)}%</div>
+        <div>Family: ${Helpers.formatPercent(entity.needs.family)}%</div>
+        <div>Recreation: ${Helpers.formatPercent(entity.needs.recreation)}%</div>
+      </div>
+      <div class="form-group">
+        <strong>Temperament:</strong>
+        <div>Aggression: ${Helpers.formatPercent(entity.temperament.aggression)}%</div>
+        <div>Cooperativeness: ${Helpers.formatPercent(entity.temperament.cooperativeness)}%</div>
+        <div>Intelligence: ${Helpers.formatPercent(entity.temperament.intelligence)}%</div>
+      </div>
+      <div class="form-group">
+        <strong>Current Activity:</strong> ${entity.schedule.currentActivity}
+      </div>
+    `;
+  } else if (entity.type === 'guard' || entity.type === 'staff') {
+    details = `
+      <div class="form-group">
+        <strong>Role:</strong> ${entity.role}
+      </div>
+      <div class="form-group">
+        <strong>Attributes:</strong>
+        <div>Vigilance: ${Helpers.formatPercent(entity.attributes.vigilance)}%</div>
+        <div>Compassion: ${Helpers.formatPercent(entity.attributes.compassion)}%</div>
+        <div>Authority: ${Helpers.formatPercent(entity.attributes.authority)}%</div>
+        <div>Stamina: ${Helpers.formatPercent(entity.attributes.stamina)}%</div>
+      </div>
+      <div class="form-group">
+        <strong>Status:</strong>
+        <div>On Duty: ${entity.status.isOnDuty ? 'Yes' : 'No'}</div>
+        <div>Fatigue: ${Helpers.formatPercent(entity.status.fatigue)}%</div>
+        <div>Stress: ${Helpers.formatPercent(entity.status.stress)}%</div>
+        <div>Morale: ${Helpers.formatPercent(entity.status.morale)}%</div>
+      </div>
+      <div class="form-group">
+        <strong>Current Assignment:</strong> ${entity.status.currentAssignment}
+      </div>
+    `;
+  } else {
+    details = `<p>Basic entity details.</p>`;
+  }
+
+  content.innerHTML = details;
+  modal.style.display = 'flex';
+}
+
+// Setup event listeners
+function setupEventListeners() {
+  // Build menu options
+  document.querySelectorAll('.build-option').forEach(option => {
+    option.addEventListener('click', () => {
+      // Remove active class from all options
+      document.querySelectorAll('.build-option').forEach(opt => opt.classList.remove('active'));
+      // Add active class to clicked option
+      option.classList.add('active');
+
+      // Set selected build type
+      gameState.selectedBuildType = option.dataset.type;
+      gameState.isBuilding = true;
+
+      // Change cursor to indicate build mode
+      domElements.prisonGrid.style.cursor = 'crosshair';
+    });
+  });
+
+  // Grid click for building
+  domElements.prisonGrid.addEventListener('click', (e) => {
+    if (!gameState.isBuilding || !gameState.selectedBuildType) return;
+
+    const rect = domElements.prisonGrid.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / CONFIG.CELL_SIZE);
+    const y = Math.floor((e.clientY - rect.top) / CONFIG.CELL_SIZE);
+
+    // Handle different build types
+    switch (gameState.selectedBuildType) {
+      case 'wall':
+        createWall(x, y, 1, 1);
+        gameState.budget -= CONFIG.WALL_COST;
+        break;
+      case 'door':
+        createDoor(x, y, 1, 1);
+        gameState.budget -= CONFIG.DOOR_COST;
+        break;
+      case 'cell':
+        // Create a 2x2 cell with walls and door
+        createWall(x, y, 2, 1); // top wall
+        createWall(x, y + 1, 2, 1); // bottom wall
+        createWall(x, y, 1, 2); // left wall
+        createWall(x + 1, y, 1, 2); // right wall
+        createDoor(x + 1, y, 1, 1); // door in right wall
+        gameState.budget -= CONFIG.CELL_COST;
+        break;
+      case 'canteen':
+        // Create a 3x2 canteen area
+        createWall(x, y, 3, 1); // top
+        createWall(x, y + 1, 3, 1); // bottom
+        createWall(x, y, 1, 2); // left
+        createWall(x + 2, y, 1, 2); // right
+        createDoor(x + 1, y, 1, 1); // door
+        gameState.budget -= CONFIG.CANTEEN_COST;
+        break;
+      case 'yard':
+        // Create a 4x3 yard
+        createWall(x, y, 4, 1); // top
+        createWall(x, y + 2, 4, 1); // bottom
+        createWall(x, y, 1, 3); // left
+        createWall(x + 3, y, 1, 3); // right
+        createDoor(x + 2, y, 1, 1); // door
+        gameState.budget -= CONFIG.YARD_COST;
+        break;
+    }
+
+    updateStats();
+  });
+
+  // Close modal
+  document.querySelector('.close-btn').addEventListener('click', () => {
+    document.getElementById('entity-modal').style.display = 'none';
+  });
+
+  document.getElementById('close-modal').addEventListener('click', () => {
+    document.getElementById('entity-modal').style.display = 'none';
+  });
+
+  // Controls
+  domElements.pauseBtn.addEventListener('click', () => {
+    controlState.isPaused = !controlState.isPaused;
+    domElements.pauseBtn.textContent = controlState.isPaused ? 'Resume' : 'Pause';
+  });
+
+  domElements.speedBtn.addEventListener('click', () => {
+    controlState.currentSpeedIndex = (controlState.currentSpeedIndex + 1) % CONFIG.GAME_SPEEDS.length;
+    domElements.speedBtn.textContent = `${CONFIG.GAME_SPEEDS[controlState.currentSpeedIndex]}x`;
+  });
+
+  domElements.emergencyBtn.addEventListener('click', () => {
+    // Trigger a random event
+    if (Math.random() > 0.7 && gameState.inmates.length > 0) {
+      const randomInmate = gameState.inmates[Math.floor(Math.random() * gameState.inmates.length)];
+      randomInmate.status.stress = Math.min(1.0, randomInmate.status.stress + 0.4);
+      randomInmate.status.energy = Math.max(0.1, randomInmate.status.energy - 0.3);
+      alert(`Emergency! Inmate ${randomInmate.name} is experiencing high stress!`);
+    }
+  });
+
+  // Sidebar navigation (simplified)
+  document.querySelectorAll('.sidebar-section a').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.querySelectorAll('.sidebar-section a').forEach(l => l.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
+}
+
+// Start the game loop
+function startGameLoop() {
+  requestAnimationFrame(gameLoop);
+}
+
+// Game loop
+function gameLoop(timestamp) {
+  if (controlState.lastTimestamp === 0) controlState.lastTimestamp = timestamp;
+  const deltaTime = timestamp - controlState.lastTimestamp;
+  controlState.lastTimestamp = timestamp;
+
+  if (!controlState.isPaused) {
+    // Update game time
+    const gameDelta = deltaTime * CONFIG.GAME_SPEEDS[controlState.currentSpeedIndex] / 1000; // Convert to seconds
+    gameState.timeOfDay += gameDelta * 60; // Convert seconds to game minutes
+
+    // Wrap day
+    if (gameState.timeOfDay >= 1440) { // 24 hours * 60 minutes
+      gameState.timeOfDay -= 1440;
+      gameState.day++;
+    }
+
+    // Update header time
+    const hours = Math.floor(gameState.timeOfDay / 60);
+    const minutes = Math.floor(gameState.timeOfDay % 60);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+    domElements.headerTimeEl.textContent = `Day ${gameState.day} • ${Helpers.formatTime(gameState.timeOfDay)}`;
+
+    // Update entity AI (simplified)
+    updateEntities(gameDelta);
+
+    // Update structures (maintenance, etc.)
+    updateStructures(gameDelta);
+  }
+
+  // Render
+  render();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// Update entities (inmates and staff)
+function updateEntities(deltaTime) {
+  // Update inmate needs
+  gameState.inmates.forEach(inmate => {
+    // Needs increase over time
+    inmate.needs.hunger = Math.min(1.0, inmate.needs.hunger + deltaTime * 0.0001);
+    inmate.needs.hygiene = Math.min(1.0, inmate.needs.hygiene + deltaTime * 0.00008);
+    inmate.needs.health = Math.max(0.0, inmate.needs.health - deltaTime * 0.00005); // Slight degradation
+    inmate.needs.comfort = Math.max(0.0, inmate.needs.comfort - deltaTime * 0.00006);
+    inmate.needs.family = Math.max(0.0, inmate.needs.family - deltaTime * 0.00003);
+    inmate.needs.recreation = Math.max(0.0, inmate.needs.recreation - deltaTime * 0.00007);
+
+    // Simple AI: if needs are high, move to fulfill them
+    if (inmate.needs.hunger > 0.7) {
+      // Move towards canteen/food source
+      moveTowardsNeed(inmate, 'canteen');
+    } else if (inmate.needs.recreation > 0.7) {
+      // Move towards yard
+      moveTowardsNeed(inmate, 'yard');
+    } else if (inmate.needs.hygiene > 0.7) {
+      // Move towards showers (not implemented yet)
+      // For now, just wander
+      wanderEntity(inmate, deltaTime);
+    } else {
+      wanderEntity(inmate, deltaTime);
+    }
+
+    // Stress increases with unmet needs
+    const avgNeed = (inmate.needs.hunger + inmate.needs.hygiene +
+                   (1 - inmate.needs.health) + (1 - inmate.needs.comfort) +
+                   (1 - inmate.needs.family) + (1 - inmate.needs.recreation)) / 6;
+    inmate.status.stress = Math.min(1.0, inmate.status.stress + deltaTime * 0.0002 * avgNeed);
+
+    // Energy decreases with activity and stress
+    inmate.status.energy = Math.max(0.1, inmate.status.energy - deltaTime * 0.0001 * (1 + inmate.status.stress));
+
+    // Clamp values
+    Object.keys(inmate.needs).forEach(key => {
+      inmate.needs[key] = Math.max(0, Math.min(1, inmate.needs[key]));
+    });
+    inmate.status.stress = Math.max(0, Math.min(1, inmate.status.stress));
+    inmate.status.energy = Math.max(0, Math.min(1, inmate.status.energy));
+  });
+
+  // Update staff
+  gameState.staff.forEach(staff => {
+    // Staff gets tired over time
+    staff.status.fatigue = Math.min(1.0, staff.status.fatigue + deltaTime * 0.00005);
+    staff.status.stress = Math.min(1.0, staff.status.stress + deltaTime * 0.00003);
+
+    // Simple patrol behavior
+    wanderEntity(staff, deltaTime * 0.5); // Staff moves slower than inmates
+
+    // Recover during breaks
+    const hours = Math.floor(gameState.timeOfDay / 60);
+    const minutes = gameState.timeOfDay % 60;
+    const timeInMinutes = hours * 60 + minutes;
+
+    // Check if on break (simplified)
+    const onBreak = staff.schedule.breakTimes.some(breakTime => {
+      const startMin = parseInt(breakTime.start.split(':')[0]) * 60 + parseInt(breakTime.start.split(':')[1]);
+      const endMin = parseInt(breakTime.end.split(':')[0]) * 60 + parseInt(breakTime.end.split(':')[1]);
+      return timeInMinutes >= startMin && timeInMinutes <= endMin;
+    });
+
+    if (onBreak) {
+      staff.status.fatigue = Math.max(0, staff.status.fatigue - deltaTime * 0.0002);
+      staff.status.stress = Math.max(0, staff.status.stress - deltaTime * 0.0001);
+    }
+  });
+}
+
+// Move entity towards a need (simplified)
+function moveTowardsNeed(entity, needType) {
+  // Simple movement towards a general direction for prototype
+  // In a real game, this would pathfind to specific rooms
+  const targetX = needType === 'canteen' ? CONFIG.GRID_SIZE * 0.7 :
+                 needType === 'yard' ? CONFIG.GRID_SIZE * 0.3 :
+                 CONFIG.GRID_SIZE / 2;
+  const targetY = needType === 'canteen' ? CONFIG.GRID_SIZE * 0.3 :
+                 needType === 'yard' ? CONFIG.GRID_SIZE * 0.7 :
+                 CONFIG.GRID_SIZE / 2;
+
+  const dx = targetX - entity.x;
+  const dy = targetY - entity.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  if (distance > 0.5) {
+    const speed = 0.3 * deltaTime; // Adjust speed as needed
+    entity.x += (dx / distance) * speed;
+    entity.y += (dy / distance) * speed;
+
+    // Keep within bounds
+    entity.x = Math.max(0, Math.min(CONFIG.GRID_SIZE - 1, entity.x));
+    entity.y = Math.max(0, Math.min(CONFIG.GRID_SIZE - 1, entity.y));
+  }
+}
+
+// Wander entity (random movement)
+function wanderEntity(entity, deltaTime) {
+  // Random wandering behavior
+  if (Math.random() < deltaTime * 0.01) { // Change direction occasionally
+    entity.targetX = entity.x + (Math.random() - 0.5) * 3;
+    entity.targetY = entity.y + (Math.random() - 0.5) * 3;
+
+    // Keep target within bounds
+    entity.targetX = Math.max(0, Math.min(CONFIG.GRID_SIZE - 1, entity.targetX));
+    entity.targetY = Math.max(0, Math.min(CONFIG.GRID_SIZE - 1, entity.targetY));
+  }
+
+  if (entity.targetX !== undefined && entity.targetY !== undefined) {
+    const dx = entity.targetX - entity.x;
+    const dy = entity.targetY - entity.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 0.1) {
+      const speed = 0.2 * deltaTime;
+      entity.x += (dx / distance) * speed;
+      entity.y += (dy / distance) * speed;
+
+      // Keep within bounds
+      entity.x = Math.max(0, Math.min(CONFIG.GRID_SIZE - 1, entity.x));
+      entity.y = Math.max(0, Math.min(CONFIG.GRID_SIZE - 1, entity.y));
+    } else {
+      // Reached target, clear it
+      delete entity.targetX;
+      delete entity.targetY;
+    }
+  }
+}
+
+// Update structures (mostly static in prototype)
+function updateStructures(deltaTime) {
+  // Structures mostly static in prototype
+  // In a real game, this would handle wear and tear, maintenance needs, etc.
+}
+
+// Render function to update positions
+function render() {
+  // Update entity positions on screen
+  gameState.entities.forEach(entity => {
+    if (entity.element) {
+      entity.element.style.left = `${entity.x * CONFIG.CELL_SIZE + (CONFIG.CELL_SIZE - 20) / 2}px`;
+      entity.element.style.top = `${entity.y * CONFIG.CELL_SIZE + (CONFIG.CELL_SIZE - 20) / 2}px`;
+    }
+  });
+
+  // Update structures
+  gameState.structures.forEach(structure => {
+    if (structure.element) {
+      structure.element.style.left = `${structure.x * CONFIG.CELL_SIZE}px`;
+      structure.element.style.top = `${structure.y * CONFIG.CELL_SIZE}px`;
+    }
+  });
+}
+
+// Update statistics display
+function updateStats() {
+  domElements.inmateCountEl.textContent = gameState.inmates.length;
+  domElements.staffCountEl.textContent = gameState.staff.length;
+  domElements.budgetEl.textContent = Helpers.formatCurrency(gameState.budget);
+}
+
+// Save and Load System
+function saveGame() {
+  const saveData = {
+    version: "1.0",
+    gameState: {
+      entities: gameState.entities.map(entity => {
+        // Create a plain copy of the entity without the element property
+        const { element, ...plainEntity } = entity;
+        return plainEntity;
+      }),
+      structures: gameState.structures.map(structure => {
+        const { element, ...plainStructure } = structure;
+        return plainStructure;
+      }),
+      selectedBuildType: gameState.selectedBuildType,
+      isBuilding: gameState.isBuilding,
+      inmates: gameState.inmates.map(inmate => inmate.id), // save ids
+      staff: gameState.staff.map(staff => staff.id),
+      budget: gameState.budget,
+      day: gameState.day,
+      timeOfDay: gameState.timeOfDay
+    },
+    controlState: {
+      currentSpeedIndex: controlState.currentSpeedIndex,
+      isPaused: controlState.isPaused,
+      lastTimestamp: 0 // reset on load
+    }
+  };
+
+  // Save to localStorage
+  try {
+    localStorage.setItem('prisonManagerSave', JSON.stringify(saveData));
+    // Also trigger a download of the save file
+    const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `prison-manager-save-day-${gameState.day}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    alert('Game saved successfully! A download has also been triggered.');
+  } catch (e) {
+    console.error('Failed to save game:', e);
+    alert('Failed to save game. See console for details.');
+  }
+}
+
+function loadGame() {
+  // Create a file input to let the user choose a save file
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = event => {
+      try {
+        const saveData = JSON.parse(event.target.result);
+        loadSaveData(saveData);
+      } catch (err) {
+        console.error('Failed to parse save file:', err);
+        alert('Failed to load save file. Invalid JSON.');
+      }
+    };
+    reader.onerror = err => {
+      console.error('Failed to read file:', err);
+      alert('Failed to read save file.');
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function loadSaveData(saveData) {
+  // Validate version
+  if (saveData.version !== "1.0") {
+    alert('Save file version mismatch. This version of the game may not be compatible with this save.');
+    return;
+  }
+
+  // Clear current game state
+  gameState.entities.forEach(entity => {
+    if (entity.element && element.parentNode) {
+      element.parentNode.removeChild(element);
+    }
+  });
+  gameState.structures.forEach(structure => {
+    if (structure.element && structure.element.parentNode) {
+      structure.element.parentNode.removeChild(structure.element);
+    }
+  });
+
+  // Reset arrays
+  gameState.entities = [];
+  gameState.structures = [];
+  gameState.inmates = [];
+  gameState.staff = [];
+
+  // Restore gameState from saveData
+  gameState.selectedBuildType = saveData.gameState.selectedBuildType;
+  gameState.isBuilding = saveData.gameState.isBuilding;
+  gameState.budget = saveData.gameState.budget;
+  gameState.day = saveData.gameState.day;
+  gameState.timeOfDay = saveData.gameState.timeOfDay;
+
+  // Restore controlState
+  controlState.currentSpeedIndex = saveData.controlState.currentSpeedIndex;
+  controlState.isPaused = saveData.controlState.isPaused;
+  controlState.lastTimestamp = saveData.controlState.lastTimestamp;
+
+  // Recreate entities
+  saveData.gameState.entities.forEach(savedEntity => {
+    let entity;
+    switch (savedEntity.type) {
+      case 'inmate':
+        entity = createInmate(savedEntity.x, savedEntity.y);
+        break;
+      case 'guard':
+        entity = createGuard(savedEntity.x, savedEntity.y);
+        break;
+      default:
+        console.warn('Unknown entity type:', savedEntity.type);
+        return;
+    }
+    // Copy all saved properties except element and id (we'll set id separately)
+    for (const key in savedEntity) {
+      if (key !== 'element' && key !== 'id') {
+        entity[key] = savedEntity[key];
+      }
+    }
+    // Set the id to the saved one to preserve identity
+    entity.id = savedEntity.id;
+  });
+
+  // Recreate structures
+  saveData.gameState.structures.forEach(savedStructure => {
+    let structure;
+    switch (savedStructure.type) {
+      case 'wall':
+        structure = createWall(savedStructure.x, savedStructure.y, savedStructure.width, savedStructure.height);
+        break;
+      case 'door':
+        structure = createDoor(savedStructure.x, savedStructure.y, savedStructure.width, savedStructure.height);
+        break;
+      default:
+        console.warn('Unknown structure type:', savedStructure.type);
+        return;
+    }
+    // Copy all saved properties except element and id
+    for (const key in savedStructure) {
+      if (key !== 'element' && key !== 'id') {
+        structure[key] = savedStructure[key];
+      }
+    }
+    // Set the id to the saved one
+    structure.id = savedStructure.id;
+  });
+
+  // Update the UI
+  updateStats();
+  // Update header time
+  const hours = Math.floor(gameState.timeOfDay / 60);
+  const minutes = Math.floor(gameState.timeOfDay % 60);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 === 0 ? 12 : hours % 12;
+  domElements.headerTimeEl.textContent = `Day ${gameState.day} • ${Helpers.formatTime(gameState.timeOfDay)}`;
+
+  // Update build menu active state if needed
+  if (gameState.selectedBuildType && !gameState.isBuilding) {
+    // If we have a selected build type but are not in building mode, activate the button
+    const btn = domElements.buildMenu.querySelector(`[data-type="${gameState.selectedBuildType}"]`);
+    if (btn) {
+      btn.classList.add('active');
+      domElements.prisonGrid.style.cursor = 'crosshair';
+      gameState.isBuilding = true;
+    }
+  }
+
+  alert('Game loaded successfully!');
+}
+
+// Export functions for testing (if needed)
+export {
+  initGame,
+  gameState,
+  controlState,
+  createWall,
+  createDoor,
+  createInmate,
+  createGuard,
+  renderEntity,
+  renderStructure,
+  showEntityDetails,
+  updateEntities,
+  updateStructures,
+  render,
+  updateStats
+};
