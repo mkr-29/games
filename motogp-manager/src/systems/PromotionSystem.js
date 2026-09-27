@@ -19,6 +19,9 @@ export const TIERS = {
         gpWinPrize: 1800,
         gpPodiumPrize: 1000,
         gpTop10Prize: 500,
+        sprintWinPrize: 800,
+        sprintPodiumPrize: 400,
+        sprintTop9Prize: 200,
         sponsorMulti: 1.0,
         description: "Entry class of Grand Prix racing with lightweight 250cc 4-stroke single cylinder prototypes (No Sprints)."
     },
@@ -37,6 +40,9 @@ export const TIERS = {
         gpWinPrize: 6500,
         gpPodiumPrize: 3800,
         gpTop10Prize: 1800,
+        sprintWinPrize: 2500,
+        sprintPodiumPrize: 1500,
+        sprintTop9Prize: 700,
         sponsorMulti: 3.5,
         description: "Intermediate class powered by official Triumph 765cc engines and prototype chassis (No Sprints)."
     },

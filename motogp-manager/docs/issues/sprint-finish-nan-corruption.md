@@ -1,6 +1,6 @@
 # Issue 05: Sprint Race Finish NaN Prize Money Corruption in Moto3/Moto2
 
-- **Status**: Identified / Critical Defect
+- **Status**: Resolved
 - **Severity**: Critical
 - **Component**: [`src/systems/RaceSystem.js`](file:///Users/mkr-27/Desktop/MY/MKR/games/motogp-manager/src/systems/RaceSystem.js) / [`src/systems/PromotionSystem.js`](file:///Users/mkr-27/Desktop/MY/MKR/games/motogp-manager/src/systems/PromotionSystem.js)
 
@@ -95,3 +95,16 @@ Total game-breaking financial corruption. All subsequent purchases (producers, c
    Add baseline sprint prize structures to Tier 1 and Tier 2 in `PromotionSystem.js` for safety:
    - Tier 1: `sprintWinPrize: 800, sprintPodiumPrize: 400, sprintTop9Prize: 200`
    - Tier 2: `sprintWinPrize: 2500, sprintPodiumPrize: 1500, sprintTop9Prize: 700`
+
+---
+
+## ✅ Resolution & Verification
+
+- **Changes Applied**:
+  - Defined explicit baseline sprint prize constants for Moto3 and Moto2 in [`src/systems/PromotionSystem.js`](file:///Users/mkr-27/Desktop/MY/MKR/games/motogp-manager/src/systems/PromotionSystem.js).
+  - Added reusable static utility `RaceSystem.calculateSprintPrize(tierDef, userPos, heritagePerks)` in [`src/systems/RaceSystem.js`](file:///Users/mkr-27/Desktop/MY/MKR/games/motogp-manager/src/systems/RaceSystem.js) with defensive validation for `userPos`, fallbacks to 0 for undefined/missing tier properties, and support for the `heritage_paddock_brand` double prize multiplier.
+  - Sanitized `state.cash` updates in both `finishSprintRace()` and `finishRace()` to guarantee pre-existing or incoming `NaN` values self-heal back to finite integers.
+- **Verification**:
+  - Added automated test suite [`tests/systems/RaceSystem.sprint.test.js`](file:///Users/mkr-27/Desktop/MY/MKR/games/motogp-manager/tests/systems/RaceSystem.sprint.test.js) with 12 unit and integration tests passing cleanly.
+  - Verified production build (`npm run build`) succeeds.
+

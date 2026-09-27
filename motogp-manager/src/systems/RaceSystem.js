@@ -986,6 +986,37 @@ export class RaceSystem {
         }
     }
 
+    /**
+     * Calculates sprint race prize money safely with defensive fallbacks.
+     * Prevents NaN values across all tiers and handles perks.
+     * @param {Object} tierDef - Tier definition object from TIERS
+     * @param {number} userPos - Finishing position (1-based index)
+     * @param {Array<string>} [heritagePerks=[]] - Active player heritage perks
+     * @returns {number} Non-negative integer prize money
+     */
+    static calculateSprintPrize(tierDef, userPos, heritagePerks = []) {
+        if (!tierDef || !Number.isFinite(userPos) || userPos <= 0) return 0;
+
+        const winPrize = Number(tierDef.sprintWinPrize) || 0;
+        const podPrize = Number(tierDef.sprintPodiumPrize) || 0;
+        const top9Prize = Number(tierDef.sprintTop9Prize) || 0;
+
+        let prizeMoney = userPos === 1 ? winPrize
+                       : (userPos <= 3 ? podPrize
+                       : (userPos <= 9 ? top9Prize
+                       : Math.floor(top9Prize * 0.25)));
+
+        if (!Number.isFinite(prizeMoney) || prizeMoney < 0) {
+            prizeMoney = 0;
+        }
+
+        if (Array.isArray(heritagePerks) && heritagePerks.includes('heritage_paddock_brand')) {
+            prizeMoney *= 2;
+        }
+
+        return Math.floor(prizeMoney);
+    }
+
     // ==========================================
     // 7. SPRINT RACE FINISH (Official Sprint Points: 12 down to 1)
     // ==========================================
@@ -1033,10 +1064,10 @@ export class RaceSystem {
         } else {
             const sprintPts = userPos <= 9 ? sprintPointsTable[userPos - 1] : 0;
             const tierDef = TIERS[state.tier] || TIERS[1];
-            const prizeMoney = userPos === 1 ? tierDef.sprintWinPrize : (userPos <= 3 ? tierDef.sprintPodiumPrize : (userPos <= 9 ? tierDef.sprintTop9Prize : Math.floor(tierDef.sprintTop9Prize * 0.25)));
+            const prizeMoney = this.calculateSprintPrize(tierDef, userPos, state.heritagePerks);
             const hypeEarned = userPos === 1 ? 12 : (userPos <= 3 ? 8 : 4);
 
-            state.cash += prizeMoney;
+            state.cash = (Number.isFinite(state.cash) ? state.cash : 0) + prizeMoney;
             state.hype += hypeEarned;
             rs.seasonPoints += sprintPts;
 
@@ -1130,7 +1161,7 @@ export class RaceSystem {
                 prizeMoney *= 2;
             }
 
-            state.cash += prizeMoney;
+            state.cash = (Number.isFinite(state.cash) ? state.cash : 0) + (Number.isFinite(prizeMoney) ? prizeMoney : 0);
             state.hype += hypeEarned;
             rs.seasonPoints += pointsEarned;
             this.syncCalendarActivity('race_gp');
