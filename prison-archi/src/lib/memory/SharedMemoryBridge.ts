@@ -79,7 +79,7 @@ export class SharedMemoryBridge {
   readonly telemetryFloat32: Float32Array;
 
   // Cache for local read tracking in main thread
-  private lastObservedCleanSlot = 0;
+  private lastObservedCleanSlot = 2;
 
   constructor(existingBuffer?: SharedArrayBuffer) {
     if (existingBuffer) {
@@ -141,7 +141,7 @@ export class SharedMemoryBridge {
     Atomics.store(this.ctrlInt32, CTRL.SIM_TIME_MS, 0);
     Atomics.store(this.ctrlInt32, CTRL.READ_SLOT, 0);
     Atomics.store(this.ctrlInt32, CTRL.WRITE_SLOT, 1);
-    Atomics.store(this.ctrlInt32, CTRL.CLEAN_SLOT, 0);
+    Atomics.store(this.ctrlInt32, CTRL.CLEAN_SLOT, 2);
     Atomics.store(this.ctrlInt32, CTRL.INPUT_HEAD, 0);
     Atomics.store(this.ctrlInt32, CTRL.INPUT_TAIL, 0);
     Atomics.store(this.ctrlInt32, CTRL.DANGER_LEVEL, 0);

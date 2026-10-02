@@ -8,8 +8,13 @@
     COMMAND_QUEUE_SIZE,
     TELEMETRY_SIZE,
     MAX_ENTITIES_PER_SLOT,
+    CTRL,
     type SimulationMetrics,
   } from './lib/memory/SharedMemoryBridge';
+  import {
+    TripleBufferConsumer,
+    type UserCommandInput,
+  } from './lib/memory/TripleBufferConsumer';
 
   let crossOriginIsolated = $state(false);
   let workerStatus = $state<'Disconnected' | 'Connecting...' | 'Online'>('Connecting...');
@@ -17,18 +22,45 @@
   let sharedMemoryAttached = $state(false);
   let simulationWorker: Worker | null = null;
   let sharedBridge: SharedMemoryBridge | null = null;
+  let consumer: TripleBufferConsumer | null = null;
 
   let metrics = $state<SimulationMetrics>({
     simTick: 0,
     simTimeMs: 0,
     readSlot: 0,
     writeSlot: 1,
-    cleanSlot: 0,
+    cleanSlot: 2,
     dangerLevel: 0,
     bankBalance: 40000,
     prisonerCount: 0,
     guardCount: 0,
   });
+
+  let interpolationAlpha = $state(0.0);
+  let inputHead = $state(0);
+  let inputTail = $state(0);
+  let commandLog = $state<Array<{ name: string; time: string; cost?: string }>>([]);
+
+  function dispatchCommand(commandType: number, name: string, cost?: string) {
+    if (!sharedBridge || !consumer) return;
+
+    const cmd: UserCommandInput = {
+      commandType,
+      targetTileX: Math.floor(Math.random() * 100),
+      targetTileY: Math.floor(Math.random() * 100),
+      width: 1,
+      height: 1,
+      payloadParam: 101,
+      timestampMs: performance.now(),
+    };
+
+    const success = consumer.enqueueUserCommand(sharedBridge, cmd);
+    if (success) {
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+      commandLog = [{ name, time: timeStr, cost }, ...commandLog.slice(0, 5)];
+    }
+  }
 
   onMount(() => {
     crossOriginIsolated = window.crossOriginIsolated ?? false;
@@ -38,6 +70,7 @@
       if (crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined') {
         sharedBridge = new SharedMemoryBridge();
         sharedBridge.initializeControlBlock(4_000_000); // $40,000.00
+        consumer = new TripleBufferConsumer(0);
       }
     } catch (err) {
       console.error('[Main Thread] SharedMemoryBridge allocation failed:', err);
@@ -72,15 +105,21 @@
       },
     } as WorkerInMessage);
 
-    // 4. Main Thread requestAnimationFrame polling loop (Zero-GC, atomic reads)
+    // 4. Main Thread render sampling loop (Native Refresh Rate 60/120/144Hz)
     let animId: number;
-    const pollLoop = () => {
-      if (sharedBridge) {
+    const renderLoop = (timestamp: number) => {
+      if (sharedBridge && consumer) {
+        const sample = consumer.acquireRenderSnapshot(sharedBridge, timestamp);
+        interpolationAlpha = sample.alpha;
         metrics = sharedBridge.getMetrics();
+
+        // Sample SPSC queue atomic pointers
+        inputHead = Atomics.load(sharedBridge.ctrlInt32, CTRL.INPUT_HEAD);
+        inputTail = Atomics.load(sharedBridge.ctrlInt32, CTRL.INPUT_TAIL);
       }
-      animId = requestAnimationFrame(pollLoop);
+      animId = requestAnimationFrame(renderLoop);
     };
-    animId = requestAnimationFrame(pollLoop);
+    animId = requestAnimationFrame(renderLoop);
 
     return () => {
       cancelAnimationFrame(animId);
@@ -110,8 +149,16 @@
           <span class="text-emerald-400 font-bold tracking-wide">${metrics.bankBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
         </div>
         <div>
+          <span class="text-slate-500 uppercase text-[10px] block">Inmates</span>
+          <span class="text-amber-400 font-bold tracking-wide">{metrics.prisonerCount}</span>
+        </div>
+        <div>
+          <span class="text-slate-500 uppercase text-[10px] block">Guards</span>
+          <span class="text-cyan-400 font-bold tracking-wide">{metrics.guardCount}</span>
+        </div>
+        <div>
           <span class="text-slate-500 uppercase text-[10px] block">Danger</span>
-          <span class="text-amber-400 font-bold tracking-wide">{metrics.dangerLevel.toFixed(1)}%</span>
+          <span class="{metrics.dangerLevel > 50 ? 'text-rose-400' : 'text-amber-400'} font-bold tracking-wide">{metrics.dangerLevel.toFixed(1)}%</span>
         </div>
         <div>
           <span class="text-slate-500 uppercase text-[10px] block">Tick (60Hz)</span>
@@ -145,17 +192,17 @@
   <!-- Main Blueprint Dashboard -->
   <div class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
     <!-- Top System Verification Banner -->
-    <div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-cyan-950/40 border border-slate-800 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-      <div class="absolute right-0 top-0 bottom-0 w-96 bg-[radial-gradient(ellipse_at_center,rgba(6,182,212,0.15),transparent_70%)] pointer-events-none"></div>
+    <div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-purple-950/40 border border-slate-800 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+      <div class="absolute right-0 top-0 bottom-0 w-96 bg-[radial-gradient(ellipse_at_center,rgba(168,85,247,0.15),transparent_70%)] pointer-events-none"></div>
 
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-mono mb-2">
-            <span>Phase 1 • Task 1.2 Active</span>
+          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-mono mb-2">
+            <span>Phase 1 • Task 1.3 Active</span>
           </div>
-          <h2 class="text-2xl font-bold text-white tracking-tight">SharedArrayBuffer & Atomic Triple-Buffer Control</h2>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Triple-Buffered State Sync & Lock-Free SPSC Input Queue</h2>
           <p class="text-xs text-slate-400 mt-1 max-w-2xl">
-            Decoupled worker architecture with contiguous 12.66 MB static memory partition. Main thread and Rust Wasm worker synchronize lock-free via atomic control block.
+            Strict lock-free synchronization. Render thread samples at native display rates (120/144Hz) with Hermite/linear interpolation, while main thread enqueues player commands into the circular SPSC ring buffer.
           </p>
         </div>
 
@@ -166,6 +213,64 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Interactive Command Dispatch Toolbar (Main Thread -> SPSC Queue) -->
+    <div class="p-5 rounded-xl bg-slate-900/80 border border-slate-800 shadow-xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-amber-400 font-mono flex items-center space-x-2">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>Interactive SPSC Command Dispatcher</span>
+        </h3>
+        <div class="text-xs font-mono text-slate-400">
+          Ring Pointers: Head <span class="text-amber-400 font-bold">{inputHead}</span> / Tail <span class="text-cyan-400 font-bold">{inputTail}</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button
+          onclick={() => dispatchCommand(1, 'Place Perimeter Wall', '-$50.00')}
+          class="px-4 py-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-cyan-500 text-xs font-mono text-cyan-300 font-semibold transition-all shadow-md active:scale-95 flex items-center justify-between cursor-pointer"
+        >
+          <span>🧱 Build Wall</span>
+          <span class="text-[10px] text-slate-400">-$50</span>
+        </button>
+
+        <button
+          onclick={() => dispatchCommand(2, 'Zone Cell Block', '+2 Inmates')}
+          class="px-4 py-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-amber-500 text-xs font-mono text-amber-300 font-semibold transition-all shadow-md active:scale-95 flex items-center justify-between cursor-pointer"
+        >
+          <span>🛏️ Zone Cell</span>
+          <span class="text-[10px] text-slate-400">+2 Inmates</span>
+        </button>
+
+        <button
+          onclick={() => dispatchCommand(3, 'Hire Security Guard', '-$500.00')}
+          class="px-4 py-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 hover:border-emerald-500 text-xs font-mono text-emerald-300 font-semibold transition-all shadow-md active:scale-95 flex items-center justify-between cursor-pointer"
+        >
+          <span>👮 Hire Guard</span>
+          <span class="text-[10px] text-slate-400">-$500</span>
+        </button>
+
+        <button
+          onclick={() => dispatchCommand(4, 'Toggle Lockdown', 'Emergency')}
+          class="px-4 py-2.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/60 border border-rose-700/80 hover:border-rose-500 text-xs font-mono text-rose-300 font-semibold transition-all shadow-md active:scale-95 flex items-center justify-between cursor-pointer"
+        >
+          <span>🚨 Lockdown</span>
+          <span class="text-[10px] text-rose-400">Toggle</span>
+        </button>
+      </div>
+
+      {#if commandLog.length > 0}
+        <div class="mt-3 pt-3 border-t border-slate-800/80 flex items-center space-x-2 text-[11px] font-mono overflow-x-auto text-slate-400">
+          <span class="text-slate-500 uppercase text-[10px] whitespace-nowrap">Recent Dispatches:</span>
+          {#each commandLog as entry}
+            <span class="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-300 whitespace-nowrap">
+              {entry.name} <span class="text-cyan-400">({entry.time})</span>
+            </span>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <!-- Grid of 3 Architectural Panels -->
@@ -249,23 +354,23 @@
               <span class="text-slate-200 font-semibold">{(metrics.simTimeMs / 1000).toFixed(2)}s ({metrics.simTimeMs} ms)</span>
             </div>
             <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
-              <span class="text-slate-400">Input Ring (Head / Tail):</span>
-              <span class="text-slate-300 font-semibold">0 / 0</span>
+              <span class="text-slate-400">SPSC Queue (Head / Tail):</span>
+              <span class="text-amber-400 font-semibold font-mono">{inputHead} / {inputTail}</span>
             </div>
             <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
-              <span class="text-slate-400">Packed Entity Layout:</span>
-              <span class="text-cyan-300 font-semibold">32 Bytes (WebGPU Pod)</span>
+              <span class="text-slate-400">Command Packet Size:</span>
+              <span class="text-cyan-300 font-semibold">20 Bytes (Packed Pod)</span>
             </div>
           </div>
         </div>
 
         <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-emerald-400 flex items-center justify-between">
-          <span>Sync Protocol: Atomic SeqCst</span>
+          <span>Sync Protocol: Atomic AcqRel</span>
           <span>Zero GC Invariant</span>
         </div>
       </div>
 
-      <!-- Panel 3: Triple-Buffer State Slots -->
+      <!-- Panel 3: Triple-Buffer State Slots & Interpolation -->
       <div class="p-5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between shadow-lg">
         <div>
           <div class="flex items-center justify-between mb-4">
@@ -282,7 +387,7 @@
               {@const isRead = metrics.readSlot === slot}
               {@const isWrite = metrics.writeSlot === slot}
               {@const isClean = metrics.cleanSlot === slot}
-              <div class="p-2.5 rounded-lg border text-center font-mono {isWrite ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300' : isRead ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300' : 'bg-slate-950/60 border-slate-800 text-slate-400'}">
+              <div class="p-2.5 rounded-lg border text-center font-mono {isWrite ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300' : isRead ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300' : isClean ? 'bg-purple-950/60 border-purple-500 text-purple-300' : 'bg-slate-950/60 border-slate-800 text-slate-400'}">
                 <span class="text-[10px] uppercase font-bold block text-slate-500">Slot {slot}</span>
                 <span class="text-xs font-bold block mt-1">
                   {#if isWrite}
@@ -292,12 +397,23 @@
                   {:else if isClean}
                     CLEAN
                   {:else}
-                    IDLE
+                    STANDBY
                   {/if}
                 </span>
                 <span class="text-[9px] text-slate-500 block mt-0.5">4 MB</span>
               </div>
             {/each}
+          </div>
+
+          <!-- Interpolation Alpha Bar -->
+          <div class="space-y-1 mb-3">
+            <div class="flex justify-between text-[11px] font-mono text-slate-400">
+              <span>Hermite Alpha (&alpha;):</span>
+              <span class="text-purple-300 font-bold">{(interpolationAlpha * 100).toFixed(1)}%</span>
+            </div>
+            <div class="w-full h-1.5 rounded-full bg-slate-950 border border-slate-800 overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-purple-500 to-cyan-400 transition-all duration-75" style="width: {interpolationAlpha * 100}%"></div>
+            </div>
           </div>
 
           <div class="space-y-1.5 text-xs font-mono text-slate-300">
@@ -317,7 +433,7 @@
         </div>
 
         <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-purple-400 flex items-center justify-between">
-          <span>Hermite Interpolation Ready</span>
+          <span>Hermite Interpolation Active</span>
           <span>120Hz Main / 60Hz Sim</span>
         </div>
       </div>
@@ -330,8 +446,8 @@
           <h3 class="text-base font-bold text-white tracking-wide">Phase 1: Foundations, Threading & Memory Model</h3>
           <p class="text-xs text-slate-400">Roadmap Milestone Progress</p>
         </div>
-        <span class="text-xs font-mono px-3 py-1 rounded bg-cyan-950 border border-cyan-800 text-cyan-300">
-          2 of 28 Total Tasks (7%)
+        <span class="text-xs font-mono px-3 py-1 rounded bg-purple-950 border border-purple-800 text-purple-300 font-bold">
+          3 of 28 Total Tasks (11%)
         </span>
       </div>
 
@@ -345,22 +461,22 @@
           <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
         </div>
 
-        <div class="p-3 rounded-lg bg-cyan-950/40 border border-cyan-500/80 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.15)]">
+        <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
           <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
             <span class="font-bold">Task 1.2: Memory Bridge</span>
           </div>
-          <p class="text-[11px] text-cyan-400/80 mt-1">SharedArrayBuffer, Control Block</p>
-          <span class="text-[10px] text-cyan-400 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
+          <p class="text-[11px] text-emerald-400/80 mt-1">SharedArrayBuffer, Control Block</p>
+          <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
         </div>
 
-        <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+        <div class="p-3 rounded-lg bg-purple-950/40 border border-purple-500/80 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.15)]">
           <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
-            <span class="font-bold text-slate-300">Task 1.3: SPSC Queue</span>
+            <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+            <span class="font-bold">Task 1.3: SPSC Queue</span>
           </div>
-          <p class="text-[11px] text-slate-500 mt-1">Triple-Buffer Sync & Input Ring</p>
-          <span class="text-[10px] text-slate-500 block mt-2">NEXT UP</span>
+          <p class="text-[11px] text-purple-400/80 mt-1">Triple-Buffer Sync & Input Ring</p>
+          <span class="text-[10px] text-purple-400 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
         </div>
 
         <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
@@ -369,7 +485,7 @@
             <span class="font-bold text-slate-300">Task 1.4: Bevy ECS Loop</span>
           </div>
           <p class="text-[11px] text-slate-500 mt-1">Tick Accumulator & Stages</p>
-          <span class="text-[10px] text-slate-500 block mt-2">QUEUED</span>
+          <span class="text-[10px] text-slate-500 block mt-2">NEXT UP</span>
         </div>
       </div>
     </div>

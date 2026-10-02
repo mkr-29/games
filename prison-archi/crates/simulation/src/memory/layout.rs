@@ -66,7 +66,7 @@ impl Default for AtomicControlBlock {
             sim_time_ms: AtomicU32::new(0),
             read_slot: AtomicU32::new(0),
             write_slot: AtomicU32::new(1),
-            clean_slot: AtomicU32::new(0),
+            clean_slot: AtomicU32::new(2),
             input_head: AtomicU32::new(0),
             input_tail: AtomicU32::new(0),
             danger_level: AtomicU32::new(0),
@@ -159,7 +159,7 @@ mod tests {
         assert_eq!(ctrl.version.load(Ordering::SeqCst), PROTOCOL_VERSION);
         assert_eq!(ctrl.read_slot.load(Ordering::SeqCst), 0);
         assert_eq!(ctrl.write_slot.load(Ordering::SeqCst), 1);
-        assert_eq!(ctrl.clean_slot.load(Ordering::SeqCst), 0);
+        assert_eq!(ctrl.clean_slot.load(Ordering::SeqCst), 2);
         assert_eq!(ctrl.bank_balance.load(Ordering::SeqCst), 4_000_000); // $40k
     }
 }

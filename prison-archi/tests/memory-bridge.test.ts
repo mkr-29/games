@@ -54,7 +54,7 @@ test('SharedMemoryBridge: Allocation and control block initialization', () => {
   assert.equal(metrics.simTimeMs, 0);
   assert.equal(metrics.readSlot, 0);
   assert.equal(metrics.writeSlot, 1);
-  assert.equal(metrics.cleanSlot, 0);
+  assert.equal(metrics.cleanSlot, 2);
   assert.equal(metrics.dangerLevel, 0);
   assert.equal(metrics.bankBalance, 50000);
   assert.equal(metrics.prisonerCount, 0);
@@ -85,10 +85,10 @@ test('SharedMemoryBridge: Lock-free Triple Buffer consumer state swap', () => {
 
   const ctrlView = new Int32Array(bridge.buffer, HEADER_OFFSET, HEADER_SIZE / 4);
 
-  // Initial render snapshot query (clean_slot == 0, lastObserved == 0)
+  // Initial render snapshot query (clean_slot == 2, lastObserved == 2)
   const initial = bridge.acquireRenderSnapshot();
   assert.equal(initial.hasNewSnapshot, false);
-  assert.equal(initial.readSlot, 0);
+  assert.equal(bridge.getReadSlot(), 0);
 
   // Worker commits snapshot to Slot 1:
   // 1. Swaps clean_slot to 1

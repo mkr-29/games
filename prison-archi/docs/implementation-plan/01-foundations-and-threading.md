@@ -8,7 +8,7 @@
 
 - [x] **Task 1.1:** Project Repository Scaffolding & Web Worker Setup
 - [x] **Task 1.2:** SharedArrayBuffer Layout & Atomic Control Block
-- [ ] **Task 1.3:** Triple-Buffered State Sync & Lock-Free Input Queue
+- [x] **Task 1.3:** Triple-Buffered State Sync & Lock-Free Input Queue
 - [ ] **Task 1.4:** Fixed-Timestep Simulation Loop & Bevy ECS Stage Pipeline
 
 ---
