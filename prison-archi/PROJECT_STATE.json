@@ -1,0 +1,90 @@
+{
+  "project_name": "prison-architect-web",
+  "version": "0.1.0",
+  "current_phase": 1,
+  "active_task": "Task 1.1",
+  "active_task_id": "TASK-1.1",
+  "total_tasks": 28,
+  "completed_tasks_count": 0,
+  "progress_percentage": 0,
+  "last_updated": "2026-10-02T21:56:00Z",
+  "phases": [
+    {
+      "phase_number": 1,
+      "name": "Foundations, Threading & Memory Model",
+      "doc_file": "docs/implementation-plan/01-foundations-and-threading.md",
+      "tasks": [
+        { "id": "TASK-1.1", "name": "Project Repository Scaffolding & Web Worker Setup", "completed": false },
+        { "id": "TASK-1.2", "name": "SharedArrayBuffer Layout & Atomic Control Block", "completed": false },
+        { "id": "TASK-1.3", "name": "Triple-Buffered State Sync & Lock-Free Input Queue", "completed": false },
+        { "id": "TASK-1.4", "name": "Fixed-Timestep Simulation Loop & Bevy ECS Stage Pipeline", "completed": false }
+      ]
+    },
+    {
+      "phase_number": 2,
+      "name": "World Grid, Materials & WebGPU Renderer",
+      "doc_file": "docs/implementation-plan/02-world-grid-and-rendering.md",
+      "tasks": [
+        { "id": "TASK-2.1", "name": "Tile Grid Data Structure & Packed Memory Representation", "completed": false },
+        { "id": "TASK-2.2", "name": "4-Bit & 8-Bit Autotiling Bitmask Engine", "completed": false },
+        { "id": "TASK-2.3", "name": "WebGPU Context, Camera Matrix & Instanced Quad Renderer", "completed": false },
+        { "id": "TASK-2.4", "name": "Drag-Rect Construction Tool & Workman Job Pipeline", "completed": false }
+      ]
+    },
+    {
+      "phase_number": 3,
+      "name": "Utilities & Room Enclosures",
+      "doc_file": "docs/implementation-plan/03-utilities-and-enclosures.md",
+      "tasks": [
+        { "id": "TASK-3.1", "name": "Disjoint-Set Electrical Grid Solver & Short-Circuit Physics", "completed": false },
+        { "id": "TASK-3.2", "name": "BFS Hydraulic Plumbing Solver & Hot Water Boiler Loops", "completed": false },
+        { "id": "TASK-3.3", "name": "Connected-Components Room Enclosure Detection & Validation", "completed": false },
+        { "id": "TASK-3.4", "name": "Dynamic Cell Quality Grading & Score Evaluator", "completed": false }
+      ]
+    },
+    {
+      "phase_number": 4,
+      "name": "Navigation, Agent AI & Regime",
+      "doc_file": "docs/implementation-plan/04-navigation-and-agent-ai.md",
+      "tasks": [
+        { "id": "TASK-4.1", "name": "Flow Field (Dijkstra Vector Map) Generator & Door Weighting", "completed": false },
+        { "id": "TASK-4.2", "name": "15-Need Psychology Engine & Global Danger Bar Calculus", "completed": false },
+        { "id": "TASK-4.3", "name": "Utility AI Behavior Scoring & Action State Machine", "completed": false },
+        { "id": "TASK-4.4", "name": "24-Hour Master Regime Timetable & Emergency Overrides", "completed": false }
+      ]
+    },
+    {
+      "phase_number": 5,
+      "name": "Security, Contraband & Combat",
+      "doc_file": "docs/implementation-plan/05-security-and-combat.md",
+      "tasks": [
+        { "id": "TASK-5.1", "name": "Security Sector Partitioning & Doorway Clearance Matrix", "completed": false },
+        { "id": "TASK-5.2", "name": "Contraband Economy, Smuggling Vectors & Sensor Detection", "completed": false },
+        { "id": "TASK-5.3", "name": "Combat Systems, Riot Escalation & Armory Breaches", "completed": false },
+        { "id": "TASK-5.4", "name": "Escape Tunnels, Subterranean Pathfinding & Nocturnal AI", "completed": false }
+      ]
+    },
+    {
+      "phase_number": 6,
+      "name": "Economy, Logistics & Governance",
+      "doc_file": "docs/implementation-plan/06-economy-and-logistics.md",
+      "tasks": [
+        { "id": "TASK-6.1", "name": "Food Service Supply Chain & Laundry Distribution Loops", "completed": false },
+        { "id": "TASK-6.2", "name": "Financial Ledger, Cashflow Dynamics & Corporate Taxation", "completed": false },
+        { "id": "TASK-6.3", "name": "Government Grants System & Reactive DAG Milestone Engine", "completed": false },
+        { "id": "TASK-6.4", "name": "Bureaucracy Tech Tree, Workshop Industry & Execution Protocol", "completed": false }
+      ]
+    },
+    {
+      "phase_number": 7,
+      "name": "Audio, Fog of War, Polish & Extensibility",
+      "doc_file": "docs/implementation-plan/07-polish-and-extensibility.md",
+      "tasks": [
+        { "id": "TASK-7.1", "name": "WebGPU Compute Fog of War & Soft Gaussian Blur Shadows", "completed": false },
+        { "id": "TASK-7.2", "name": "AudioWorklet Spatial Acoustics, Wall Occlusion & Dynamic Riot Score", "completed": false },
+        { "id": "TASK-7.3", "name": "Svelte 5 Management HUD, Inmate Dossiers & Blueprint Planning Tool", "completed": false },
+        { "id": "TASK-7.4", "name": "OPFS Binary Save/Load Pipeline & Wasm Sandboxed Modding Engine", "completed": false }
+      ]
+    }
+  ]
+}

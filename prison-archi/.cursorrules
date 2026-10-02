@@ -1,0 +1,9 @@
+# Prison Architect Web — Cursor & Windsurf Rules
+
+You are working on Prison Architect Web.
+Follow the rules established in AGENTS.md:
+1. Always check docs/implementation-plan/ROADMAP.md and PROJECT_STATE.json to see what task is currently active.
+2. Read the corresponding feature doc in docs/ before coding.
+3. Keep changes minimal, surgical, and modular.
+4. Verify tests before marking tasks complete.
+5. Tech stack: Rust Wasm (bevy_ecs), WebGPU (WGSL), Svelte 5 (Runes), SharedArrayBuffer with atomics.
