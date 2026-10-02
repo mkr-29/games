@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - .:/workspace
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/workspace/crates/simulation/target
+      - node-modules:/workspace/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+    working_dir: /workspace
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  cargo-cache:
+  target-cache:
+  node-modules:

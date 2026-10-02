@@ -1,0 +1,22 @@
+[package]
+name = "prison_simulation"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance ECS simulation engine for Prison Architect Web"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2.100"
+bevy_ecs = { version = "0.15.2", default-features = false }
+bytemuck = { version = "1.21.0", features = ["derive"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+console_error_panic_hook = "0.1.7"
+js-sys = "0.3.77"
+web-sys = { version = "0.3.77", features = ["console"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

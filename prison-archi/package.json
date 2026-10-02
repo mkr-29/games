@@ -1,0 +1,28 @@
+{
+  "name": "prison-architect-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:wasm && vite build",
+    "build:wasm": "wasm-pack build crates/simulation --target web --out-dir ../../src/wasm/pkg",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "docker:build": "docker compose build",
+    "docker:dev": "docker compose up",
+    "docker:wasm": "docker compose run --rm app npm run build:wasm",
+    "docker:test": "docker compose run --rm app cargo test --manifest-path crates/simulation/Cargo.toml"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tailwindcss/vite": "^4.0.0",
+    "svelte": "^5.19.0",
+    "svelte-check": "^4.1.4",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vite-plugin-top-level-await": "^1.4.4",
+    "vite-plugin-wasm": "^3.4.1"
+  }
+}
