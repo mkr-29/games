@@ -4,6 +4,6 @@ export type WorkerInMessage =
   | { type: 'COMMAND'; payload: any };
 
 export type WorkerOutMessage =
-  | { type: 'READY'; version: string; crossOriginIsolated: boolean }
+  | { type: 'READY'; version: string; crossOriginIsolated: boolean; sharedMemoryAttached: boolean }
   | { type: 'PONG'; message: string }
   | { type: 'ERROR'; error: string };

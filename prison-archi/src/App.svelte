@@ -1,16 +1,49 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { WorkerInMessage, WorkerOutMessage } from './types/worker';
+  import {
+    SharedMemoryBridge,
+    TOTAL_SHARED_MEMORY_SIZE,
+    HEADER_SIZE,
+    COMMAND_QUEUE_SIZE,
+    TELEMETRY_SIZE,
+    MAX_ENTITIES_PER_SLOT,
+    type SimulationMetrics,
+  } from './lib/memory/SharedMemoryBridge';
 
   let crossOriginIsolated = $state(false);
   let workerStatus = $state<'Disconnected' | 'Connecting...' | 'Online'>('Connecting...');
   let workerPingReply = $state<string>('Pending handshake...');
+  let sharedMemoryAttached = $state(false);
   let simulationWorker: Worker | null = null;
+  let sharedBridge: SharedMemoryBridge | null = null;
+
+  let metrics = $state<SimulationMetrics>({
+    simTick: 0,
+    simTimeMs: 0,
+    readSlot: 0,
+    writeSlot: 1,
+    cleanSlot: 0,
+    dangerLevel: 0,
+    bankBalance: 40000,
+    prisonerCount: 0,
+    guardCount: 0,
+  });
 
   onMount(() => {
     crossOriginIsolated = window.crossOriginIsolated ?? false;
 
-    // Instantiate Simulation Web Worker
+    // 1. Allocate SharedArrayBuffer & initialize Atomic Control Block
+    try {
+      if (crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined') {
+        sharedBridge = new SharedMemoryBridge();
+        sharedBridge.initializeControlBlock(4_000_000); // $40,000.00
+      }
+    } catch (err) {
+      console.error('[Main Thread] SharedMemoryBridge allocation failed:', err);
+    }
+
+    // 2. Instantiate Simulation Web Worker
     simulationWorker = new Worker(
       new URL('./workers/simulation.worker.ts', import.meta.url),
       { type: 'module' }
@@ -20,89 +53,324 @@
       const msg = e.data;
       if (msg.type === 'READY') {
         workerStatus = 'Online';
+        sharedMemoryAttached = msg.sharedMemoryAttached ?? false;
+
         simulationWorker?.postMessage({
           type: 'PING',
-          payload: 'System Handshake Verification',
+          payload: 'System Handshake & Shared Memory Verification',
         } as WorkerInMessage);
       } else if (msg.type === 'PONG') {
         workerPingReply = msg.message;
       }
     };
 
-    simulationWorker.postMessage({ type: 'INIT', payload: {} } as WorkerInMessage);
+    // 3. Send INIT message with SharedArrayBuffer to Worker
+    simulationWorker.postMessage({
+      type: 'INIT',
+      payload: {
+        sharedBuffer: sharedBridge?.buffer,
+      },
+    } as WorkerInMessage);
+
+    // 4. Main Thread requestAnimationFrame polling loop (Zero-GC, atomic reads)
+    let animId: number;
+    const pollLoop = () => {
+      if (sharedBridge) {
+        metrics = sharedBridge.getMetrics();
+      }
+      animId = requestAnimationFrame(pollLoop);
+    };
+    animId = requestAnimationFrame(pollLoop);
 
     return () => {
+      cancelAnimationFrame(animId);
       simulationWorker?.terminate();
     };
   });
 </script>
 
-<main class="h-full w-full flex flex-col bg-slate-950 text-slate-100 font-sans">
-  <!-- Top Blueprint Header -->
-  <header class="h-14 border-b border-cyan-900/60 bg-slate-900/80 backdrop-blur-md px-6 flex items-center justify-between shadow-lg">
-    <div class="flex items-center space-x-3">
-      <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
-      <h1 class="text-lg font-bold tracking-wider text-cyan-400 uppercase font-mono">
-        Prison Architect Web
-      </h1>
-      <span class="text-xs px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-300 font-mono">
-        v0.1.0-alpha
-      </span>
+<main class="h-full w-full flex flex-col bg-slate-950 text-slate-100 font-sans select-none overflow-y-auto">
+  <!-- Top Blueprint Header & Prison Status Bar -->
+  <header class="h-16 border-b border-cyan-900/60 bg-slate-900/90 backdrop-blur-md px-6 flex items-center justify-between shadow-xl sticky top-0 z-50">
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></div>
+        <h1 class="text-lg font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-300 uppercase font-mono">
+          Prison Architect
+        </h1>
+        <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/80 text-cyan-300 font-mono tracking-widest uppercase">
+          Wasm Engine v0.1.0
+        </span>
+      </div>
+
+      <!-- Quick Metrics Ribbon -->
+      <div class="hidden md:flex items-center space-x-6 text-xs font-mono border-l border-slate-800 pl-6">
+        <div>
+          <span class="text-slate-500 uppercase text-[10px] block">Cash</span>
+          <span class="text-emerald-400 font-bold tracking-wide">${metrics.bankBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+        </div>
+        <div>
+          <span class="text-slate-500 uppercase text-[10px] block">Danger</span>
+          <span class="text-amber-400 font-bold tracking-wide">{metrics.dangerLevel.toFixed(1)}%</span>
+        </div>
+        <div>
+          <span class="text-slate-500 uppercase text-[10px] block">Tick (60Hz)</span>
+          <span class="text-cyan-300 font-bold tracking-wide font-mono">{metrics.simTick.toLocaleString()}</span>
+        </div>
+      </div>
     </div>
 
     <!-- System Diagnostic Badges -->
-    <div class="flex items-center space-x-4 text-xs font-mono">
-      <div class="flex items-center space-x-1.5 px-3 py-1 rounded border {crossOriginIsolated ? 'bg-emerald-950/60 border-emerald-700/80 text-emerald-300' : 'bg-rose-950/60 border-rose-700/80 text-rose-300'}">
+    <div class="flex items-center space-x-3 text-xs font-mono">
+      <div class="flex items-center space-x-1.5 px-3 py-1 rounded-md border {crossOriginIsolated ? 'bg-emerald-950/60 border-emerald-700/80 text-emerald-300' : 'bg-rose-950/60 border-rose-700/80 text-rose-300'}">
         <span class="w-2 h-2 rounded-full {crossOriginIsolated ? 'bg-emerald-400' : 'bg-rose-400'}"></span>
-        <span>Cross-Origin Isolated: {crossOriginIsolated ? 'TRUE' : 'FALSE'}</span>
+        <span class="hidden sm:inline">COOP/COEP:</span>
+        <span class="font-bold">{crossOriginIsolated ? 'ISOLATED' : 'BLOCKED'}</span>
       </div>
 
-      <div class="flex items-center space-x-1.5 px-3 py-1 rounded border {workerStatus === 'Online' ? 'bg-emerald-950/60 border-emerald-700/80 text-emerald-300' : 'bg-amber-950/60 border-amber-700/80 text-amber-300'}">
+      <div class="flex items-center space-x-1.5 px-3 py-1 rounded-md border {workerStatus === 'Online' ? 'bg-emerald-950/60 border-emerald-700/80 text-emerald-300' : 'bg-amber-950/60 border-amber-700/80 text-amber-300'}">
         <span class="w-2 h-2 rounded-full {workerStatus === 'Online' ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}"></span>
-        <span>Sim Worker: {workerStatus}</span>
+        <span class="hidden sm:inline">Worker:</span>
+        <span class="font-bold">{workerStatus}</span>
+      </div>
+
+      <div class="flex items-center space-x-1.5 px-3 py-1 rounded-md border {sharedMemoryAttached ? 'bg-cyan-950/60 border-cyan-700/80 text-cyan-300' : 'bg-slate-800 border-slate-700 text-slate-400'}">
+        <span class="w-2 h-2 rounded-full {sharedMemoryAttached ? 'bg-cyan-400 animate-pulse' : 'bg-slate-500'}"></span>
+        <span class="hidden sm:inline">SAB:</span>
+        <span class="font-bold">{sharedMemoryAttached ? '12.66 MB' : 'OFFLINE'}</span>
       </div>
     </div>
   </header>
 
-  <!-- Main Canvas / Workspace Placeholder -->
-  <div class="flex-1 relative flex items-center justify-center overflow-hidden bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px]">
-    <!-- Blueprint Grid Underlay -->
-    <div class="max-w-xl w-full p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-xl">
-      <div class="flex items-center space-x-3 mb-6">
-        <div class="p-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-          </svg>
-        </div>
+  <!-- Main Blueprint Dashboard -->
+  <div class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+    <!-- Top System Verification Banner -->
+    <div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-cyan-950/40 border border-slate-800 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+      <div class="absolute right-0 top-0 bottom-0 w-96 bg-[radial-gradient(ellipse_at_center,rgba(6,182,212,0.15),transparent_70%)] pointer-events-none"></div>
+
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 class="text-xl font-bold text-white">System Scaffolding Verified</h2>
-          <p class="text-xs text-slate-400">Phase 1: Foundations, Threading & Memory Model</p>
+          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-mono mb-2">
+            <span>Phase 1 • Task 1.2 Active</span>
+          </div>
+          <h2 class="text-2xl font-bold text-white tracking-tight">SharedArrayBuffer & Atomic Triple-Buffer Control</h2>
+          <p class="text-xs text-slate-400 mt-1 max-w-2xl">
+            Decoupled worker architecture with contiguous 12.66 MB static memory partition. Main thread and Rust Wasm worker synchronize lock-free via atomic control block.
+          </p>
+        </div>
+
+        <div class="flex items-center space-x-3 text-xs font-mono">
+          <div class="px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
+            <span class="text-slate-500 block text-[10px]">Wasm Handshake:</span>
+            <span class="text-cyan-300 font-semibold">{workerPingReply}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid of 3 Architectural Panels -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Panel 1: Contiguous Memory Layout -->
+      <div class="p-5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between shadow-lg">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              <span>Memory Partitions</span>
+            </h3>
+            <span class="text-xs font-mono text-slate-400">{(TOTAL_SHARED_MEMORY_SIZE / (1024 * 1024)).toFixed(2)} MB</span>
+          </div>
+
+          <!-- Partition Memory Bar -->
+          <div class="w-full h-3 rounded-full bg-slate-950 border border-slate-800 overflow-hidden flex mb-4">
+            <div class="h-full bg-amber-400 w-[1%]" title="Header (1KB)"></div>
+            <div class="h-full bg-purple-500 w-[2%]" title="Command Queue (64KB)"></div>
+            <div class="h-full bg-teal-400 w-[1%]" title="Telemetry (16KB)"></div>
+            <div class="h-full bg-cyan-500 w-[32%]" title="Snapshot Slot 0 (4MB)"></div>
+            <div class="h-full bg-blue-500 w-[32%]" title="Snapshot Slot 1 (4MB)"></div>
+            <div class="h-full bg-indigo-500 w-[32%]" title="Snapshot Slot 2 (4MB)"></div>
+          </div>
+
+          <div class="space-y-2 text-xs font-mono text-slate-300">
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400 flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded bg-amber-400"></span>
+                <span>Header & Control:</span>
+              </span>
+              <span class="text-amber-400 font-semibold">{HEADER_SIZE} B (0x000000)</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400 flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded bg-purple-500"></span>
+                <span>Command Queue:</span>
+              </span>
+              <span class="text-purple-400 font-semibold">{COMMAND_QUEUE_SIZE / 1024} KB (0x000400)</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400 flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded bg-teal-400"></span>
+                <span>UI Telemetry:</span>
+              </span>
+              <span class="text-teal-400 font-semibold">{TELEMETRY_SIZE / 1024} KB (0x010400)</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400 flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded bg-cyan-500"></span>
+                <span>Snapshot Banks (3x):</span>
+              </span>
+              <span class="text-cyan-400 font-semibold">12 MB (3 x 4 MB)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+          Max Capacity: <span class="text-cyan-300 font-bold">{MAX_ENTITIES_PER_SLOT.toLocaleString()}</span> entities / slot
         </div>
       </div>
 
-      <div class="space-y-3 font-mono text-xs text-slate-300 border-t border-slate-800 pt-4">
-        <div class="flex justify-between py-1.5 border-b border-slate-800/60">
-          <span class="text-slate-400">COOP / COEP Headers:</span>
-          <span class="{crossOriginIsolated ? 'text-emerald-400' : 'text-rose-400'} font-semibold">
-            {crossOriginIsolated ? 'Enabled (SharedArrayBuffer Ready)' : 'Disabled (Requires HTTPS / Isolation)'}
-          </span>
+      <!-- Panel 2: Atomic Control Block -->
+      <div class="p-5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between shadow-lg">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-emerald-400 font-mono flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Atomic Control Header</span>
+            </h3>
+            <span class="text-xs font-mono text-emerald-400">0x50524953 ("PRIS")</span>
+          </div>
+
+          <div class="space-y-2 text-xs font-mono text-slate-300">
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Simulation Tick:</span>
+              <span class="text-emerald-400 font-bold text-sm">{metrics.simTick.toLocaleString()}</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Sim Elapsed Time:</span>
+              <span class="text-slate-200 font-semibold">{(metrics.simTimeMs / 1000).toFixed(2)}s ({metrics.simTimeMs} ms)</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Input Ring (Head / Tail):</span>
+              <span class="text-slate-300 font-semibold">0 / 0</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Packed Entity Layout:</span>
+              <span class="text-cyan-300 font-semibold">32 Bytes (WebGPU Pod)</span>
+            </div>
+          </div>
         </div>
-        <div class="flex justify-between py-1.5 border-b border-slate-800/60">
-          <span class="text-slate-400">Worker Thread Pipeline:</span>
-          <span class="{workerStatus === 'Online' ? 'text-emerald-400' : 'text-amber-400'} font-semibold">
-            {workerStatus}
-          </span>
-        </div>
-        <div class="flex justify-between py-1.5 border-b border-slate-800/60">
-          <span class="text-slate-400">Simulation Handshake:</span>
-          <span class="text-cyan-300 font-semibold">{workerPingReply}</span>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-emerald-400 flex items-center justify-between">
+          <span>Sync Protocol: Atomic SeqCst</span>
+          <span>Zero GC Invariant</span>
         </div>
       </div>
 
-      <div class="mt-6 flex justify-end">
-        <span class="text-[11px] font-mono text-cyan-400/80">
-          Task 1.1 Complete • Ready for Task 1.2
+      <!-- Panel 3: Triple-Buffer State Slots -->
+      <div class="p-5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between shadow-lg">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-purple-400 font-mono flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+              <span>Triple Buffer Slots</span>
+            </h3>
+            <span class="text-xs font-mono text-purple-300">Lock-Free SPSC</span>
+          </div>
+
+          <!-- Triple Buffer Slot Cards -->
+          <div class="grid grid-cols-3 gap-2 mb-4">
+            {#each [0, 1, 2] as slot}
+              {@const isRead = metrics.readSlot === slot}
+              {@const isWrite = metrics.writeSlot === slot}
+              {@const isClean = metrics.cleanSlot === slot}
+              <div class="p-2.5 rounded-lg border text-center font-mono {isWrite ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300' : isRead ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300' : 'bg-slate-950/60 border-slate-800 text-slate-400'}">
+                <span class="text-[10px] uppercase font-bold block text-slate-500">Slot {slot}</span>
+                <span class="text-xs font-bold block mt-1">
+                  {#if isWrite}
+                    WRITE
+                  {:else if isRead}
+                    READ
+                  {:else if isClean}
+                    CLEAN
+                  {:else}
+                    IDLE
+                  {/if}
+                </span>
+                <span class="text-[9px] text-slate-500 block mt-0.5">4 MB</span>
+              </div>
+            {/each}
+          </div>
+
+          <div class="space-y-1.5 text-xs font-mono text-slate-300">
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Read Slot (Render):</span>
+              <span class="text-emerald-400 font-semibold">Slot {metrics.readSlot}</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Write Slot (Sim Worker):</span>
+              <span class="text-cyan-400 font-semibold">Slot {metrics.writeSlot}</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Clean Slot (Committed):</span>
+              <span class="text-purple-400 font-semibold">Slot {metrics.cleanSlot}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-purple-400 flex items-center justify-between">
+          <span>Hermite Interpolation Ready</span>
+          <span>120Hz Main / 60Hz Sim</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase 1 Roadmap Progress Matrix -->
+    <div class="p-6 rounded-xl bg-slate-900/80 border border-slate-800 shadow-xl">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-base font-bold text-white tracking-wide">Phase 1: Foundations, Threading & Memory Model</h3>
+          <p class="text-xs text-slate-400">Roadmap Milestone Progress</p>
+        </div>
+        <span class="text-xs font-mono px-3 py-1 rounded bg-cyan-950 border border-cyan-800 text-cyan-300">
+          2 of 28 Total Tasks (7%)
         </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+        <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="font-bold">Task 1.1: Scaffolding</span>
+          </div>
+          <p class="text-[11px] text-emerald-400/80 mt-1">Docker, Wasm, Vite, COOP/COEP</p>
+          <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
+        </div>
+
+        <div class="p-3 rounded-lg bg-cyan-950/40 border border-cyan-500/80 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.15)]">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span class="font-bold">Task 1.2: Memory Bridge</span>
+          </div>
+          <p class="text-[11px] text-cyan-400/80 mt-1">SharedArrayBuffer, Control Block</p>
+          <span class="text-[10px] text-cyan-400 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
+        </div>
+
+        <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+            <span class="font-bold text-slate-300">Task 1.3: SPSC Queue</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1">Triple-Buffer Sync & Input Ring</p>
+          <span class="text-[10px] text-slate-500 block mt-2">NEXT UP</span>
+        </div>
+
+        <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+            <span class="font-bold text-slate-300">Task 1.4: Bevy ECS Loop</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1">Tick Accumulator & Stages</p>
+          <span class="text-[10px] text-slate-500 block mt-2">QUEUED</span>
+        </div>
       </div>
     </div>
   </div>

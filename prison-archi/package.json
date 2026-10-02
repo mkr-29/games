@@ -9,6 +9,8 @@
     "build:wasm": "wasm-pack build crates/simulation --target web --out-dir ../../src/wasm/pkg",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test:ts": "node --test tests/*.test.ts",
+    "test": "npm run docker:test && npm run test:ts",
     "docker:build": "docker compose build",
     "docker:dev": "docker compose up",
     "docker:wasm": "docker compose run --rm app npm run build:wasm",

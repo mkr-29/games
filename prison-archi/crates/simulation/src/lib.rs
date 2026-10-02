@@ -1,9 +1,10 @@
+pub mod memory;
+
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn init_simulation() -> Result<String, JsValue> {
     // Better panic messages in browser console
-    #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 
     web_sys::console::log_1(&"[Simulation Core] Wasm Engine v0.1.0 Online".into());
