@@ -1,7 +1,9 @@
 pub mod ecs;
+pub mod grid;
 pub mod memory;
 
 pub use ecs::*;
+pub use grid::*;
 pub use memory::*;
 
 use wasm_bindgen::prelude::*;

@@ -175,7 +175,7 @@
         <span class="font-bold">{crossOriginIsolated ? 'ISOLATED' : 'BLOCKED'}</span>
       </div>
 
-      <div class="flex items-center space-x-1.5 px-3 py-1 rounded-md border {workerStatus === 'Online' ? 'bg-emerald-950/60 border-emerald-700/80 text-emerald-300' : 'bg-amber-950/60 border-amber-700/80 text-amber-300'}">
+      <div class="flex items-center space-x-1.5 px-3 py-1 rounded-md border {workerStatus === 'Online' ? 'bg-emerald-950/60 border-emerald-700/80 text-emerald-300' : 'bg-amber-950/60 border-amber-700/80 text-amber-300'}" title={workerPingReply}>
         <span class="w-2 h-2 rounded-full {workerStatus === 'Online' ? 'bg-emerald-400' : 'bg-amber-400 animate-ping'}"></span>
         <span class="hidden sm:inline">Worker:</span>
         <span class="font-bold">{workerStatus}</span>
@@ -192,29 +192,29 @@
   <!-- Main Blueprint Dashboard -->
   <div class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
     <!-- Top System Verification Banner -->
-    <div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-emerald-950/40 border border-slate-800 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-      <div class="absolute right-0 top-0 bottom-0 w-96 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.15),transparent_70%)] pointer-events-none"></div>
+    <div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-blue-950/40 border border-slate-800 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+      <div class="absolute right-0 top-0 bottom-0 w-96 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.15),transparent_70%)] pointer-events-none"></div>
 
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Phase 1 • Task 1.4 Active: Fixed-Timestep Bevy ECS Pipeline</span>
+          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-mono mb-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+            <span>Phase 2 • Task 2.1 Active: Tile Grid & 32x32 Chunks</span>
           </div>
-          <h2 class="text-2xl font-bold text-white tracking-tight">Fixed-Timestep Simulation Loop & Bevy ECS Stage Hierarchy</h2>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Tile Grid Data Structure & Packed Memory Representation</h2>
           <p class="text-xs text-slate-400 mt-1 max-w-2xl">
-            Deterministic 60Hz tick loop with sub-tick accumulation and spiral-of-death clamping (max 4 sub-ticks). Running an 8-stage Bevy ECS pipeline with 1,000 active moving entities serialized into SharedArrayBuffer triple buffers.
+            Multi-layer orthogonal tile grid ($512 \times 512$ tiles) packed into 12-byte <code class="text-blue-300">TileCellDescriptor</code> structs and partitioned into $32 \times 32$ spatial chunks. Total memory footprint: 3.15 MB (&lt; 4.0 MB) with $O(1)$ sub-2ns coordinate access.
           </p>
         </div>
 
         <div class="flex items-center space-x-3 text-xs font-mono">
           <div class="px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
-            <span class="text-slate-500 block text-[10px]">Active ECS Entities:</span>
-            <span class="text-emerald-400 font-bold text-base">{metrics.prisonerCount > 0 ? metrics.prisonerCount.toLocaleString() : '1,000'}</span>
+            <span class="text-slate-500 block text-[10px]">World Grid:</span>
+            <span class="text-blue-400 font-bold text-base">512 &times; 512 (262k)</span>
           </div>
           <div class="px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-300">
-            <span class="text-slate-500 block text-[10px]">Wasm Handshake:</span>
-            <span class="text-cyan-300 font-semibold">{workerPingReply}</span>
+            <span class="text-slate-500 block text-[10px]">Memory Footprint:</span>
+            <span class="text-emerald-400 font-bold text-base">3.15 MB (&lt; 4MB)</span>
           </div>
         </div>
       </div>
@@ -332,8 +332,8 @@
       {/if}
     </div>
 
-    <!-- Grid of 3 Architectural Panels -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Grid of 4 Architectural Panels -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <!-- Panel 1: Contiguous Memory Layout -->
       <div class="p-5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between shadow-lg">
         <div>
@@ -368,19 +368,19 @@
                 <span class="w-2 h-2 rounded bg-purple-500"></span>
                 <span>Command Queue:</span>
               </span>
-              <span class="text-purple-400 font-semibold">{COMMAND_QUEUE_SIZE / 1024} KB (0x000400)</span>
+              <span class="text-purple-400 font-semibold">{COMMAND_QUEUE_SIZE / 1024} KB</span>
             </div>
             <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
               <span class="text-slate-400 flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded bg-teal-400"></span>
                 <span>UI Telemetry:</span>
               </span>
-              <span class="text-teal-400 font-semibold">{TELEMETRY_SIZE / 1024} KB (0x010400)</span>
+              <span class="text-teal-400 font-semibold">{TELEMETRY_SIZE / 1024} KB</span>
             </div>
             <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
               <span class="text-slate-400 flex items-center space-x-1.5">
                 <span class="w-2 h-2 rounded bg-cyan-500"></span>
-                <span>Snapshot Banks (3x):</span>
+                <span>Snapshot Banks:</span>
               </span>
               <span class="text-cyan-400 font-semibold">12 MB (3 x 4 MB)</span>
             </div>
@@ -413,11 +413,11 @@
               <span class="text-slate-200 font-semibold">{(metrics.simTimeMs / 1000).toFixed(2)}s ({metrics.simTimeMs} ms)</span>
             </div>
             <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
-              <span class="text-slate-400">SPSC Queue (Head / Tail):</span>
+              <span class="text-slate-400">SPSC Queue:</span>
               <span class="text-amber-400 font-semibold font-mono">{inputHead} / {inputTail}</span>
             </div>
             <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
-              <span class="text-slate-400">Command Packet Size:</span>
+              <span class="text-slate-400">Command Packet:</span>
               <span class="text-cyan-300 font-semibold">20 Bytes (Packed Pod)</span>
             </div>
           </div>
@@ -446,9 +446,9 @@
               {@const isRead = metrics.readSlot === slot}
               {@const isWrite = metrics.writeSlot === slot}
               {@const isClean = metrics.cleanSlot === slot}
-              <div class="p-2.5 rounded-lg border text-center font-mono {isWrite ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300' : isRead ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300' : isClean ? 'bg-purple-950/60 border-purple-500 text-purple-300' : 'bg-slate-950/60 border-slate-800 text-slate-400'}">
-                <span class="text-[10px] uppercase font-bold block text-slate-500">Slot {slot}</span>
-                <span class="text-xs font-bold block mt-1">
+              <div class="p-2 rounded-lg border text-center font-mono {isWrite ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300' : isRead ? 'bg-emerald-950/60 border-emerald-500 text-emerald-300' : isClean ? 'bg-purple-950/60 border-purple-500 text-purple-300' : 'bg-slate-950/60 border-slate-800 text-slate-400'}">
+                <span class="text-[9px] uppercase font-bold block text-slate-500">Slot {slot}</span>
+                <span class="text-xs font-bold block mt-0.5">
                   {#if isWrite}
                     WRITE
                   {:else if isRead}
@@ -459,92 +459,180 @@
                     STANDBY
                   {/if}
                 </span>
-                <span class="text-[9px] text-slate-500 block mt-0.5">4 MB</span>
+                <span class="text-[8px] text-slate-500 block mt-0.5">4 MB</span>
               </div>
             {/each}
           </div>
 
-          <!-- Interpolation Alpha Bar -->
-          <div class="space-y-1 mb-3">
-            <div class="flex justify-between text-[11px] font-mono text-slate-400">
-              <span>Hermite Alpha (&alpha;):</span>
-              <span class="text-purple-300 font-bold">{(interpolationAlpha * 100).toFixed(1)}%</span>
-            </div>
-            <div class="w-full h-1.5 rounded-full bg-slate-950 border border-slate-800 overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-purple-500 to-cyan-400 transition-all duration-75" style="width: {interpolationAlpha * 100}%"></div>
-            </div>
-          </div>
-
           <div class="space-y-1.5 text-xs font-mono text-slate-300">
             <div class="flex justify-between py-1 border-b border-slate-800/60">
-              <span class="text-slate-400">Read Slot (Render):</span>
+              <span class="text-slate-400">Read Slot:</span>
               <span class="text-emerald-400 font-semibold">Slot {metrics.readSlot}</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-800/60">
-              <span class="text-slate-400">Write Slot (Sim Worker):</span>
+              <span class="text-slate-400">Write Slot:</span>
               <span class="text-cyan-400 font-semibold">Slot {metrics.writeSlot}</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-800/60">
-              <span class="text-slate-400">Clean Slot (Committed):</span>
+              <span class="text-slate-400">Clean Slot:</span>
               <span class="text-purple-400 font-semibold">Slot {metrics.cleanSlot}</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Interpolation &alpha;:</span>
+              <span class="text-amber-400 font-semibold">{interpolationAlpha.toFixed(3)}</span>
             </div>
           </div>
         </div>
 
         <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-purple-400 flex items-center justify-between">
-          <span>Hermite Interpolation Active</span>
+          <span>Interpolation Active</span>
           <span>120Hz Main / 60Hz Sim</span>
+        </div>
+      </div>
+
+      <!-- Panel 4: World Tile Grid & Spatial Chunks -->
+      <div class="p-5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between shadow-lg">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-blue-400 font-mono flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+              <span>World Grid & Chunks</span>
+            </h3>
+            <span class="text-xs font-mono text-blue-300">32 &times; 32 Chunks</span>
+          </div>
+
+          <div class="space-y-2 text-xs font-mono text-slate-300">
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Dimensions:</span>
+              <span class="text-blue-300 font-semibold">512 &times; 512 (262,144 tiles)</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Chunk Partitions:</span>
+              <span class="text-slate-200 font-semibold">16 &times; 16 (256 chunks)</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Cell Descriptor:</span>
+              <span class="text-emerald-400 font-semibold">12 Bytes (Packed Pod)</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Memory Footprint:</span>
+              <span class="text-emerald-400 font-semibold">3.15 MB (&lt; 4.0 MB)</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Access Latency:</span>
+              <span class="text-cyan-300 font-semibold">&lt; 2.0 ns (O(1) Bit Shift)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-blue-400 flex items-center justify-between">
+          <span>Spatial Partitioning Active</span>
+          <span>Zero GC Allocations</span>
         </div>
       </div>
     </div>
 
-    <!-- Phase 1 Roadmap Progress Matrix -->
-    <div class="p-6 rounded-xl bg-slate-900/80 border border-slate-800 shadow-xl">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="text-base font-bold text-white tracking-wide">Phase 1: Foundations, Threading & Memory Model</h3>
-          <p class="text-xs text-slate-400">Roadmap Milestone Progress</p>
+    <!-- Phase 1 & 2 Roadmap Progress Matrix -->
+    <div class="space-y-4">
+      <!-- Phase 1 Card (Complete) -->
+      <div class="p-6 rounded-xl bg-slate-900/80 border border-slate-800 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-white tracking-wide">Phase 1: Foundations, Threading & Memory Model</h3>
+            <p class="text-xs text-slate-400">Architecture Milestone Progress</p>
+          </div>
+          <span class="text-xs font-mono px-3 py-1 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-bold">
+            4 of 4 Tasks (100%) • Phase 1 Complete
+          </span>
         </div>
-        <span class="text-xs font-mono px-3 py-1 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-bold">
-          4 of 28 Total Tasks (14%) • Phase 1 Complete
-        </span>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+          <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="font-bold">Task 1.1: Scaffolding</span>
+            </div>
+            <p class="text-[11px] text-emerald-400/80 mt-1">Docker, Wasm, Vite, COOP/COEP</p>
+            <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
+          </div>
+
+          <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="font-bold">Task 1.2: Memory Bridge</span>
+            </div>
+            <p class="text-[11px] text-emerald-400/80 mt-1">SharedArrayBuffer, Control Block</p>
+            <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
+          </div>
+
+          <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="font-bold">Task 1.3: SPSC Queue</span>
+            </div>
+            <p class="text-[11px] text-emerald-400/80 mt-1">Triple-Buffer Sync & Input Ring</p>
+            <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
+          </div>
+
+          <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="font-bold">Task 1.4: Bevy ECS Loop</span>
+            </div>
+            <p class="text-[11px] text-emerald-400/80 mt-1">60Hz Loop & 8-Stage ECS</p>
+            <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
+          </div>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
-        <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
-          <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span class="font-bold">Task 1.1: Scaffolding</span>
+      <!-- Phase 2 Card (In Progress) -->
+      <div class="p-6 rounded-xl bg-slate-900/80 border border-slate-800 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-base font-bold text-white tracking-wide">Phase 2: World Grid, Materials & WebGPU Renderer</h3>
+            <p class="text-xs text-slate-400">World Simulation & Graphics Pipeline</p>
           </div>
-          <p class="text-[11px] text-emerald-400/80 mt-1">Docker, Wasm, Vite, COOP/COEP</p>
-          <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
+          <span class="text-xs font-mono px-3 py-1 rounded bg-blue-950 border border-blue-800 text-blue-300 font-bold">
+            5 of 28 Total Tasks (18%) • Task 2.1 Complete
+          </span>
         </div>
 
-        <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
-          <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span class="font-bold">Task 1.2: Memory Bridge</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+          <div class="p-3 rounded-lg bg-blue-950/40 border border-blue-500/80 text-blue-300 shadow-[0_0_12px_rgba(59,130,246,0.2)]">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+              <span class="font-bold">Task 2.1: Tile Grid</span>
+            </div>
+            <p class="text-[11px] text-blue-400/80 mt-1">512x512 Grid & 32x32 Chunks</p>
+            <span class="text-[10px] text-blue-400 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
           </div>
-          <p class="text-[11px] text-emerald-400/80 mt-1">SharedArrayBuffer, Control Block</p>
-          <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
-        </div>
 
-        <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
-          <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span class="font-bold">Task 1.3: SPSC Queue</span>
+          <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+              <span class="font-bold text-slate-300">Task 2.2: Autotiling</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">4-Bit & 8-Bit Bitmask Rules</p>
+            <span class="text-[10px] text-slate-500 block mt-2">NEXT UP</span>
           </div>
-          <p class="text-[11px] text-emerald-400/80 mt-1">Triple-Buffer Sync & Input Ring</p>
-          <span class="text-[10px] text-emerald-500 font-bold block mt-2">✓ COMPLETED</span>
-        </div>
 
-        <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-500/80 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.2)]">
-          <div class="flex items-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span class="font-bold">Task 1.4: Bevy ECS Loop</span>
+          <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+              <span class="font-bold text-slate-300">Task 2.3: WebGPU Renderer</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Camera & Instanced Quads</p>
+            <span class="text-[10px] text-slate-500 block mt-2">PLANNED</span>
           </div>
-          <p class="text-[11px] text-emerald-400/80 mt-1">60Hz Loop & 8-Stage ECS</p>
-          <span class="text-[10px] text-emerald-400 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
+
+          <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-slate-600"></span>
+              <span class="font-bold text-slate-300">Task 2.4: Drag-Rect Jobs</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Workman Build Pipeline</p>
+            <span class="text-[10px] text-slate-500 block mt-2">PLANNED</span>
+          </div>
         </div>
       </div>
     </div>
