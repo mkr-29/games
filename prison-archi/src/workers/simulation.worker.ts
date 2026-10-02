@@ -4,18 +4,31 @@ import { TripleBufferProducer, type UserCommandInput } from '../lib/memory/Tripl
 
 let isWasmLoaded = false;
 let wasmPingFn: ((msg: string) => string) | null = null;
+let wasmMemory: WebAssembly.Memory | null = null;
+let wasmEngine: any = null;
 let sharedMemory: SharedMemoryBridge | null = null;
 let producer: TripleBufferProducer | null = null;
 let tickIntervalId: number | null = null;
+let lastTickTime = performance.now();
 
 async function bootstrapWasm() {
   try {
     // Dynamic import of the compiled Wasm package
     // @ts-ignore - wasm package generated on build
     const wasmModule = await import('../wasm/pkg/prison_simulation.js');
-    await wasmModule.default();
+    const exports = (await wasmModule.default()) as unknown as { memory?: WebAssembly.Memory };
+    wasmMemory = exports?.memory || (wasmModule as unknown as { memory?: WebAssembly.Memory }).memory || null;
     wasmModule.init_simulation();
     wasmPingFn = wasmModule.wasm_ping;
+
+    // Instantiate Bevy ECS Simulation Engine
+    if (wasmModule.WasmSimulationEngine) {
+      wasmEngine = new wasmModule.WasmSimulationEngine();
+      // Spawn 1,000 dummy moving entities
+      const spawnedCount = wasmEngine.spawn_dummy_entities(1000);
+      console.log(`[Simulation Worker] Bevy ECS World initialized with ${spawnedCount} moving entities.`);
+    }
+
     isWasmLoaded = true;
     console.log('[Simulation Worker] WebAssembly Core Loaded & Bootstrapped.');
   } catch (err) {
@@ -32,6 +45,9 @@ function processIncomingCommand(cmd: UserCommandInput, memory: SharedMemoryBridg
       break;
     }
     case 2: { // Zone Cell (+2 Inmates)
+      if (wasmEngine) {
+        wasmEngine.spawn_dummy_entities(2);
+      }
       Atomics.add(ctrl, CTRL.PRISONER_COUNT, 2);
       break;
     }
@@ -53,11 +69,16 @@ function startSimulationLoop() {
   if (!sharedMemory || tickIntervalId !== null) return;
 
   producer = new TripleBufferProducer(1);
-  const startTime = performance.now();
+  lastTickTime = performance.now();
 
   // 60Hz Fixed-Step Simulation Loop (16.666 ms)
   tickIntervalId = self.setInterval(() => {
     if (!sharedMemory || !producer) return;
+
+    const now = performance.now();
+    // Delta time clamped to max 100ms
+    const deltaSeconds = Math.min((now - lastTickTime) / 1000, 0.1);
+    lastTickTime = now;
 
     // 1. Drain and execute commands from lock-free circular SPSC queue
     const commands = producer.drainUserCommands(sharedMemory);
@@ -65,15 +86,38 @@ function startSimulationLoop() {
       processIncomingCommand(cmd, sharedMemory);
     }
 
-    // 2. Commit triple-buffer state snapshot (Release ordering)
-    producer.commitSimulationSnapshot(sharedMemory);
+    // 2. Step Bevy ECS Simulation via Wasm accumulator
+    if (wasmEngine) {
+      const subTicks = wasmEngine.step(deltaSeconds);
 
-    // 3. Update simulation elapsed time
-    const elapsed = performance.now() - startTime;
-    Atomics.store(sharedMemory.ctrlInt32, CTRL.SIM_TIME_MS, elapsed >>> 0);
+      if (subTicks > 0) {
+        const activeWriteSlot = producer.getActiveWriteSlot();
+        const slotBytes = sharedMemory.snapshotSlotsUint8[activeWriteSlot];
+
+        // Pack render entities in Wasm
+        const packedCount = wasmEngine.pack_render_entities(1000);
+        if (wasmMemory) {
+          const ptr = wasmEngine.get_packed_entities_ptr();
+          const byteLen = wasmEngine.get_packed_entities_byte_len(packedCount);
+          const wasmBytes = new Uint8Array(wasmMemory.buffer, ptr, byteLen);
+          slotBytes.set(wasmBytes);
+        }
+
+        // Commit triple-buffer state snapshot (Release ordering)
+        producer.commitSimulationSnapshot(sharedMemory);
+
+        // Update entity count & sim time in control block
+        Atomics.store(sharedMemory.ctrlInt32, CTRL.PRISONER_COUNT, wasmEngine.get_entity_count());
+        const simTimeSeconds = wasmEngine.get_sim_time_seconds();
+        Atomics.store(sharedMemory.ctrlInt32, CTRL.SIM_TIME_MS, (simTimeSeconds * 1000) >>> 0);
+      }
+    } else {
+      // Fallback JS simulation if Wasm is loading
+      producer.commitSimulationSnapshot(sharedMemory);
+    }
   }, 1000 / 60);
 
-  console.log('[Simulation Worker] 60Hz Lock-Free Triple-Buffer Simulation Loop Started.');
+  console.log('[Simulation Worker] 60Hz Fixed-Timestep Bevy ECS Loop Online.');
 }
 
 self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
@@ -118,3 +162,4 @@ self.onmessage = async (e: MessageEvent<WorkerInMessage>) => {
 };
 
 export {};
+

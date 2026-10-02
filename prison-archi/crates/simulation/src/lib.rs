@@ -1,4 +1,8 @@
+pub mod ecs;
 pub mod memory;
+
+pub use ecs::*;
+pub use memory::*;
 
 use wasm_bindgen::prelude::*;
 

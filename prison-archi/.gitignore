@@ -1,0 +1,18 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Rust / Cargo
+target/
+**/target/
+**/*.rs.bk
+Cargo.lock
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
