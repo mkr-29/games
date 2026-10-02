@@ -131,3 +131,18 @@ Each feature document contains **production engineering-grade** specifications: 
   *Zero-copy binary serialization (`rkyv`/`bincode`), Zstandard streaming compression, and OPFS file management.*
 * [`07-platform-persistence/02-modding-and-wasm-plugin-engine.md`](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/07-platform-persistence/02-modding-and-wasm-plugin-engine.md)  
   *Sandboxed WebAssembly plugin runtime (Extism), custom JSON schemas for rooms/objects, and event hook bindings.*
+
+---
+
+## 4. Autonomous AI Agent Implementation Plan
+
+For step-by-step agent instructions, atomic task definitions, and checklists:
+* **[Master Implementation Roadmap & Plan](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/implementation-plan/ROADMAP.md)**
+  * **[Phase 1: Foundations, Threading & Memory Model](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/implementation-plan/01-foundations-and-threading.md)** (4 Tasks)
+  * **[Phase 2: World Grid, Materials & WebGPU Renderer](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/implementation-plan/02-world-grid-and-rendering.md)** (4 Tasks)
+  * **[Phase 3: Utilities & Room Enclosures](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/implementation-plan/03-utilities-and-enclosures.md)** (4 Tasks)
+  * **[Phase 4: Navigation, Agent AI & Regime](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/implementation-plan/04-navigation-and-agent-ai.md)** (4 Tasks)
+  * **[Phase 5: Security, Contraband & Combat](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/implementation-plan/05-security-and-combat.md)** (4 Tasks)
+  * **[Phase 6: Economy, Logistics & Governance](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/implementation-plan/06-economy-and-logistics.md)** (4 Tasks)
+  * **[Phase 7: Aesthetics, Persistence & Modding](file:///Users/mkr-27/Desktop/MY/MKR/games/prison-archi/docs/implementation-plan/07-polish-and-extensibility.md)** (4 Tasks)
+
