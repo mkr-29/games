@@ -15,6 +15,7 @@ pub use systems::*;
 use crate::construction::*;
 use crate::grid::{tile_flags, TileGrid};
 use crate::memory::layout::RenderEntityPacked;
+use crate::utilities::*;
 
 /// Central Bevy ECS Simulation Engine
 pub struct SimulationEngine {
@@ -39,6 +40,7 @@ impl SimulationEngine {
         world.insert_resource(TileGrid::new(512, 512));
         world.insert_resource(DeliveryZone::default());
         world.insert_resource(ConstructionQueue::new());
+        world.insert_resource(ElectricalGrid::new(512, 512));
 
         // Configure deterministic schedule with chained stages
         let mut schedule = Schedule::default();
@@ -58,7 +60,7 @@ impl SimulationEngine {
 
         // Register core systems in their designated stages
         schedule.add_systems(workman_job_system.in_set(SimStage::PerceptionAI));
-        schedule.add_systems(physics_movement_system.in_set(SimStage::Physics));
+        schedule.add_systems((physics_movement_system, solve_electrical_grid_system).in_set(SimStage::Physics));
         schedule.add_systems(advance_time_system.in_set(SimStage::RenderCommit));
 
         Self {
@@ -239,6 +241,102 @@ impl SimulationEngine {
             .map(|t| (t.flags & tile_flags::BLUEPRINT) != 0)
             .unwrap_or(false)
     }
+
+    // ==========================================
+    // ELECTRICAL GRID INTERACTION API
+    // ==========================================
+
+    pub fn place_cable(&mut self, x: u32, y: u32) {
+        if let Some(mut grid) = self.world.get_resource_mut::<ElectricalGrid>() {
+            grid.place_cable(x, y);
+        }
+    }
+
+    pub fn remove_cable(&mut self, x: u32, y: u32) {
+        if let Some(mut grid) = self.world.get_resource_mut::<ElectricalGrid>() {
+            grid.remove_cable(x, y);
+        }
+    }
+
+    pub fn has_cable(&self, x: u32, y: u32) -> bool {
+        self.world
+            .get_resource::<ElectricalGrid>()
+            .map(|g| g.has_cable(x, y))
+            .unwrap_or(false)
+    }
+
+    pub fn add_power_station(&mut self, id: u32, x: u32, y: u32) {
+        if let Some(mut grid) = self.world.get_resource_mut::<ElectricalGrid>() {
+            grid.add_power_station(id, x, y);
+        }
+    }
+
+    pub fn add_capacitor(&mut self, x: u32, y: u32) {
+        if let Some(mut grid) = self.world.get_resource_mut::<ElectricalGrid>() {
+            grid.add_capacitor(x, y);
+        }
+    }
+
+    pub fn add_appliance(&mut self, id: u32, x: u32, y: u32, appliance_type_id: u8) {
+        if let Some(mut grid) = self.world.get_resource_mut::<ElectricalGrid>() {
+            let app_type = match appliance_type_id {
+                0 => ApplianceType::CctvMonitor,
+                1 => ApplianceType::MetalDetector,
+                2 => ApplianceType::WorkshopSaw,
+                3 => ApplianceType::ElectricChair,
+                _ => ApplianceType::Custom(100),
+            };
+            grid.add_appliance(id, x, y, app_type);
+        }
+    }
+
+    pub fn reset_breaker(&mut self, station_id: u32) {
+        if let Some(mut grid) = self.world.get_resource_mut::<ElectricalGrid>() {
+            grid.reset_breaker(station_id);
+        }
+    }
+
+    pub fn solve_electrical_grid(&mut self) {
+        if let Some(mut grid) = self.world.get_resource_mut::<ElectricalGrid>() {
+            grid.solve_grid();
+        }
+    }
+
+    pub fn get_tile_power_status(&self, x: u32, y: u32) -> u8 {
+        self.world
+            .get_resource::<ElectricalGrid>()
+            .map(|g| g.get_tile_power_status(x, y) as u8)
+            .unwrap_or(0)
+    }
+
+    pub fn has_short_circuit(&self) -> bool {
+        self.world
+            .get_resource::<ElectricalGrid>()
+            .map(|g| g.events.iter().any(|e| matches!(e, ElectricalEvent::ShortCircuit { .. })))
+            .unwrap_or(false)
+    }
+
+    pub fn get_power_station_load(&self, station_id: u32) -> f32 {
+        self.world
+            .get_resource::<ElectricalGrid>()
+            .and_then(|g| g.station_loads.get(&station_id).copied())
+            .unwrap_or(0.0)
+    }
+
+    pub fn get_power_station_capacity(&self, station_id: u32) -> f32 {
+        self.world
+            .get_resource::<ElectricalGrid>()
+            .and_then(|g| g.station_capacities.get(&station_id).copied())
+            .unwrap_or(0.0)
+    }
+
+    pub fn is_power_station_tripped(&self, station_id: u32) -> bool {
+        self.world
+            .get_resource::<ElectricalGrid>()
+            .and_then(|g| g.power_stations.iter().find(|s| s.id == station_id))
+            .map(|s| s.is_tripped)
+            .unwrap_or(false)
+    }
 }
 
 // ==========================================
@@ -359,6 +457,62 @@ impl WasmSimulationEngine {
 
     pub fn get_packed_entities_byte_len(&self, entity_count: usize) -> usize {
         entity_count * std::mem::size_of::<RenderEntityPacked>()
+    }
+
+    // ==========================================
+    // WASM ELECTRICAL GRID INTERACTION API
+    // ==========================================
+
+    pub fn place_cable(&mut self, x: u32, y: u32) {
+        self.engine.place_cable(x, y);
+    }
+
+    pub fn remove_cable(&mut self, x: u32, y: u32) {
+        self.engine.remove_cable(x, y);
+    }
+
+    pub fn has_cable(&self, x: u32, y: u32) -> bool {
+        self.engine.has_cable(x, y)
+    }
+
+    pub fn add_power_station(&mut self, id: u32, x: u32, y: u32) {
+        self.engine.add_power_station(id, x, y);
+    }
+
+    pub fn add_capacitor(&mut self, x: u32, y: u32) {
+        self.engine.add_capacitor(x, y);
+    }
+
+    pub fn add_appliance(&mut self, id: u32, x: u32, y: u32, appliance_type_id: u8) {
+        self.engine.add_appliance(id, x, y, appliance_type_id);
+    }
+
+    pub fn reset_breaker(&mut self, station_id: u32) {
+        self.engine.reset_breaker(station_id);
+    }
+
+    pub fn solve_electrical_grid(&mut self) {
+        self.engine.solve_electrical_grid();
+    }
+
+    pub fn get_tile_power_status(&self, x: u32, y: u32) -> u8 {
+        self.engine.get_tile_power_status(x, y)
+    }
+
+    pub fn has_short_circuit(&self) -> bool {
+        self.engine.has_short_circuit()
+    }
+
+    pub fn get_power_station_load(&self, station_id: u32) -> f32 {
+        self.engine.get_power_station_load(station_id)
+    }
+
+    pub fn get_power_station_capacity(&self, station_id: u32) -> f32 {
+        self.engine.get_power_station_capacity(station_id)
+    }
+
+    pub fn is_power_station_tripped(&self, station_id: u32) -> bool {
+        self.engine.is_power_station_tripped(station_id)
     }
 }
 

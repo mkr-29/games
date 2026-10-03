@@ -2,12 +2,12 @@
   "project_name": "prison-architect-web",
   "version": "0.1.0",
   "current_phase": 3,
-  "active_task": "Disjoint-Set Electrical Grid Solver & Short-Circuit Physics",
-  "active_task_id": "TASK-3.1",
+  "active_task": "BFS Hydraulic Plumbing Solver & Hot Water Boiler Loops",
+  "active_task_id": "TASK-3.2",
   "total_tasks": 28,
-  "completed_tasks_count": 8,
-  "progress_percentage": 29,
-  "last_updated": "2026-10-03T07:17:53.794Z",
+  "completed_tasks_count": 9,
+  "progress_percentage": 32,
+  "last_updated": "2026-10-03T07:47:07.736Z",
   "phases": [
     {
       "phase_number": 1,
@@ -71,7 +71,7 @@
         {
           "id": "TASK-3.1",
           "name": "Disjoint-Set Electrical Grid Solver & Short-Circuit Physics",
-          "completed": false
+          "completed": true
         },
         {
           "id": "TASK-3.2",

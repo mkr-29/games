@@ -6,7 +6,7 @@
 
 ## Task Matrix & Checklist
 
-- [ ] **Task 3.1:** Disjoint-Set Electrical Grid Solver & Short-Circuit Physics
+- [x] **Task 3.1:** Disjoint-Set Electrical Grid Solver & Short-Circuit Physics
 - [ ] **Task 3.2:** BFS Hydraulic Plumbing Solver & Hot Water Boiler Loops
 - [ ] **Task 3.3:** Connected-Components Room Enclosure Detection & Validation
 - [ ] **Task 3.4:** Dynamic Cell Quality Grading & Score Evaluator

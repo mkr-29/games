@@ -24,6 +24,10 @@
     type ConstructionToolMode,
     type DragRectCommand,
   } from './lib/tools/DragBoxTool';
+  import {
+    ElectricityManager,
+    type ElectricalTelemetry,
+  } from './lib/utilities/ElectricityManager';
 
   let crossOriginIsolated = $state(false);
   let workerStatus = $state<'Disconnected' | 'Connecting...' | 'Online'>('Connecting...');
@@ -44,6 +48,12 @@
   let completedJobsCount = $state(0);
   let workmenCount = $state(3);
   let workmenTelemetry = $state<string>('3 Idle in Delivery Zone');
+
+  // Task 3.1: Disjoint-Set Electrical Grid Solver & Short-Circuit Physics State
+  const electricityManager = new ElectricityManager(512, 512);
+  let isUtilityOverlayActive = $state(true);
+  let electricalTelemetry = $state<ElectricalTelemetry>(electricityManager.getTelemetry());
+  let electricalLogMessage = $state<string>('⚡ Electrical Network Initialized: 2,000W Capacity');
 
   let rendererMetrics = $state<RendererMetrics>({
     fps: 120,
@@ -246,6 +256,70 @@
       w.jobId = null;
     }
     workmenTelemetry = `${workmen.length} Idle at Delivery Zone`;
+  }
+
+  // ==========================================
+  // TASK 3.1: ELECTRICAL GRID & OVERLOAD CONTROL
+  // ==========================================
+
+  function setupDefaultDemoCircuit() {
+    electricityManager.cables.clear();
+    electricityManager.capacitors.clear();
+    electricityManager.powerStations.clear();
+    electricityManager.appliances.clear();
+
+    // Power Station 1 at (242, 246) with 2 adjacent capacitors = 2,000W
+    electricityManager.addPowerStation(1, 242, 246);
+    electricityManager.addCapacitor(241, 246);
+    electricityManager.addCapacitor(245, 246);
+
+    // Cable line from (245, 247) across to (260, 247)
+    for (let x = 245; x <= 260; x++) {
+      electricityManager.placeCable(x, 247);
+    }
+
+    // Connect appliances along the cable:
+    // 2 x 150W CCTV Monitors = 300W
+    electricityManager.addAppliance(1, 248, 247, 'cctv');
+    electricityManager.addAppliance(2, 251, 247, 'cctv');
+    // 1 x 250W Metal Detector = 250W
+    electricityManager.addAppliance(3, 255, 247, 'metal_detector');
+    // 1 x 600W Workshop Saw = 600W
+    electricityManager.addAppliance(4, 259, 247, 'workshop_saw');
+
+    electricityManager.solve();
+    electricalTelemetry = electricityManager.getTelemetry();
+    electricalLogMessage = '⚡ Stable Circuit: 1,150W Load / 2,000W Capacity (57.5% Load Factor)';
+  }
+
+  function triggerElectricalOverloadDemo() {
+    // Add 3 Workshop Saws (3 * 600W = 1,800W -> 2,950W total > 2,000W capacity)
+    for (let x = 261; x <= 267; x++) {
+      electricityManager.placeCable(x, 247);
+    }
+    electricityManager.addAppliance(5, 262, 247, 'workshop_saw');
+    electricityManager.addAppliance(6, 264, 247, 'workshop_saw');
+    electricityManager.addAppliance(7, 266, 247, 'workshop_saw');
+
+    electricityManager.solve();
+    electricalTelemetry = electricityManager.getTelemetry();
+    electricalLogMessage = '⚠️ OVERLOAD: 2,950W Load exceeded 2,000W Capacity! Power Station breaker tripped!';
+  }
+
+  function triggerShortCircuitDemo() {
+    // Place second live Power Station 2 at (268, 246) and bridge with cable to (267, 247)
+    electricityManager.addPowerStation(2, 268, 246);
+    for (let x = 260; x <= 270; x++) {
+      electricityManager.placeCable(x, 247);
+    }
+
+    electricityManager.solve();
+    electricalTelemetry = electricityManager.getTelemetry();
+    electricalLogMessage = '💥 CATASTROPHIC SHORT CIRCUIT: 2 Live Power Stations connected! Both breakers tripped with electrical explosion!';
+  }
+
+  function resetElectricalBreakers() {
+    setupDefaultDemoCircuit();
   }
 
   function stepConstructionJobs(dt: number) {
@@ -503,6 +577,7 @@
     // 4. Initialize WebGPU Renderer, DragBoxTool & Tile Map
     if (canvasElement) {
       clearCustomWalls();
+      setupDefaultDemoCircuit();
 
       renderer = new WebGPURenderer(canvasElement, 1.0);
       renderer.isPanToolActive = false; // Default: Wall tool active for drag construction
@@ -569,6 +644,15 @@
       stepConstructionJobs(1 / 60);
 
       if (renderer) {
+        renderer.setElectricalData({
+          cables: electricityManager.cables,
+          capacitors: electricityManager.capacitors,
+          powerStations: electricityManager.powerStations,
+          appliances: electricityManager.appliances,
+          tilePowerCache: electricityManager.tilePowerCache,
+          hasShortCircuit: electricityManager.hasShortCircuitFault,
+          isOverlayActive: isUtilityOverlayActive,
+        });
         renderer.render();
         rendererMetrics = renderer.getMetrics();
       }
@@ -945,14 +1029,30 @@
       <!-- Section Header & Real-time Metrics -->
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-800">
         <div class="flex items-center space-x-3">
-          <div class="w-3.5 h-3.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.9)]"></div>
+          <div class="w-3.5 h-3.5 rounded-full {isUtilityOverlayActive ? 'bg-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.9)]' : 'bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.9)]'} animate-pulse"></div>
           <div>
             <h3 class="text-sm font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center space-x-2">
-              <span>WebGPU World Viewport & Drag-Rect Construction Tool</span>
-              <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-600/60 text-cyan-300 font-normal">Phase 2.4 Live</span>
+              <span>WebGPU Viewport & Disjoint-Set Electrical Solver</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-600/60 text-amber-300 font-normal">Phase 3.1 Live</span>
             </h3>
-            <p class="text-xs text-slate-400 mt-0.5">512&times;512 Tile Grid • Holographic Blueprint Ghosts • Autonomous Workman Job Pipeline</p>
+            <p class="text-xs text-slate-400 mt-0.5">Topological Graph Partitioning • Overload Breaker Physics • Catastrophic Short-Circuit Protection</p>
           </div>
+        </div>
+
+        <!-- View Mode Switcher -->
+        <div class="flex items-center rounded-lg bg-slate-950 p-1 border border-slate-800">
+          <button
+            onclick={() => (isUtilityOverlayActive = false)}
+            class="px-3 py-1 rounded text-xs font-mono font-medium transition-all cursor-pointer {!isUtilityOverlayActive ? 'bg-cyan-900 text-cyan-100 font-bold shadow' : 'text-slate-400 hover:text-slate-200'}"
+          >
+            🧱 Architecture View
+          </button>
+          <button
+            onclick={() => (isUtilityOverlayActive = true)}
+            class="px-3 py-1 rounded text-xs font-mono font-medium transition-all cursor-pointer {isUtilityOverlayActive ? 'bg-amber-900 text-amber-100 font-bold shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'text-slate-400 hover:text-slate-200'}"
+          >
+            ⚡ Utilities View (Electricity)
+          </button>
         </div>
 
         <!-- Telemetry Badges -->
@@ -963,106 +1063,183 @@
           <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
             Backend: <strong class="{rendererMetrics.backend === 'WebGPU' ? 'text-emerald-400' : 'text-amber-400'}">{rendererMetrics.backend}</strong>
           </span>
-          <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
-            Chunks: <strong class="text-cyan-300">{rendererMetrics.visibleChunks}</strong> / {rendererMetrics.totalChunks}
-          </span>
-          <span class="px-2.5 py-1 rounded bg-slate-950 border border-amber-800/60 text-amber-300 font-bold">
-            👷 {workmenCount} Workmen
-          </span>
-          <span class="px-2.5 py-1 rounded bg-slate-950 border border-teal-800/60 text-teal-300">
-            🔨 {pendingJobsCount} Queued • {completedJobsCount} Built
-          </span>
+          {#if isUtilityOverlayActive}
+            <span class="px-2.5 py-1 rounded bg-slate-950 border border-amber-700/60 text-amber-300 font-bold">
+              ⚡ {electricalTelemetry.totalLoad}W / {electricalTelemetry.totalCapacity}W ({electricalTelemetry.loadFactorPercent}%)
+            </span>
+            {#if electricalTelemetry.hasShortCircuit}
+              <span class="px-2.5 py-1 rounded bg-red-950 border border-red-500 text-red-200 font-bold animate-pulse">
+                💥 SHORT CIRCUIT!
+              </span>
+            {:else if electricalTelemetry.trippedBreakers > 0}
+              <span class="px-2.5 py-1 rounded bg-amber-950 border border-amber-500 text-amber-200 font-bold">
+                ⚠️ BREAKER TRIPPED
+              </span>
+            {/if}
+          {:else}
+            <span class="px-2.5 py-1 rounded bg-slate-950 border border-amber-800/60 text-amber-300 font-bold">
+              👷 {workmenCount} Workmen
+            </span>
+            <span class="px-2.5 py-1 rounded bg-slate-950 border border-teal-800/60 text-teal-300">
+              🔨 {pendingJobsCount} Queued • {completedJobsCount} Built
+            </span>
+          {/if}
           <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
             Cam: ({rendererMetrics.cameraX}, {rendererMetrics.cameraY}) @ <strong class="text-teal-300">{rendererMetrics.zoom}x</strong>
           </span>
         </div>
       </div>
 
-      <!-- Construction Tool Selection Toolbar -->
-      <div class="p-3 rounded-lg bg-slate-950/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-        <div class="flex flex-wrap items-center gap-1.5">
-          <span class="text-slate-500 uppercase text-[10px] mr-1">Tools:</span>
-          
-          <button
-            onclick={() => setToolMode('navigate')}
-            class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'navigate' ? 'bg-cyan-950 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
-            title="Pan & Inspect Camera (Hold middle or right click to pan anytime)"
-          >
-            <span>🖐️ Pan / Inspect</span>
-          </button>
+      {#if isUtilityOverlayActive}
+        <!-- Task 3.1: Electrical Utility Controls & Scenario Actions -->
+        <div class="p-3 rounded-lg bg-slate-950/90 border border-amber-800/80 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-amber-400 font-bold uppercase text-[10px] mr-1 flex items-center space-x-1">
+              <span>⚡ Electrical Scenarios:</span>
+            </span>
 
-          <button
-            onclick={() => setToolMode('brick_wall')}
-            class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'brick_wall' ? 'bg-amber-950 border-amber-400 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
-            title="Standard Red Brick Wall ($50.00)"
-          >
-            <span>🧱 Brick Wall ($50)</span>
-          </button>
-
-          <button
-            onclick={() => setToolMode('concrete_wall')}
-            class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'concrete_wall' ? 'bg-slate-800 border-slate-300 text-slate-100 shadow-[0_0_10px_rgba(203,213,225,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
-            title="Reinforced Heavy Concrete Wall ($120.00)"
-          >
-            <span>🏢 Concrete Wall ($120)</span>
-          </button>
-
-          <button
-            onclick={() => setToolMode('perimeter_wall')}
-            class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'perimeter_wall' ? 'bg-purple-950 border-purple-400 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
-            title="High Security Anti-Tunnel Perimeter Wall ($350.00)"
-          >
-            <span>🛡️ Perimeter Wall ($350)</span>
-          </button>
-
-          <div class="h-5 w-px bg-slate-800 mx-1"></div>
-
-          <!-- Hollow vs Solid Toggle -->
-          <div class="flex items-center rounded-lg bg-slate-900 p-0.5 border border-slate-800">
             <button
-              onclick={() => setToolHollow(true)}
-              class="px-2 py-1 rounded text-[11px] transition-all cursor-pointer {toolHollow ? 'bg-cyan-900/80 text-cyan-200 font-bold' : 'text-slate-400 hover:text-slate-200'}"
-              title="Perimeter rectangle (walls along outline only)"
+              onclick={setupDefaultDemoCircuit}
+              class="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/80 text-emerald-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(16,185,129,0.3)] active:scale-95"
+              title="Setup stable 2,000W circuit with 1 Power Station, 2 Capacitors, and 1,150W appliance load"
             >
-              Rect Perimeter
+              <span>⚡ 2,000W Stable Grid</span>
             </button>
+
             <button
-              onclick={() => setToolHollow(false)}
-              class="px-2 py-1 rounded text-[11px] transition-all cursor-pointer {!toolHollow ? 'bg-cyan-900/80 text-cyan-200 font-bold' : 'text-slate-400 hover:text-slate-200'}"
-              title="Filled solid rectangle"
+              onclick={triggerElectricalOverloadDemo}
+              class="px-3 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 border border-amber-500/80 text-amber-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(245,158,11,0.3)] active:scale-95"
+              title="Connect 3 heavy Workshop Saws (+1,800W) to exceed 2,000W capacity and trip breaker"
             >
-              Solid Block
+              <span>⚠️ Test Overload (+1,800W Saws)</span>
             </button>
+
+            <button
+              onclick={triggerShortCircuitDemo}
+              class="px-3 py-1.5 rounded-lg bg-rose-950 hover:bg-rose-900 border border-rose-500/80 text-rose-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(244,63,94,0.3)] active:scale-95"
+              title="Bridge 2 live Power Stations together with a wire to trigger catastrophic short circuit"
+            >
+              <span>💥 Test Short-Circuit (Bridge Stations)</span>
+            </button>
+
+            <button
+              onclick={resetElectricalBreakers}
+              class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-300 transition-all cursor-pointer flex items-center space-x-1 active:scale-95"
+              title="Reset tripped station breakers and restore circuit"
+            >
+              <span>🔄 Reset Breakers</span>
+            </button>
+          </div>
+
+          <!-- Quick summary badges -->
+          <div class="flex items-center space-x-2 text-[11px]">
+            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
+              🔌 {electricityManager.cables.size} Cables
+            </span>
+            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-cyan-300">
+              🔋 {electricityManager.capacitors.size} Capacitors
+            </span>
+            <span class="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-emerald-300">
+              📺 {electricalTelemetry.poweredAppliances}/{electricalTelemetry.totalAppliances} Powered
+            </span>
           </div>
         </div>
 
-        <!-- Quick Demo & Action Buttons -->
-        <div class="flex items-center gap-1.5">
-          <button
-            onclick={trigger10x10Demo}
-            class="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/80 text-emerald-200 font-bold transition-all cursor-pointer flex items-center space-x-1 shadow-[0_0_8px_rgba(16,185,129,0.2)] active:scale-95"
-            title="Queue a 10x10 brick wall foundation and watch workmen construct it in real time!"
-          >
-            <span>⚡ 10x10 Foundation Demo</span>
-          </button>
-
-          <button
-            onclick={spawnWorkman}
-            class="px-2.5 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 border border-amber-600 text-amber-200 font-medium transition-all cursor-pointer active:scale-95"
-            title="Hire an additional Workman at Delivery Zone"
-          >
-            <span>👷 +1 Workman</span>
-          </button>
-
-          <button
-            onclick={clearCustomWalls}
-            class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-red-950/60 border border-slate-700 hover:border-red-600 text-slate-400 hover:text-red-300 transition-all cursor-pointer"
-            title="Reset walls and blueprints"
-          >
-            <span>🧹 Reset</span>
-          </button>
+        <!-- Electrical Event Notification Sub-banner -->
+        <div class="px-3 py-1.5 rounded bg-slate-950/80 border {electricalTelemetry.hasShortCircuit ? 'border-red-600 bg-red-950/40 text-red-200 animate-pulse' : electricalTelemetry.trippedBreakers > 0 ? 'border-amber-600 bg-amber-950/40 text-amber-200' : 'border-emerald-800/60 text-emerald-300'} text-xs font-mono flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full {electricalTelemetry.hasShortCircuit ? 'bg-red-400 animate-ping' : electricalTelemetry.trippedBreakers > 0 ? 'bg-amber-400' : 'bg-emerald-400'}"></span>
+            <span>{electricalLogMessage}</span>
+          </div>
+          <span class="text-[10px] text-slate-400">Path Compression & Union-By-Rank Disjoint Set</span>
         </div>
-      </div>
+      {:else}
+        <!-- Construction Tool Selection Toolbar -->
+        <div class="p-3 rounded-lg bg-slate-950/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-slate-500 uppercase text-[10px] mr-1">Tools:</span>
+            
+            <button
+              onclick={() => setToolMode('navigate')}
+              class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'navigate' ? 'bg-cyan-950 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+              title="Pan & Inspect Camera (Hold middle or right click to pan anytime)"
+            >
+              <span>🖐️ Pan / Inspect</span>
+            </button>
+
+            <button
+              onclick={() => setToolMode('brick_wall')}
+              class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'brick_wall' ? 'bg-amber-950 border-amber-400 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+              title="Standard Red Brick Wall ($50.00)"
+            >
+              <span>🧱 Brick Wall ($50)</span>
+            </button>
+
+            <button
+              onclick={() => setToolMode('concrete_wall')}
+              class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'concrete_wall' ? 'bg-slate-800 border-slate-300 text-slate-100 shadow-[0_0_10px_rgba(203,213,225,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+              title="Reinforced Heavy Concrete Wall ($120.00)"
+            >
+              <span>🏢 Concrete Wall ($120)</span>
+            </button>
+
+            <button
+              onclick={() => setToolMode('perimeter_wall')}
+              class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'perimeter_wall' ? 'bg-purple-950 border-purple-400 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+              title="High Security Anti-Tunnel Perimeter Wall ($350.00)"
+            >
+              <span>🛡️ Perimeter Wall ($350)</span>
+            </button>
+
+            <div class="h-5 w-px bg-slate-800 mx-1"></div>
+
+            <!-- Hollow vs Solid Toggle -->
+            <div class="flex items-center rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+              <button
+                onclick={() => setToolHollow(true)}
+                class="px-2 py-1 rounded text-[11px] transition-all cursor-pointer {toolHollow ? 'bg-cyan-900/80 text-cyan-200 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+                title="Perimeter rectangle (walls along outline only)"
+              >
+                Rect Perimeter
+              </button>
+              <button
+                onclick={() => setToolHollow(false)}
+                class="px-2 py-1 rounded text-[11px] transition-all cursor-pointer {!toolHollow ? 'bg-cyan-900/80 text-cyan-200 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+                title="Filled solid rectangle"
+              >
+                Solid Block
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Demo & Action Buttons -->
+          <div class="flex items-center gap-1.5">
+            <button
+              onclick={trigger10x10Demo}
+              class="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/80 text-emerald-200 font-bold transition-all cursor-pointer flex items-center space-x-1 shadow-[0_0_8px_rgba(16,185,129,0.2)] active:scale-95"
+              title="Queue a 10x10 brick wall foundation and watch workmen construct it in real time!"
+            >
+              <span>⚡ 10x10 Foundation Demo</span>
+            </button>
+
+            <button
+              onclick={spawnWorkman}
+              class="px-2.5 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 border border-amber-600 text-amber-200 font-medium transition-all cursor-pointer active:scale-95"
+              title="Hire an additional Workman at Delivery Zone"
+            >
+              <span>👷 +1 Workman</span>
+            </button>
+
+            <button
+              onclick={clearCustomWalls}
+              class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-red-950/60 border border-slate-700 hover:border-red-600 text-slate-400 hover:text-red-300 transition-all cursor-pointer"
+              title="Reset walls and blueprints"
+            >
+              <span>🧹 Reset</span>
+            </button>
+          </div>
+        </div>
+      {/if}
 
       <!-- Quick Camera Controls & Telemetry Sub-bar -->
       <div class="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">

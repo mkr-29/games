@@ -95,6 +95,35 @@ export class TextureAtlas {
     // (3, 4): Solitary / Cell Door
     this.drawDoorSprite(ctx, 3 * TILE_PX, 4 * TILE_PX, TILE_PX);
     this.registerSprite('object_door', 3, 4, TILE_PX);
+
+    // Row 5: Electrical Utilities & Appliances
+    // (0, 5): Electric Cable
+    this.drawCableSprite(ctx, 0 * TILE_PX, 5 * TILE_PX, TILE_PX);
+    this.registerSprite('utility_cable', 0, 5, TILE_PX);
+
+    // (1, 5): Power Station
+    this.drawPowerStationSprite(ctx, 1 * TILE_PX, 5 * TILE_PX, TILE_PX);
+    this.registerSprite('utility_power_station', 1, 5, TILE_PX);
+
+    // (2, 5): Capacitor
+    this.drawCapacitorSprite(ctx, 2 * TILE_PX, 5 * TILE_PX, TILE_PX);
+    this.registerSprite('utility_capacitor', 2, 5, TILE_PX);
+
+    // (3, 5): CCTV Monitor
+    this.drawCctvSprite(ctx, 3 * TILE_PX, 5 * TILE_PX, TILE_PX);
+    this.registerSprite('object_cctv', 3, 5, TILE_PX);
+
+    // (4, 5): Metal Detector
+    this.drawMetalDetectorSprite(ctx, 4 * TILE_PX, 5 * TILE_PX, TILE_PX);
+    this.registerSprite('object_metal_detector', 4, 5, TILE_PX);
+
+    // (5, 5): Workshop Saw
+    this.drawWorkshopSawSprite(ctx, 5 * TILE_PX, 5 * TILE_PX, TILE_PX);
+    this.registerSprite('object_workshop_saw', 5, 5, TILE_PX);
+
+    // (6, 5): Electric Chair
+    this.drawElectricChairSprite(ctx, 6 * TILE_PX, 5 * TILE_PX, TILE_PX);
+    this.registerSprite('object_electric_chair', 6, 5, TILE_PX);
   }
 
   private registerSprite(name: string, tileX: number, tileY: number, tileSize: number): void {
@@ -286,5 +315,108 @@ export class TextureAtlas {
       ctx.lineTo(x, py + size - 4);
       ctx.stroke();
     }
+  }
+
+  private drawCableSprite(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    // Trench background
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(px + 4, py + 4, size - 8, size - 8);
+
+    // Glowing copper/orange core
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(px + 10, py + 10, size - 20, size - 20);
+
+    // Cardinal connectors
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(px + size / 2 - 2, py + 2, 4, size - 4);
+    ctx.fillRect(px + 2, py + size / 2 - 2, size - 4, 4);
+  }
+
+  private drawPowerStationSprite(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    // Heavy industrial transformer casing
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
+
+    // Hazard chevrons
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(px + 4, py + 4, size - 8, 4);
+    ctx.fillRect(px + 4, py + size - 8, size - 8, 4);
+
+    // High-voltage lightning bolt
+    ctx.fillStyle = '#38bdf8';
+    const cx = px + size / 2;
+    const cy = py + size / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 8);
+    ctx.lineTo(cx - 5, cy);
+    ctx.lineTo(cx + 1, cy);
+    ctx.lineTo(cx - 2, cy + 8);
+    ctx.lineTo(cx + 6, cy - 1);
+    ctx.lineTo(cx, cy - 1);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  private drawCapacitorSprite(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    // Metal capacitor bank
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(px + 4, py + 4, size - 8, size - 8);
+
+    // Cyan energy cells
+    ctx.fillStyle = '#06b6d4';
+    ctx.fillRect(px + 8, py + 8, 5, size - 16);
+    ctx.fillRect(px + 15, py + 8, 5, size - 16);
+    ctx.fillRect(px + 22, py + 8, 5, size - 16);
+  }
+
+  private drawCctvSprite(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(px + 4, py + 6, size - 8, size - 12);
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(px + size / 2, py + size / 2, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(px + size - 8, py + 8, 3, 3);
+  }
+
+  private drawMetalDetectorSprite(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    ctx.fillStyle = '#334155';
+    // Arch columns
+    ctx.fillRect(px + 4, py + 2, 5, size - 4);
+    ctx.fillRect(px + size - 9, py + 2, 5, size - 4);
+    // Header
+    ctx.fillRect(px + 4, py + 2, size - 8, 5);
+    // Sensor beam
+    ctx.fillStyle = 'rgba(234, 179, 8, 0.4)';
+    ctx.fillRect(px + 9, py + 7, size - 18, size - 11);
+  }
+
+  private drawWorkshopSawSprite(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(px + 3, py + 3, size - 6, size - 6);
+    // Circular silver blade
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(px + size / 2, py + size / 2, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.arc(px + size / 2, py + size / 2, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  private drawElectricChairSprite(ctx: CanvasRenderingContext2D, px: number, py: number, size: number): void {
+    // Oak wooden chair
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(px + 5, py + 4, size - 10, size - 8);
+    // Metallic electrodes and leather straps
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(px + 7, py + 2, size - 14, 4);
+    ctx.fillStyle = '#eab308';
+    // Voltage sparks
+    ctx.beginPath();
+    ctx.arc(px + size / 2, py + size / 2, 4, 0, Math.PI * 2);
+    ctx.fill();
   }
 }

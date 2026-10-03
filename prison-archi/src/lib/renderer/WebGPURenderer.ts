@@ -20,6 +20,17 @@ export interface RendererMetrics {
 }
 
 import type { GhostTile } from '../tools/DragBoxTool';
+import type { PowerStationData, ApplianceData, PowerStatus } from '../utilities/ElectricityManager';
+
+export interface ElectricalRenderData {
+  cables: Set<number>;
+  capacitors: Set<number>;
+  powerStations: Map<number, PowerStationData>;
+  appliances: Map<number, ApplianceData>;
+  tilePowerCache: Map<number, PowerStatus>;
+  hasShortCircuit: boolean;
+  isOverlayActive: boolean;
+}
 
 export interface RenderEntity {
   id: number;
@@ -90,6 +101,9 @@ export class WebGPURenderer {
   // Active Dynamic Simulation Entities (Workmen, Prisoners, Guards)
   private renderEntities: RenderEntity[] = [];
 
+  // Active Electrical Utilities Overlay Data
+  private electricalData: ElectricalRenderData | null = null;
+
   // Whether left mouse button pans camera or is delegated to active construction tool
   public isPanToolActive = true;
 
@@ -118,6 +132,10 @@ export class WebGPURenderer {
 
   public setRenderEntities(entities: RenderEntity[]): void {
     this.renderEntities = entities;
+  }
+
+  public setElectricalData(data: ElectricalRenderData | null): void {
+    this.electricalData = data;
   }
 
   /**
@@ -498,6 +516,135 @@ export class WebGPURenderer {
       drawn++;
     }
 
+    // 4. Electrical Grid Overlay (when isOverlayActive is true)
+    if (this.electricalData?.isOverlayActive) {
+      // Subtle background dark dimming to make electrical grid pop
+      ctx.fillStyle = 'rgba(10, 15, 26, 0.45)';
+      ctx.fillRect(0, 0, w, h);
+
+      const time = performance.now() * 0.005;
+      const pulse = Math.sin(time) * 0.5 + 0.5;
+
+      // 4a. Draw Cables
+      for (const cableIdx of this.electricalData.cables) {
+        const cx = cableIdx % 512;
+        const cy = Math.floor(cableIdx / 512);
+        const screen = this.camera.worldToScreen(cx, cy);
+        if (screen.x < -effectiveTilePx || screen.x > w || screen.y < -effectiveTilePx || screen.y > h) continue;
+
+        const status = this.electricalData.tilePowerCache.get(cableIdx) ?? 'unpowered';
+
+        // Cable conduit trench
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(screen.x + effectiveTilePx * 0.25, screen.y + effectiveTilePx * 0.25, effectiveTilePx * 0.5, effectiveTilePx * 0.5);
+
+        // Core electrical wire
+        if (status === 'powered') {
+          ctx.fillStyle = `rgba(34, 197, 94, ${0.75 + pulse * 0.25})`; // Electric neon green
+          ctx.shadowColor = '#22c55e';
+          ctx.shadowBlur = 8;
+        } else if (status === 'overloaded') {
+          ctx.fillStyle = '#f59e0b'; // Amber warning
+          ctx.shadowColor = '#f59e0b';
+          ctx.shadowBlur = 4;
+        } else if (status === 'short_circuit') {
+          // Flashing high-voltage red
+          ctx.fillStyle = Math.floor(time * 4) % 2 === 0 ? '#ef4444' : '#fee2e2';
+          ctx.shadowColor = '#ef4444';
+          ctx.shadowBlur = 10;
+        } else {
+          ctx.fillStyle = '#64748b'; // Dormant grey
+          ctx.shadowBlur = 0;
+        }
+
+        ctx.fillRect(screen.x + effectiveTilePx * 0.35, screen.y + effectiveTilePx * 0.35, effectiveTilePx * 0.3, effectiveTilePx * 0.3);
+        ctx.shadowBlur = 0;
+        drawn++;
+      }
+
+      // 4b. Draw Power Stations (3x3 footprint)
+      for (const station of this.electricalData.powerStations.values()) {
+        const screen = this.camera.worldToScreen(station.x, station.y);
+        const stationPx = effectiveTilePx * 3;
+        if (screen.x < -stationPx || screen.x > w || screen.y < -stationPx || screen.y > h) continue;
+
+        // Industrial station body
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(screen.x, screen.y, stationPx, stationPx);
+
+        // Hazard border
+        ctx.strokeStyle = station.isTripped ? '#ef4444' : '#eab308';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(screen.x + 2, screen.y + 2, stationPx - 4, stationPx - 4);
+
+        // Generator core
+        ctx.fillStyle = station.isTripped ? '#7f1d1d' : '#065f46';
+        ctx.fillRect(screen.x + stationPx * 0.2, screen.y + stationPx * 0.2, stationPx * 0.6, stationPx * 0.6);
+
+        // High-voltage lightning bolt or text
+        ctx.fillStyle = station.isTripped ? '#fca5a5' : '#34d399';
+        ctx.font = `bold ${Math.max(10, Math.floor(effectiveTilePx * 0.45))}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(station.isTripped ? '💥 TRIPPED' : '⚡ 1,000W+', screen.x + stationPx * 0.5, screen.y + stationPx * 0.5);
+        drawn += 9;
+      }
+
+      // 4c. Draw Capacitors
+      for (const capIdx of this.electricalData.capacitors) {
+        const cx = capIdx % 512;
+        const cy = Math.floor(capIdx / 512);
+        const screen = this.camera.worldToScreen(cx, cy);
+        if (screen.x < -effectiveTilePx || screen.x > w || screen.y < -effectiveTilePx || screen.y > h) continue;
+
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(screen.x + effectiveTilePx * 0.1, screen.y + effectiveTilePx * 0.1, effectiveTilePx * 0.8, effectiveTilePx * 0.8);
+        ctx.fillStyle = '#06b6d4';
+        ctx.fillRect(screen.x + effectiveTilePx * 0.25, screen.y + effectiveTilePx * 0.2, effectiveTilePx * 0.5, effectiveTilePx * 0.6);
+        drawn++;
+      }
+
+      // 4d. Draw Appliances
+      for (const app of this.electricalData.appliances.values()) {
+        const screen = this.camera.worldToScreen(app.x, app.y);
+        if (screen.x < -effectiveTilePx || screen.x > w || screen.y < -effectiveTilePx || screen.y > h) continue;
+
+        ctx.fillStyle = app.isPowered ? '#14532d' : '#334155';
+        ctx.fillRect(screen.x + 2, screen.y + 2, effectiveTilePx - 4, effectiveTilePx - 4);
+
+        // LED Indicator
+        ctx.fillStyle = app.isPowered ? '#22c55e' : '#ef4444';
+        ctx.beginPath();
+        ctx.arc(screen.x + effectiveTilePx * 0.8, screen.y + effectiveTilePx * 0.25, effectiveTilePx * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Label
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = `bold ${Math.max(9, Math.floor(effectiveTilePx * 0.28))}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const label = app.type === 'cctv' ? '📹' : app.type === 'metal_detector' ? '🚪' : app.type === 'workshop_saw' ? '🪚' : '⚡';
+        ctx.fillText(label, screen.x + effectiveTilePx * 0.45, screen.y + effectiveTilePx * 0.55);
+        drawn++;
+      }
+
+      // 4e. Short-Circuit Spark Arcs
+      if (this.electricalData.hasShortCircuit) {
+        ctx.strokeStyle = Math.floor(time * 6) % 2 === 0 ? '#fde047' : '#38bdf8';
+        ctx.lineWidth = 2.5;
+        for (let i = 0; i < 4; i++) {
+          const sparkAngle = Math.random() * Math.PI * 2;
+          const sparkLen = effectiveTilePx * (0.8 + Math.random() * 0.6);
+          const sx = w * 0.5 + (Math.random() - 0.5) * effectiveTilePx * 3;
+          const sy = h * 0.5 + (Math.random() - 0.5) * effectiveTilePx * 3;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + Math.cos(sparkAngle) * sparkLen, sy + Math.sin(sparkAngle) * sparkLen);
+          ctx.stroke();
+        }
+      }
+    }
+
     this.lastVisibleChunks = visibleChunks;
     this.lastDrawnInstances = drawn;
   }
@@ -575,6 +722,64 @@ export class WebGPURenderer {
       // If carrying material box (statusFlags === 2), draw small crate in hands
       if (entity.statusFlags === 2) {
         this.writeInstance(count++, entity.x + 0.15, entity.y + 0.15, 0.45, 0.45, brickUV, 1.0, 1.0, 1.0, 1.0, 0);
+      }
+    }
+
+    // 4. Electrical Grid Overlay for WebGPU
+    if (this.electricalData?.isOverlayActive) {
+      const cableUV = this.atlas.getUV('utility_cable');
+      const stationUV = this.atlas.getUV('utility_power_station');
+      const capUV = this.atlas.getUV('utility_capacitor');
+
+      // 4a. Cables
+      for (const cableIdx of this.electricalData.cables) {
+        if (count >= this.maxInstances - 4) break;
+        const cx = cableIdx % 512;
+        const cy = Math.floor(cableIdx / 512);
+        const status = this.electricalData.tilePowerCache.get(cableIdx) ?? 'unpowered';
+
+        if (status === 'powered') {
+          this.writeInstance(count++, cx, cy, 1.0, 1.0, cableUV, 0.1, 1.0, 0.3, 0.95, 0);
+        } else if (status === 'overloaded') {
+          this.writeInstance(count++, cx, cy, 1.0, 1.0, cableUV, 1.0, 0.6, 0.1, 0.95, 0);
+        } else if (status === 'short_circuit') {
+          this.writeInstance(count++, cx, cy, 1.0, 1.0, cableUV, 1.0, 0.1, 0.1, 1.0, 0);
+        } else {
+          this.writeInstance(count++, cx, cy, 1.0, 1.0, cableUV, 0.4, 0.4, 0.5, 0.65, 0);
+        }
+      }
+
+      // 4b. Power Stations (3x3 footprint)
+      for (const station of this.electricalData.powerStations.values()) {
+        if (count >= this.maxInstances - 4) break;
+        const tintR = station.isTripped ? 1.0 : 0.2;
+        const tintG = station.isTripped ? 0.2 : 0.9;
+        const tintB = 0.2;
+        this.writeInstance(count++, station.x, station.y, 3.0, 3.0, stationUV, tintR, tintG, tintB, 1.0, 0);
+      }
+
+      // 4c. Capacitors
+      for (const capIdx of this.electricalData.capacitors) {
+        if (count >= this.maxInstances - 4) break;
+        const cx = capIdx % 512;
+        const cy = Math.floor(capIdx / 512);
+        this.writeInstance(count++, cx, cy, 1.0, 1.0, capUV, 0.2, 0.8, 1.0, 0.95, 0);
+      }
+
+      // 4d. Appliances
+      for (const app of this.electricalData.appliances.values()) {
+        if (count >= this.maxInstances - 4) break;
+        const appUVName =
+          app.type === 'cctv'
+            ? 'object_cctv'
+            : app.type === 'metal_detector'
+              ? 'object_metal_detector'
+              : app.type === 'workshop_saw'
+                ? 'object_workshop_saw'
+                : 'object_electric_chair';
+        const appUV = this.atlas.getUV(appUVName);
+        const tintG = app.isPowered ? 1.0 : 0.4;
+        this.writeInstance(count++, app.x, app.y, 1.0, 1.0, appUV, 1.0, tintG, 1.0, 1.0, 0);
       }
     }
 

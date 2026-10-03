@@ -2,11 +2,13 @@ pub mod construction;
 pub mod ecs;
 pub mod grid;
 pub mod memory;
+pub mod utilities;
 
 pub use construction::*;
 pub use ecs::*;
 pub use grid::*;
 pub use memory::*;
+pub use utilities::*;
 
 use wasm_bindgen::prelude::*;
 
