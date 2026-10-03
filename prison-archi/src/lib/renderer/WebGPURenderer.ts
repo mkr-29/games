@@ -19,6 +19,17 @@ export interface RendererMetrics {
   zoom: number;
 }
 
+import type { GhostTile } from '../tools/DragBoxTool';
+
+export interface RenderEntity {
+  id: number;
+  x: number;
+  y: number;
+  spriteIndex: number;
+  statusFlags: number; // 0=idle, 1=walking, 2=carrying material, 3=building
+  rotation: number;
+}
+
 export interface WorldTileDataSource {
   width: number;
   height: number;
@@ -30,6 +41,7 @@ export interface WorldTileDataSource {
     wallId: number;
     autotileIdx: number;
     health: number;
+    isBlueprint?: boolean;
   } | null;
 }
 
@@ -72,6 +84,15 @@ export class WebGPURenderer {
   // External tile grid data
   private tileSource: WorldTileDataSource | null = null;
 
+  // Active Drag Ghost Tiles for construction preview
+  private activeGhostTiles: GhostTile[] = [];
+
+  // Active Dynamic Simulation Entities (Workmen, Prisoners, Guards)
+  private renderEntities: RenderEntity[] = [];
+
+  // Whether left mouse button pans camera or is delegated to active construction tool
+  public isPanToolActive = true;
+
   constructor(canvas: HTMLCanvasElement, initialZoom = 1.0) {
     this.canvas = canvas;
     this.camera = new Camera2D(
@@ -89,6 +110,14 @@ export class WebGPURenderer {
 
   public setTileSource(source: WorldTileDataSource): void {
     this.tileSource = source;
+  }
+
+  public setActiveGhostTiles(ghosts: GhostTile[]): void {
+    this.activeGhostTiles = ghosts;
+  }
+
+  public setRenderEntities(entities: RenderEntity[]): void {
+    this.renderEntities = entities;
   }
 
   /**
@@ -411,19 +440,62 @@ export class WebGPURenderer {
             const tile = this.tileSource?.getTile(tx, ty);
             if (tile && tile.wallId > 0) {
               const mask = tile.autotileIdx;
-              ctx.fillStyle = tile.wallId === 2 ? '#4a5568' : '#9b2c2c'; // Concrete or Brick
-              ctx.fillRect(screen.x + effectiveTilePx * 0.2, screen.y + effectiveTilePx * 0.2, effectiveTilePx * 0.6, effectiveTilePx * 0.6);
+              if (tile.isBlueprint) {
+                // Holographic Blueprint Ghost Wall
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.55)';
+                ctx.fillRect(screen.x, screen.y, effectiveTilePx, effectiveTilePx);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(screen.x + 1, screen.y + 1, effectiveTilePx - 2, effectiveTilePx - 2);
+              } else {
+                ctx.fillStyle = tile.wallId === 2 ? '#4a5568' : (tile.wallId === 3 ? '#2d3748' : '#9b2c2c'); // Concrete, Perimeter or Brick
+                ctx.fillRect(screen.x + effectiveTilePx * 0.2, screen.y + effectiveTilePx * 0.2, effectiveTilePx * 0.6, effectiveTilePx * 0.6);
 
-              // Connectors
-              if ((mask & 1) !== 0) ctx.fillRect(screen.x + effectiveTilePx * 0.2, screen.y, effectiveTilePx * 0.6, effectiveTilePx * 0.2);
-              if ((mask & 4) !== 0) ctx.fillRect(screen.x + effectiveTilePx * 0.2, screen.y + effectiveTilePx * 0.8, effectiveTilePx * 0.6, effectiveTilePx * 0.2);
-              if ((mask & 8) !== 0) ctx.fillRect(screen.x, screen.y + effectiveTilePx * 0.2, effectiveTilePx * 0.2, effectiveTilePx * 0.6);
-              if ((mask & 2) !== 0) ctx.fillRect(screen.x + effectiveTilePx * 0.8, screen.y + effectiveTilePx * 0.2, effectiveTilePx * 0.2, effectiveTilePx * 0.6);
+                // Connectors
+                if ((mask & 1) !== 0) ctx.fillRect(screen.x + effectiveTilePx * 0.2, screen.y, effectiveTilePx * 0.6, effectiveTilePx * 0.2);
+                if ((mask & 4) !== 0) ctx.fillRect(screen.x + effectiveTilePx * 0.2, screen.y + effectiveTilePx * 0.8, effectiveTilePx * 0.6, effectiveTilePx * 0.2);
+                if ((mask & 8) !== 0) ctx.fillRect(screen.x, screen.y + effectiveTilePx * 0.2, effectiveTilePx * 0.2, effectiveTilePx * 0.6);
+                if ((mask & 2) !== 0) ctx.fillRect(screen.x + effectiveTilePx * 0.8, screen.y + effectiveTilePx * 0.2, effectiveTilePx * 0.2, effectiveTilePx * 0.6);
+              }
               drawn++;
             }
           }
         }
       }
+    }
+
+    // 2. Active Drag Holographic Preview
+    for (const ghost of this.activeGhostTiles) {
+      const screen = this.camera.worldToScreen(ghost.x, ghost.y);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.40)';
+      ctx.fillRect(screen.x, screen.y, effectiveTilePx, effectiveTilePx);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(screen.x + 1, screen.y + 1, effectiveTilePx - 2, effectiveTilePx - 2);
+      drawn++;
+    }
+
+    // 3. Dynamic Simulation Entities (Workmen)
+    for (const entity of this.renderEntities) {
+      const screen = this.camera.worldToScreen(entity.x, entity.y);
+      const size = effectiveTilePx * 0.9;
+      // Workman Orange Body / Vest
+      ctx.fillStyle = '#dd6b20';
+      ctx.beginPath();
+      ctx.arc(screen.x + size * 0.5, screen.y + size * 0.5, size * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      // Yellow Hardhat
+      ctx.fillStyle = '#ecc94b';
+      ctx.beginPath();
+      ctx.arc(screen.x + size * 0.5, screen.y + size * 0.35, size * 0.32, Math.PI, 0);
+      ctx.fill();
+
+      // If carrying material box (statusFlags === 2)
+      if (entity.statusFlags === 2) {
+        ctx.fillStyle = '#9b2c2c'; // Brick crate
+        ctx.fillRect(screen.x + size * 0.55, screen.y + size * 0.55, size * 0.38, size * 0.38);
+      }
+      drawn++;
     }
 
     this.lastVisibleChunks = visibleChunks;
@@ -462,7 +534,7 @@ export class WebGPURenderer {
 
         for (let ty = chunkMinY; ty < chunkMaxY; ty++) {
           for (let tx = chunkMinX; tx < chunkMaxX; tx++) {
-            if (count >= this.maxInstances - 4) break;
+            if (count >= this.maxInstances - 32) break;
 
             // 1. Terrain Grass Base
             this.writeInstance(count++, tx, ty, 1.0, 1.0, grassUV, 1.0, 1.0, 1.0, 1.0, 0);
@@ -471,10 +543,38 @@ export class WebGPURenderer {
             const tile = this.tileSource?.getTile(tx, ty);
             if (tile && tile.wallId > 0) {
               const wallUV = this.atlas.getWallUV(tile.wallId, tile.autotileIdx);
-              this.writeInstance(count++, tx, ty, 1.0, 1.0, wallUV, 1.0, 1.0, 1.0, 1.0, tile.autotileIdx);
+              if (tile.isBlueprint) {
+                // Holographic Blueprint Ghost Wall: cyan glow with semi-transparency
+                this.writeInstance(count++, tx, ty, 1.0, 1.0, wallUV, 0.25, 0.75, 1.0, 0.65, tile.autotileIdx);
+              } else {
+                // Solid Wall
+                this.writeInstance(count++, tx, ty, 1.0, 1.0, wallUV, 1.0, 1.0, 1.0, 1.0, tile.autotileIdx);
+              }
             }
           }
         }
+      }
+    }
+
+    // 2. Active Drag Holographic Preview
+    for (const ghost of this.activeGhostTiles) {
+      if (count >= this.maxInstances - 4) break;
+      const wallUV = this.atlas.getWallUV(ghost.materialId, 0);
+      this.writeInstance(count++, ghost.x, ghost.y, 1.0, 1.0, wallUV, 0.35, 0.90, 1.0, 0.85, 0);
+    }
+
+    // 3. Dynamic Simulation Entities (Workmen)
+    const workmanUV = this.atlas.getUV('char_workman');
+    const brickUV = this.atlas.getWallUV(1, 0);
+
+    for (const entity of this.renderEntities) {
+      if (count >= this.maxInstances - 4) break;
+      // Draw Workman sprite
+      this.writeInstance(count++, entity.x, entity.y, 0.9, 0.9, workmanUV, 1.0, 1.0, 1.0, 1.0, 0);
+
+      // If carrying material box (statusFlags === 2), draw small crate in hands
+      if (entity.statusFlags === 2) {
+        this.writeInstance(count++, entity.x + 0.15, entity.y + 0.15, 0.45, 0.45, brickUV, 1.0, 1.0, 1.0, 1.0, 0);
       }
     }
 
@@ -523,7 +623,8 @@ export class WebGPURenderer {
 
   private setupEventListeners(): void {
     this.canvas.addEventListener('mousedown', (e) => {
-      if (e.button === 0 || e.button === 1 || e.button === 2) {
+      // Middle (1) or Right (2) always pan. Left (0) pans only if isPanToolActive is true.
+      if (e.button === 1 || e.button === 2 || (e.button === 0 && this.isPanToolActive)) {
         this.isDragging = true;
         this.lastMouseX = e.clientX;
         this.lastMouseY = e.clientY;

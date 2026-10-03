@@ -19,6 +19,11 @@
     WebGPURenderer,
     type RendererMetrics,
   } from './lib/renderer/WebGPURenderer';
+  import {
+    DragBoxTool,
+    type ConstructionToolMode,
+    type DragRectCommand,
+  } from './lib/tools/DragBoxTool';
 
   let crossOriginIsolated = $state(false);
   let workerStatus = $state<'Disconnected' | 'Connecting...' | 'Online'>('Connecting...');
@@ -28,9 +33,18 @@
   let sharedBridge: SharedMemoryBridge | null = null;
   let consumer: TripleBufferConsumer | null = null;
 
-  // Task 2.3: WebGPU Viewport & Camera State
+  // Task 2.3 & 2.4: WebGPU Viewport, Camera & Drag-Rect Construction State
   let canvasElement = $state<HTMLCanvasElement | null>(null);
   let renderer: WebGPURenderer | null = null;
+  let dragTool = $state<DragBoxTool | null>(null);
+  let activeToolMode = $state<ConstructionToolMode>('brick_wall');
+  let toolHollow = $state(true);
+  let activeDragSummary = $state<string>('Ready to Drag & Build');
+  let pendingJobsCount = $state(0);
+  let completedJobsCount = $state(0);
+  let workmenCount = $state(3);
+  let workmenTelemetry = $state<string>('3 Idle in Delivery Zone');
+
   let rendererMetrics = $state<RendererMetrics>({
     fps: 120,
     backend: 'WebGPU',
@@ -41,6 +55,295 @@
     cameraY: 256,
     zoom: 1.0,
   });
+
+  // Construction & Workman Data Models
+  interface WallTileData {
+    wallId: number;
+    autotileIdx: number;
+    isBlueprint: boolean;
+  }
+
+  interface ConstructionJobItem {
+    id: number;
+    x: number;
+    y: number;
+    materialId: number;
+    progressTicks: number;
+    totalTicks: number;
+    status: 'queued' | 'fetching' | 'constructing' | 'completed';
+  }
+
+  interface WorkmanAgent {
+    id: number;
+    x: number;
+    y: number;
+    state: 'idle' | 'walking_to_delivery' | 'carrying_material' | 'building';
+    targetX: number;
+    targetY: number;
+    jobId: number | null;
+    speed: number;
+  }
+
+  const sampleWalls = new Map<string, WallTileData>();
+  let constructionJobs: ConstructionJobItem[] = [];
+  let nextJobId = 1;
+  const deliveryX = 242;
+  const deliveryY = 242;
+
+  let workmen: WorkmanAgent[] = [
+    { id: 1, x: 241.5, y: 242.0, state: 'idle', targetX: 242, targetY: 242, jobId: null, speed: 4.5 },
+    { id: 2, x: 242.5, y: 242.0, state: 'idle', targetX: 242, targetY: 242, jobId: null, speed: 4.5 },
+    { id: 3, x: 242.0, y: 242.5, state: 'idle', targetX: 242, targetY: 242, jobId: null, speed: 4.5 },
+  ];
+
+  function calculateAutotile(tx: number, ty: number): number {
+    let mask = 0;
+    if (sampleWalls.has(`${tx},${ty - 1}`)) mask |= 1;
+    if (sampleWalls.has(`${tx + 1},${ty}`)) mask |= 2;
+    if (sampleWalls.has(`${tx},${ty + 1}`)) mask |= 4;
+    if (sampleWalls.has(`${tx - 1},${ty}`)) mask |= 8;
+    return mask;
+  }
+
+  function updateAutotileWithNeighbors(tx: number, ty: number) {
+    const coords = [
+      [tx, ty],
+      [tx, ty - 1],
+      [tx + 1, ty],
+      [tx, ty + 1],
+      [tx - 1, ty],
+    ];
+    for (const [cx, cy] of coords) {
+      const tile = sampleWalls.get(`${cx},${cy}`);
+      if (tile) {
+        tile.autotileIdx = calculateAutotile(cx, cy);
+      }
+    }
+  }
+
+  function setToolMode(mode: ConstructionToolMode) {
+    activeToolMode = mode;
+    if (dragTool) {
+      dragTool.setMode(mode);
+    }
+    if (renderer) {
+      renderer.isPanToolActive = (mode === 'navigate');
+    }
+  }
+
+  function setToolHollow(hollow: boolean) {
+    toolHollow = hollow;
+    if (dragTool) {
+      dragTool.setHollow(hollow);
+    }
+  }
+
+  function spawnWorkman() {
+    const id = workmen.length + 1;
+    workmen.push({
+      id,
+      x: deliveryX + (Math.random() - 0.5) * 1.5,
+      y: deliveryY + (Math.random() - 0.5) * 1.5,
+      state: 'idle',
+      targetX: deliveryX,
+      targetY: deliveryY,
+      jobId: null,
+      speed: 4.5,
+    });
+    workmenCount = workmen.length;
+    workmenTelemetry = `${workmenCount} Active in Simulation`;
+  }
+
+  function queueWallRect(cmd: DragRectCommand) {
+    let count = 0;
+    for (let y = cmd.minY; y <= cmd.maxY; y++) {
+      for (let x = cmd.minX; x <= cmd.maxX; x++) {
+        if (cmd.hollow) {
+          const isBorder = x === cmd.minX || x === cmd.maxX || y === cmd.minY || y === cmd.maxY;
+          if (!isBorder) continue;
+        }
+
+        const key = `${x},${y}`;
+        const existing = sampleWalls.get(key);
+        if (existing && !existing.isBlueprint && existing.wallId > 0) {
+          continue; // Already a solid wall
+        }
+
+        // Place blueprint ghost
+        sampleWalls.set(key, {
+          wallId: cmd.materialId,
+          autotileIdx: 0,
+          isBlueprint: true,
+        });
+
+        // Queue job
+        constructionJobs.push({
+          id: nextJobId++,
+          x,
+          y,
+          materialId: cmd.materialId,
+          progressTicks: 0,
+          totalTicks: 25, // ~0.4s build time per wall segment
+          status: 'queued',
+        });
+        count++;
+      }
+    }
+
+    pendingJobsCount = constructionJobs.filter(j => j.status !== 'completed').length;
+    metrics.bankBalance = Math.max(0, metrics.bankBalance - (cmd.costEstimateCents / 100));
+
+    // Also send user command packet to SharedArrayBuffer SPSC queue!
+    dispatchCommand(1, `Place Wall (${cmd.width}x${cmd.height})`, `$${(cmd.costEstimateCents / 100).toFixed(2)}`);
+  }
+
+  function trigger10x10Demo() {
+    renderer?.camera.setPosition(250, 250);
+    if (renderer) renderer.camera.zoom = 1.0;
+
+    const cmd: DragRectCommand = {
+      minX: 245,
+      minY: 245,
+      maxX: 254,
+      maxY: 254,
+      width: 10,
+      height: 10,
+      materialId: 1, // Brick Wall
+      hollow: true,
+      tileCount: 36,
+      costEstimateCents: 36 * 5000,
+      toolMode: 'brick_wall',
+    };
+    queueWallRect(cmd);
+  }
+
+  function clearCustomWalls() {
+    sampleWalls.clear();
+    // Re-initialize default perimeter wall
+    for (let x = 240; x <= 272; x++) {
+      sampleWalls.set(`${x},240`, { wallId: 1, autotileIdx: 0, isBlueprint: false });
+      sampleWalls.set(`${x},272`, { wallId: 1, autotileIdx: 0, isBlueprint: false });
+    }
+    for (let y = 240; y <= 272; y++) {
+      sampleWalls.set(`240,${y}`, { wallId: 1, autotileIdx: 0, isBlueprint: false });
+      sampleWalls.set(`272,${y}`, { wallId: 1, autotileIdx: 0, isBlueprint: false });
+    }
+    for (let y = 246; y <= 266; y += 4) {
+      for (let x = 244; x <= 268; x++) {
+        sampleWalls.set(`${x},${y}`, { wallId: 1, autotileIdx: 0, isBlueprint: false });
+      }
+    }
+    // Update autotile
+    for (const [key, tile] of sampleWalls.entries()) {
+      const [tx, ty] = key.split(',').map(Number);
+      tile.autotileIdx = calculateAutotile(tx, ty);
+    }
+    constructionJobs = [];
+    pendingJobsCount = 0;
+    completedJobsCount = 0;
+    for (const w of workmen) {
+      w.state = 'idle';
+      w.jobId = null;
+    }
+    workmenTelemetry = `${workmen.length} Idle at Delivery Zone`;
+  }
+
+  function stepConstructionJobs(dt: number) {
+    // 1. Assign idle workmen to queued jobs
+    for (const worker of workmen) {
+      if (worker.state === 'idle') {
+        const nextJob = constructionJobs.find(j => j.status === 'queued');
+        if (nextJob) {
+          nextJob.status = 'fetching';
+          worker.state = 'walking_to_delivery';
+          worker.jobId = nextJob.id;
+          worker.targetX = deliveryX;
+          worker.targetY = deliveryY;
+        }
+      }
+    }
+
+    // 2. Process active workmen
+    let buildingCount = 0;
+    let carryingCount = 0;
+
+    for (const worker of workmen) {
+      if (worker.state === 'walking_to_delivery') {
+        const dx = deliveryX - worker.x;
+        const dy = deliveryY - worker.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 0.6) {
+          // Reached delivery zone! Pick up materials
+          const job = constructionJobs.find(j => j.id === worker.jobId);
+          if (job) {
+            job.status = 'constructing';
+            worker.state = 'carrying_material';
+            worker.targetX = job.x + 0.5;
+            worker.targetY = job.y + 0.5;
+          } else {
+            worker.state = 'idle';
+            worker.jobId = null;
+          }
+        } else {
+          worker.x += (dx / dist) * worker.speed * dt;
+          worker.y += (dy / dist) * worker.speed * dt;
+        }
+      } else if (worker.state === 'carrying_material') {
+        carryingCount++;
+        const dx = worker.targetX - worker.x;
+        const dy = worker.targetY - worker.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 0.6) {
+          // Arrived at job site! Start erecting wall
+          worker.state = 'building';
+        } else {
+          worker.x += (dx / dist) * worker.speed * dt;
+          worker.y += (dy / dist) * worker.speed * dt;
+        }
+      } else if (worker.state === 'building') {
+        buildingCount++;
+        const job = constructionJobs.find(j => j.id === worker.jobId);
+        if (job) {
+          job.progressTicks += 1;
+          if (job.progressTicks >= job.totalTicks) {
+            // Job completed! Clear blueprint flag and commit solid autotiled wall
+            job.status = 'completed';
+            const wallTile = sampleWalls.get(`${job.x},${job.y}`);
+            if (wallTile) {
+              wallTile.isBlueprint = false;
+              updateAutotileWithNeighbors(job.x, job.y);
+            }
+            completedJobsCount += 1;
+            worker.state = 'idle';
+            worker.jobId = null;
+          }
+        } else {
+          worker.state = 'idle';
+          worker.jobId = null;
+        }
+      }
+    }
+
+    pendingJobsCount = constructionJobs.filter(j => j.status !== 'completed').length;
+    if (buildingCount > 0 || carryingCount > 0) {
+      workmenTelemetry = `${workmen.length} Workmen (${buildingCount} Building, ${carryingCount} Carrying Materials)`;
+    } else {
+      workmenTelemetry = `${workmen.length} Workmen Idle at Delivery Zone`;
+    }
+
+    // Pass dynamic entities to renderer
+    if (renderer) {
+      const entities = workmen.map(w => ({
+        id: w.id,
+        x: w.x,
+        y: w.y,
+        spriteIndex: 2, // char_workman
+        statusFlags: w.state === 'carrying_material' ? 2 : (w.state === 'building' ? 3 : 1),
+        rotation: 0,
+      }));
+      renderer.setRenderEntities(entities);
+    }
+  }
 
   function centerCamera() {
     renderer?.camera.setPosition(256, 256);
@@ -197,27 +500,31 @@
       },
     } as WorkerInMessage);
 
-    // 4. Initialize WebGPU Renderer & Tile Map
+    // 4. Initialize WebGPU Renderer, DragBoxTool & Tile Map
     if (canvasElement) {
-      renderer = new WebGPURenderer(canvasElement, 1.0);
+      clearCustomWalls();
 
-      // Setup sample world tile data around center (256, 256)
-      const sampleWalls = new Map<string, number>();
-      // Outer perimeter wall (240..272)
-      for (let x = 240; x <= 272; x++) {
-        sampleWalls.set(`${x},240`, 1);
-        sampleWalls.set(`${x},272`, 1);
-      }
-      for (let y = 240; y <= 272; y++) {
-        sampleWalls.set(`240,${y}`, 1);
-        sampleWalls.set(`272,${y}`, 1);
-      }
-      // Inner cell blocks
-      for (let y = 246; y <= 266; y += 4) {
-        for (let x = 244; x <= 268; x++) {
-          sampleWalls.set(`${x},${y}`, 1);
+      renderer = new WebGPURenderer(canvasElement, 1.0);
+      renderer.isPanToolActive = false; // Default: Wall tool active for drag construction
+
+      dragTool = new DragBoxTool(canvasElement, renderer.camera);
+      dragTool.setMode(activeToolMode);
+      dragTool.setHollow(toolHollow);
+
+      dragTool.onGhostChange = (ghosts) => {
+        renderer?.setActiveGhostTiles(ghosts);
+        if (ghosts.length > 0) {
+          const bounds = dragTool?.getActiveBounds();
+          const cost = (ghosts.length * (dragTool?.getMaterialUnitCostCents() ?? 5000)) / 100;
+          activeDragSummary = `${bounds?.width}×${bounds?.height} (${ghosts.length} tiles) • Est: $${cost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+        } else {
+          activeDragSummary = 'Ready to Drag & Build';
         }
-      }
+      };
+
+      dragTool.onCommitRect = (cmd) => {
+        queueWallRect(cmd);
+      };
 
       renderer.setTileSource({
         width: 512,
@@ -225,16 +532,18 @@
         chunksX: 16,
         chunksY: 16,
         getTile: (tx: number, ty: number) => {
-          const wallId = sampleWalls.get(`${tx},${ty}`) || 0;
-          if (wallId === 0) {
+          const tile = sampleWalls.get(`${tx},${ty}`);
+          if (!tile) {
             return { terrainId: 1, floorId: 0, wallId: 0, autotileIdx: 0, health: 100 };
           }
-          let mask = 0;
-          if (sampleWalls.has(`${tx},${ty - 1}`)) mask |= 1;
-          if (sampleWalls.has(`${tx + 1},${ty}`)) mask |= 2;
-          if (sampleWalls.has(`${tx},${ty + 1}`)) mask |= 4;
-          if (sampleWalls.has(`${tx - 1},${ty}`)) mask |= 8;
-          return { terrainId: 1, floorId: 0, wallId, autotileIdx: mask, health: 200 };
+          return {
+            terrainId: 1,
+            floorId: 0,
+            wallId: tile.wallId,
+            autotileIdx: tile.autotileIdx,
+            health: 200,
+            isBlueprint: tile.isBlueprint,
+          };
         },
       });
 
@@ -255,6 +564,9 @@
         inputHead = Atomics.load(sharedBridge.ctrlInt32, CTRL.INPUT_HEAD);
         inputTail = Atomics.load(sharedBridge.ctrlInt32, CTRL.INPUT_TAIL);
       }
+
+      // Step local Workman & Construction Job Simulation
+      stepConstructionJobs(1 / 60);
 
       if (renderer) {
         renderer.render();
@@ -628,16 +940,18 @@
       </div>
     </div>
 
-    <!-- Task 2.3: WebGPU World Viewport & Camera Controller -->
-    <div class="p-5 rounded-xl bg-slate-900/80 border border-cyan-800/60 shadow-2xl relative overflow-hidden">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+    <!-- Task 2.3 & 2.4: WebGPU World Viewport, Camera & Drag-Rect Construction Tool -->
+    <div class="p-5 rounded-xl bg-slate-900/80 border border-cyan-800/60 shadow-2xl relative overflow-hidden space-y-4">
+      <!-- Section Header & Real-time Metrics -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-800">
         <div class="flex items-center space-x-3">
-          <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></div>
+          <div class="w-3.5 h-3.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(34,211,238,0.9)]"></div>
           <div>
             <h3 class="text-sm font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center space-x-2">
-              <span>WebGPU World Viewport & Camera Controller</span>
+              <span>WebGPU World Viewport & Drag-Rect Construction Tool</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-600/60 text-cyan-300 font-normal">Phase 2.4 Live</span>
             </h3>
-            <p class="text-xs text-slate-400 mt-0.5">512&times;512 Tile Grid • 32&times;32 Frustum Culled Chunks • Single-Pass Instanced Sprites</p>
+            <p class="text-xs text-slate-400 mt-0.5">512&times;512 Tile Grid • Holographic Blueprint Ghosts • Autonomous Workman Job Pipeline</p>
           </div>
         </div>
 
@@ -650,10 +964,13 @@
             Backend: <strong class="{rendererMetrics.backend === 'WebGPU' ? 'text-emerald-400' : 'text-amber-400'}">{rendererMetrics.backend}</strong>
           </span>
           <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
-            Chunks Culled: <strong class="text-cyan-300">{rendererMetrics.visibleChunks}</strong> / {rendererMetrics.totalChunks}
+            Chunks: <strong class="text-cyan-300">{rendererMetrics.visibleChunks}</strong> / {rendererMetrics.totalChunks}
           </span>
-          <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
-            Instances: <strong class="text-emerald-300">{rendererMetrics.drawnInstances.toLocaleString()}</strong>
+          <span class="px-2.5 py-1 rounded bg-slate-950 border border-amber-800/60 text-amber-300 font-bold">
+            👷 {workmenCount} Workmen
+          </span>
+          <span class="px-2.5 py-1 rounded bg-slate-950 border border-teal-800/60 text-teal-300">
+            🔨 {pendingJobsCount} Queued • {completedJobsCount} Built
           </span>
           <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
             Cam: ({rendererMetrics.cameraX}, {rendererMetrics.cameraY}) @ <strong class="text-teal-300">{rendererMetrics.zoom}x</strong>
@@ -661,49 +978,157 @@
         </div>
       </div>
 
-      <!-- Quick Camera Controls Toolbar -->
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-3 text-xs font-mono">
-        <div class="flex items-center space-x-2">
-          <span class="text-slate-500 uppercase text-[10px]">Quick Nav:</span>
+      <!-- Construction Tool Selection Toolbar -->
+      <div class="p-3 rounded-lg bg-slate-950/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-slate-500 uppercase text-[10px] mr-1">Tools:</span>
+          
           <button
-            onclick={centerCamera}
-            class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-cyan-300 transition-all cursor-pointer"
+            onclick={() => setToolMode('navigate')}
+            class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'navigate' ? 'bg-cyan-950 border-cyan-400 text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+            title="Pan & Inspect Camera (Hold middle or right click to pan anytime)"
           >
-            🎯 Center (256, 256)
+            <span>🖐️ Pan / Inspect</span>
           </button>
+
           <button
-            onclick={() => setCameraZoom(0.2)}
-            class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-cyan-300 transition-all cursor-pointer"
+            onclick={() => setToolMode('brick_wall')}
+            class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'brick_wall' ? 'bg-amber-950 border-amber-400 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+            title="Standard Red Brick Wall ($50.00)"
           >
-            🔭 Macro (0.2x)
+            <span>🧱 Brick Wall ($50)</span>
           </button>
+
           <button
-            onclick={() => setCameraZoom(1.0)}
-            class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-cyan-300 transition-all cursor-pointer"
+            onclick={() => setToolMode('concrete_wall')}
+            class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'concrete_wall' ? 'bg-slate-800 border-slate-300 text-slate-100 shadow-[0_0_10px_rgba(203,213,225,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+            title="Reinforced Heavy Concrete Wall ($120.00)"
           >
-            🔎 Normal (1.0x)
+            <span>🏢 Concrete Wall ($120)</span>
           </button>
+
           <button
-            onclick={() => setCameraZoom(3.0)}
-            class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-cyan-300 transition-all cursor-pointer"
+            onclick={() => setToolMode('perimeter_wall')}
+            class="px-3 py-1.5 rounded-lg border font-medium transition-all cursor-pointer flex items-center space-x-1.5 {activeToolMode === 'perimeter_wall' ? 'bg-purple-950 border-purple-400 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-slate-200 hover:border-slate-600'}"
+            title="High Security Anti-Tunnel Perimeter Wall ($350.00)"
           >
-            🔍 Close-Up (3.0x)
+            <span>🛡️ Perimeter Wall ($350)</span>
           </button>
+
+          <div class="h-5 w-px bg-slate-800 mx-1"></div>
+
+          <!-- Hollow vs Solid Toggle -->
+          <div class="flex items-center rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+            <button
+              onclick={() => setToolHollow(true)}
+              class="px-2 py-1 rounded text-[11px] transition-all cursor-pointer {toolHollow ? 'bg-cyan-900/80 text-cyan-200 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+              title="Perimeter rectangle (walls along outline only)"
+            >
+              Rect Perimeter
+            </button>
+            <button
+              onclick={() => setToolHollow(false)}
+              class="px-2 py-1 rounded text-[11px] transition-all cursor-pointer {!toolHollow ? 'bg-cyan-900/80 text-cyan-200 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+              title="Filled solid rectangle"
+            >
+              Solid Block
+            </button>
+          </div>
         </div>
 
-        <div class="text-[11px] text-slate-400 italic">
-          🖱️ Click & drag to pan • Scroll wheel to zoom into cursor
+        <!-- Quick Demo & Action Buttons -->
+        <div class="flex items-center gap-1.5">
+          <button
+            onclick={trigger10x10Demo}
+            class="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/80 text-emerald-200 font-bold transition-all cursor-pointer flex items-center space-x-1 shadow-[0_0_8px_rgba(16,185,129,0.2)] active:scale-95"
+            title="Queue a 10x10 brick wall foundation and watch workmen construct it in real time!"
+          >
+            <span>⚡ 10x10 Foundation Demo</span>
+          </button>
+
+          <button
+            onclick={spawnWorkman}
+            class="px-2.5 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 border border-amber-600 text-amber-200 font-medium transition-all cursor-pointer active:scale-95"
+            title="Hire an additional Workman at Delivery Zone"
+          >
+            <span>👷 +1 Workman</span>
+          </button>
+
+          <button
+            onclick={clearCustomWalls}
+            class="px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-red-950/60 border border-slate-700 hover:border-red-600 text-slate-400 hover:text-red-300 transition-all cursor-pointer"
+            title="Reset walls and blueprints"
+          >
+            <span>🧹 Reset</span>
+          </button>
         </div>
       </div>
 
-      <!-- Canvas Container -->
-      <div class="w-full h-[460px] rounded-lg bg-slate-950 border border-slate-800/80 overflow-hidden relative shadow-inner">
+      <!-- Quick Camera Controls & Telemetry Sub-bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+        <!-- Live Construction Status -->
+        <div class="flex items-center space-x-2">
+          <div class="px-2.5 py-1 rounded bg-slate-950 border border-cyan-800 text-cyan-300 font-medium flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>{activeDragSummary}</span>
+          </div>
+
+          <div class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-400">
+            {workmenTelemetry}
+          </div>
+        </div>
+
+        <!-- Quick Camera Zoom & Pan Controls -->
+        <div class="flex items-center space-x-2">
+          <span class="text-slate-500 uppercase text-[10px]">Zoom:</span>
+          <button
+            onclick={centerCamera}
+            class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-cyan-300 transition-all cursor-pointer"
+          >
+            🎯 Center
+          </button>
+          <button
+            onclick={() => setCameraZoom(0.2)}
+            class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-cyan-300 transition-all cursor-pointer"
+          >
+            0.2x
+          </button>
+          <button
+            onclick={() => setCameraZoom(1.0)}
+            class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-cyan-300 transition-all cursor-pointer"
+          >
+            1.0x
+          </button>
+          <button
+            onclick={() => setCameraZoom(2.5)}
+            class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-cyan-500 text-cyan-300 transition-all cursor-pointer"
+          >
+            2.5x
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas Viewport Container -->
+      <div class="w-full h-[480px] rounded-lg bg-slate-950 border border-slate-800/80 overflow-hidden relative shadow-inner">
         <canvas
           bind:this={canvasElement}
           width={1280}
-          height={460}
-          class="w-full h-full block cursor-grab active:cursor-grabbing"
+          height={480}
+          onpointerdown={(e) => dragTool?.handlePointerDown(e)}
+          onpointermove={(e) => dragTool?.handlePointerMove(e)}
+          onpointerup={(e) => dragTool?.handlePointerUp(e)}
+          oncontextmenu={(e) => e.preventDefault()}
+          class="w-full h-full block {activeToolMode === 'navigate' ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'}"
         ></canvas>
+
+        <!-- Watermark / Interaction hint overlay -->
+        <div class="absolute bottom-2.5 right-3 px-3 py-1 rounded bg-slate-900/85 border border-slate-800 text-[11px] font-mono text-slate-400 pointer-events-none backdrop-blur-sm">
+          {#if activeToolMode === 'navigate'}
+            🖱️ Left Drag: Pan • Scroll: Zoom
+          {:else}
+            📐 Left Drag: Place {activeToolMode.replace('_', ' ').toUpperCase()} Blueprint • Right Drag: Pan • Scroll: Zoom
+          {/if}
+        </div>
       </div>
     </div>
 

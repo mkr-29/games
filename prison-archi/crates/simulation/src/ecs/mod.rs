@@ -12,6 +12,8 @@ pub use resources::*;
 pub use stages::*;
 pub use systems::*;
 
+use crate::construction::*;
+use crate::grid::{tile_flags, TileGrid};
 use crate::memory::layout::RenderEntityPacked;
 
 /// Central Bevy ECS Simulation Engine
@@ -34,6 +36,9 @@ impl SimulationEngine {
 
         // Initialize core resources
         world.insert_resource(SimTimeResource::default());
+        world.insert_resource(TileGrid::new(512, 512));
+        world.insert_resource(DeliveryZone::default());
+        world.insert_resource(ConstructionQueue::new());
 
         // Configure deterministic schedule with chained stages
         let mut schedule = Schedule::default();
@@ -52,6 +57,7 @@ impl SimulationEngine {
         );
 
         // Register core systems in their designated stages
+        schedule.add_systems(workman_job_system.in_set(SimStage::PerceptionAI));
         schedule.add_systems(physics_movement_system.in_set(SimStage::Physics));
         schedule.add_systems(advance_time_system.in_set(SimStage::RenderCommit));
 
@@ -148,6 +154,91 @@ impl SimulationEngine {
     pub fn get_entity_count(&self) -> usize {
         self.world.entities().len() as usize
     }
+
+    /// Spawns a Workman entity with Workman AI state and workman sprite
+    pub fn spawn_workman(&mut self, x: f32, y: f32) -> u32 {
+        let id = self.next_entity_id;
+        self.next_entity_id += 1;
+
+        self.world.spawn((
+            SimulationEntityId(id),
+            Position::new(x, y),
+            Velocity::default(),
+            Workman::default(),
+            Renderable {
+                sprite_index: 2, // char_workman
+                anim_frame: 0,
+                status_flags: 0,
+                tint_rgba: 0xFFFFFFFF,
+                rotation: 0.0,
+            },
+        ));
+
+        id
+    }
+
+    pub fn get_workman_count(&mut self) -> usize {
+        let mut query = self.world.query::<&Workman>();
+        query.iter(&self.world).count()
+    }
+
+    /// Queues a drag rectangle of wall construction jobs
+    pub fn queue_wall_rect(
+        &mut self,
+        min_x: usize,
+        min_y: usize,
+        max_x: usize,
+        max_y: usize,
+        material_id: u8,
+        hollow: bool,
+    ) -> usize {
+        let mut queued_count = 0;
+        self.world.resource_scope::<ConstructionQueue, _>(|world, mut queue| {
+            if let Some(mut grid) = world.get_resource_mut::<TileGrid>() {
+                let ids = queue.queue_wall_rect(&mut grid, min_x, min_y, max_x, max_y, material_id, hollow, 30);
+                queued_count = ids.len();
+            }
+        });
+        queued_count
+    }
+
+    pub fn get_pending_jobs_count(&self) -> usize {
+        self.world
+            .get_resource::<ConstructionQueue>()
+            .map(|q| q.pending_jobs_count())
+            .unwrap_or(0)
+    }
+
+    pub fn get_completed_jobs_count(&self) -> usize {
+        self.world
+            .get_resource::<ConstructionQueue>()
+            .map(|q| q.completed_jobs_count as usize)
+            .unwrap_or(0)
+    }
+
+    pub fn get_tile_wall_id(&self, x: usize, y: usize) -> u8 {
+        self.world
+            .get_resource::<TileGrid>()
+            .and_then(|g| g.get_tile(x, y))
+            .map(|t| t.wall_id)
+            .unwrap_or(0)
+    }
+
+    pub fn get_tile_autotile_idx(&self, x: usize, y: usize) -> u8 {
+        self.world
+            .get_resource::<TileGrid>()
+            .and_then(|g| g.get_tile(x, y))
+            .map(|t| t.wall_autotile_idx)
+            .unwrap_or(0)
+    }
+
+    pub fn is_tile_blueprint(&self, x: usize, y: usize) -> bool {
+        self.world
+            .get_resource::<TileGrid>()
+            .and_then(|g| g.get_tile(x, y))
+            .map(|t| (t.flags & tile_flags::BLUEPRINT) != 0)
+            .unwrap_or(false)
+    }
 }
 
 // ==========================================
@@ -172,6 +263,46 @@ impl WasmSimulationEngine {
 
     pub fn spawn_dummy_entities(&mut self, count: usize) -> usize {
         self.engine.spawn_dummy_moving_entities(count).len()
+    }
+
+    pub fn spawn_workman(&mut self, x: f32, y: f32) -> u32 {
+        self.engine.spawn_workman(x, y)
+    }
+
+    pub fn get_workman_count(&mut self) -> usize {
+        self.engine.get_workman_count()
+    }
+
+    pub fn queue_wall_rect(
+        &mut self,
+        min_x: usize,
+        min_y: usize,
+        max_x: usize,
+        max_y: usize,
+        material_id: u8,
+        hollow: bool,
+    ) -> usize {
+        self.engine.queue_wall_rect(min_x, min_y, max_x, max_y, material_id, hollow)
+    }
+
+    pub fn get_pending_jobs_count(&self) -> usize {
+        self.engine.get_pending_jobs_count()
+    }
+
+    pub fn get_completed_jobs_count(&self) -> usize {
+        self.engine.get_completed_jobs_count()
+    }
+
+    pub fn get_tile_wall_id(&self, x: usize, y: usize) -> u8 {
+        self.engine.get_tile_wall_id(x, y)
+    }
+
+    pub fn get_tile_autotile_idx(&self, x: usize, y: usize) -> u8 {
+        self.engine.get_tile_autotile_idx(x, y)
+    }
+
+    pub fn is_tile_blueprint(&self, x: usize, y: usize) -> bool {
+        self.engine.is_tile_blueprint(x, y)
     }
 
     pub fn step(&mut self, delta_seconds: f32) -> u32 {

@@ -1,7 +1,9 @@
+pub mod construction;
 pub mod ecs;
 pub mod grid;
 pub mod memory;
 
+pub use construction::*;
 pub use ecs::*;
 pub use grid::*;
 pub use memory::*;

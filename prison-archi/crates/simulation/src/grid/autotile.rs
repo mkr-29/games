@@ -1,4 +1,6 @@
 use super::chunk::TileGrid;
+#[cfg(test)]
+use super::tile::TileCellDescriptor;
 
 /// 4-Bit Cardinal Autotile Bitmask Flags (0..15)
 /// Evaluates 4 cardinal neighbors to map directly to a 4x4 wall atlas.
