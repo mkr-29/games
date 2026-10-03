@@ -7,7 +7,7 @@
 ## Task Matrix & Checklist
 
 - [x] **Task 2.1:** Tile Grid Data Structure & Packed Memory Representation
-- [ ] **Task 2.2:** 4-Bit & 8-Bit Autotiling Bitmask Engine
+- [x] **Task 2.2:** 4-Bit & 8-Bit Autotiling Bitmask Engine
 - [ ] **Task 2.3:** WebGPU Context, Camera Matrix & Instanced Quad Renderer
 - [ ] **Task 2.4:** Drag-Rect Construction Tool & Workman Job Pipeline
 

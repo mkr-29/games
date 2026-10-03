@@ -142,6 +142,55 @@ impl TileGrid {
     pub fn dirty_chunk_count(&self) -> usize {
         self.chunks.iter().filter(|c| c.is_dirty).count()
     }
+
+    /// Mark a specific chunk as dirty by chunk coordinates (cx, cy)
+    #[inline(always)]
+    pub fn mark_chunk_dirty(&mut self, cx: usize, cy: usize) {
+        if cx < self.chunks_x && cy < self.chunks_y {
+            let idx = cy * self.chunks_x + cx;
+            self.chunks[idx].is_dirty = true;
+        }
+    }
+
+    /// Mark the chunk containing world tile coordinate (x, y) as dirty
+    #[inline(always)]
+    pub fn mark_tile_dirty(&mut self, x: usize, y: usize) {
+        if self.in_bounds(x, y) {
+            let cx = x >> CHUNK_SIZE_BITS;
+            let cy = y >> CHUNK_SIZE_BITS;
+            self.mark_chunk_dirty(cx, cy);
+        }
+    }
+
+    /// Check if a chunk is marked dirty
+    #[inline(always)]
+    pub fn is_chunk_dirty(&self, cx: usize, cy: usize) -> bool {
+        if cx < self.chunks_x && cy < self.chunks_y {
+            let idx = cy * self.chunks_x + cx;
+            self.chunks[idx].is_dirty
+        } else {
+            false
+        }
+    }
+
+    /// Clear dirty flag for a specific chunk
+    #[inline(always)]
+    pub fn clear_chunk_dirty(&mut self, cx: usize, cy: usize) -> bool {
+        if cx < self.chunks_x && cy < self.chunks_y {
+            let idx = cy * self.chunks_x + cx;
+            self.chunks[idx].clear_dirty();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Clear dirty flag across all chunks
+    pub fn clear_all_dirty(&mut self) {
+        for chunk in &mut self.chunks {
+            chunk.clear_dirty();
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,8 @@
+pub mod autotile;
 pub mod chunk;
 pub mod tile;
 
+pub use autotile::*;
 pub use chunk::*;
 pub use tile::*;
 
@@ -105,13 +107,39 @@ impl WasmTileGrid {
         self.grid.dirty_chunk_count()
     }
 
+    pub fn is_chunk_dirty(&self, cx: usize, cy: usize) -> bool {
+        self.grid.is_chunk_dirty(cx, cy)
+    }
+
     pub fn clear_chunk_dirty(&mut self, cx: usize, cy: usize) -> bool {
-        if cx < self.grid.chunks_x && cy < self.grid.chunks_y {
-            let idx = cy * self.grid.chunks_x + cx;
-            self.grid.chunks[idx].clear_dirty();
-            true
-        } else {
-            false
-        }
+        self.grid.clear_chunk_dirty(cx, cy)
+    }
+
+    pub fn clear_all_dirty(&mut self) {
+        self.grid.clear_all_dirty();
+    }
+
+    pub fn get_wall_autotile_idx(&self, x: usize, y: usize) -> u8 {
+        self.grid.get_tile(x, y).map(|t| t.wall_autotile_idx).unwrap_or(0)
+    }
+
+    pub fn calculate_wall_autotile(&self, x: usize, y: usize) -> u8 {
+        calculate_wall_autotile(&self.grid, x, y)
+    }
+
+    pub fn calculate_autotile_8bit(&self, x: usize, y: usize) -> u8 {
+        calculate_autotile_8bit(&self.grid, x, y)
+    }
+
+    pub fn calculate_blob_47(&self, x: usize, y: usize) -> u8 {
+        calculate_blob_47(&self.grid, x, y)
+    }
+
+    pub fn set_wall_and_propagate_autotile(&mut self, x: usize, y: usize, wall_id: u8) -> bool {
+        set_wall_and_propagate_autotile(&mut self.grid, x, y, wall_id)
+    }
+
+    pub fn recalculate_rect_autotile(&mut self, min_x: usize, min_y: usize, max_x: usize, max_y: usize) {
+        recalculate_rect_autotile(&mut self.grid, min_x, min_y, max_x, max_y);
     }
 }
