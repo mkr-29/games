@@ -8,6 +8,7 @@ import { RaceView } from './ui/RaceView.js';
 import { CalendarView } from './ui/CalendarView.js';
 import { PreSeasonTestView } from './ui/PreSeasonTestView.js';
 import { LongRunSimView } from './ui/LongRunSimView.js';
+import { RacerSelectionModal } from './ui/RacerSelectionModal.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize UI Navigation & Event Listeners
@@ -17,6 +18,10 @@ document.addEventListener('DOMContentLoaded', () => {
     CalendarView.initEvents();
     PreSeasonTestView.initEvents();
     LongRunSimView.initEvents();
+    RacerSelectionModal.initEvents();
+
+    // Check if initial racer selection prompt is needed
+    RacerSelectionModal.checkInitialPrompt();
 
     // 2. Settings Event Handlers
     document.getElementById('btn-manual-save')?.addEventListener('click', () => {

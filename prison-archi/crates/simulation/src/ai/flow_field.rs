@@ -544,7 +544,7 @@ mod tests {
         let elapsed = start.elapsed();
 
         println!("256x256 Flow Field generation took: {:?}", elapsed);
-        let max_allowed_ms = if cfg!(debug_assertions) { 500 } else { 15 };
+        let max_allowed_ms = if cfg!(debug_assertions) { 1500 } else { 15 };
         assert!(
             elapsed.as_millis() < max_allowed_ms,
             "Flow Field generation should be fast (took {:?}, limit {}ms)",

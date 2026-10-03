@@ -3,6 +3,7 @@ pub mod construction;
 pub mod ecs;
 pub mod grid;
 pub mod memory;
+pub mod regime;
 pub mod rooms;
 pub mod utilities;
 
@@ -11,6 +12,7 @@ pub use construction::*;
 pub use ecs::*;
 pub use grid::*;
 pub use memory::*;
+pub use regime::*;
 pub use rooms::*;
 pub use utilities::*;
 

@@ -48,6 +48,25 @@
     DoorAccessPolicy,
     type NavAgent,
   } from './lib/ai/FlowFieldManager';
+  import {
+    InmateNeedsManager,
+    createDefaultNeeds,
+    SecurityClass,
+    type InmateNeedsProfile,
+  } from './lib/ai/InmateNeedsManager';
+  import {
+    InmateAction,
+    RegimeActivity,
+    createDefaultDistances,
+    scoreAction,
+    selectBestAction,
+    InmateHFSM,
+    type ActionFacilityDistances,
+  } from './lib/ai/UtilityAIManager';
+  import {
+    GlobalEmergencyOverride,
+    RegimeBroadcastManager,
+  } from './lib/regime/RegimeManager';
 
   let crossOriginIsolated = $state(false);
   let workerStatus = $state<'Disconnected' | 'Connecting...' | 'Online'>('Connecting...');
@@ -57,8 +76,8 @@
   let sharedBridge: SharedMemoryBridge | null = null;
   let consumer: TripleBufferConsumer | null = null;
 
-  // View Mode Tabs: Architecture, Electricity, Plumbing, Rooms, Navigation
-  let activeViewTab = $state<'architecture' | 'electricity' | 'plumbing' | 'rooms' | 'navigation'>('architecture');
+  // View Mode Tabs: Architecture, Electricity, Plumbing, Rooms, Navigation, Psychology, Utility AI, Regime
+  let activeViewTab = $state<'architecture' | 'electricity' | 'plumbing' | 'rooms' | 'navigation' | 'psychology' | 'utility' | 'regime'>('architecture');
 
   // Task 2.3 & 2.4: WebGPU Viewport, Camera & Drag-Rect Construction State
   let canvasElement = $state<HTMLCanvasElement | null>(null);
@@ -106,6 +125,57 @@
   let navTelemetryMessage = $state<string>('🧭 Flow Field Engine Online: 65,536 Integration Vectors Computed in <1.2ms');
   let navInmates = $state<NavAgent[]>([]);
   let navGoalTiles = $state<Array<{ x: number; y: number }>>([{ x: 256, y: 245 }]);
+
+  // Task 4.2: 15-Need Psychology Engine & Global Danger Calculus State
+  const needsManager = new InmateNeedsManager();
+  let inspectedInmate = $state<InmateNeedsProfile>(createDefaultNeeds(1, SecurityClass.MediumSecurity));
+  let calculatedDanger = $state<number>(0.0);
+  let psychologyTelemetry = $state<string>('🧠 Inmate Psychology Engine: 15 Continuous Decay Need Curves Active');
+
+  // Task 4.3: Utility AI Behavior Scoring & Action State Machine (HFSM) State
+  const actionDistances: ActionFacilityDistances = createDefaultDistances();
+  let inmateHFSM = $state<InmateHFSM>(new InmateHFSM(246.0, 240.0));
+  let utilityTelemetryMessage = $state<string>('🤖 Utility AI Decision System Active: Real-time dynamic behavior evaluation');
+
+  // Task 4.4: 24-Hour Master Regime Timetable & Emergency Overrides State
+  const regimeManager = new RegimeBroadcastManager();
+  let clockTimeDisplay = $state<string>(regimeManager.clock.getTimeString());
+  let activeEmergencyOverride = $state<GlobalEmergencyOverride>(GlobalEmergencyOverride.None);
+  let selectedTimetableTier = $state<number>(0);
+  let regimeTelemetryMessage = $state<string>('📅 24-Hour Regime Engine Active: Staggered Scheduling & Emergency Overrides Online');
+
+  const InmateActionName: Record<number, string> = {
+    [InmateAction.Eat]: 'Eat (Canteen)',
+    [InmateAction.Sleep]: 'Sleep (Bed)',
+    [InmateAction.UseToilet]: 'Use Toilet',
+    [InmateAction.Shower]: 'Shower',
+    [InmateAction.Exercise]: 'Exercise (Yard)',
+    [InmateAction.WanderFreeTime]: 'Free Time Wander',
+    [InmateAction.Work]: 'Work (Workshop/Kitchen)',
+    [InmateAction.LockupInCell]: 'Lockup in Cell',
+  };
+
+  const RegimeActivityName: Record<number, string> = {
+    [RegimeActivity.Lockdown]: 'Lockdown',
+    [RegimeActivity.Sleep]: 'Sleep',
+    [RegimeActivity.Eat]: 'Eat',
+    [RegimeActivity.Yard]: 'Yard',
+    [RegimeActivity.Shower]: 'Shower',
+    [RegimeActivity.WorkLockup]: 'Work / Lockup',
+    [RegimeActivity.WorkFreeTime]: 'Work / FreeTime',
+    [RegimeActivity.FreeTime]: 'Free Time',
+  };
+
+  const RegimeActivityColors: Record<number, string> = {
+    [RegimeActivity.Lockdown]: 'bg-rose-950 text-rose-300 border-rose-700',
+    [RegimeActivity.Sleep]: 'bg-indigo-950 text-indigo-300 border-indigo-700',
+    [RegimeActivity.Eat]: 'bg-amber-950 text-amber-300 border-amber-700',
+    [RegimeActivity.Yard]: 'bg-emerald-950 text-emerald-300 border-emerald-700',
+    [RegimeActivity.Shower]: 'bg-blue-950 text-blue-300 border-blue-700',
+    [RegimeActivity.WorkLockup]: 'bg-purple-950 text-purple-300 border-purple-700',
+    [RegimeActivity.WorkFreeTime]: 'bg-teal-950 text-teal-300 border-teal-700',
+    [RegimeActivity.FreeTime]: 'bg-slate-800 text-slate-200 border-slate-600',
+  };
 
   let rendererMetrics = $state<RendererMetrics>({
     fps: 120,
@@ -644,6 +714,200 @@
     navTelemetryMessage = `🚨 EMERGENCY LOCKDOWN: All doors sealed shut! Flow integration cost set to Infinity for all prisoner pathways`;
   }
 
+  // ==========================================
+  // TASK 4.2: 15-NEED PSYCHOLOGY & DANGER CALCULUS
+  // ==========================================
+
+  function setupWellFedCompliantDemo() {
+    needsManager.inmates.clear();
+    needsManager.unrestPoints = 0.0;
+    needsManager.armedGuardsCount = 0;
+
+    for (let i = 1; i <= 20; i++) {
+      const secClass = i <= 6 ? SecurityClass.MinimumSecurity : i <= 15 ? SecurityClass.MediumSecurity : SecurityClass.MaximumSecurity;
+      const profile = needsManager.registerInmate(i, secClass);
+      profile.food = 10.0;
+      profile.bladder = 12.0;
+      profile.bowel = 10.0;
+      profile.sleep = 15.0;
+      profile.hygiene = 10.0;
+      profile.exercise = 10.0;
+      profile.safety = 100.0;
+      profile.privacy = 15.0;
+      profile.freedom = 10.0;
+      profile.comfort = 10.0;
+      profile.environment = 10.0;
+      profile.family = 10.0;
+      profile.recreation = 10.0;
+      profile.spirituality = 10.0;
+      profile.literacy = 10.0;
+    }
+
+    const first = needsManager.inmates.get(1)!;
+    inspectedInmate = { ...first };
+    calculatedDanger = needsManager.getGlobalDanger();
+    metrics.dangerLevel = calculatedDanger;
+    psychologyTelemetry = `🧠 Compliant State: 20 Inmates with all 15 needs satisfied (<15%). Global Danger: ${calculatedDanger.toFixed(1)}% (Calm)`;
+  }
+
+  function triggerMissedMealHungerDemo() {
+    for (const p of needsManager.inmates.values()) {
+      p.food = 95.0;
+      p.bladder = 88.0;
+      p.bowel = 85.0;
+      p.freedom = 82.0;
+    }
+    const target = needsManager.inmates.get(inspectedInmate.id) || needsManager.inmates.get(1);
+    if (target) inspectedInmate = { ...target };
+    calculatedDanger = needsManager.getGlobalDanger();
+    metrics.dangerLevel = calculatedDanger;
+    psychologyTelemetry = `🍽️ Missed Meal Incident: Food spiked to 95% (>80% critical threshold). Global Danger: ${calculatedDanger.toFixed(1)}% (Elevated Tension)`;
+  }
+
+  function triggerCriticalRiotAlertDemo() {
+    needsManager.unrestPoints = 35.0;
+    for (const p of needsManager.inmates.values()) {
+      p.food = 99.0;
+      p.sleep = 95.0;
+      p.freedom = 98.0;
+      p.safety = 5.0;
+      p.hasDrugAddiction = true;
+      p.withdrawalLevel = 90.0;
+    }
+    const target = needsManager.inmates.get(inspectedInmate.id) || needsManager.inmates.get(1);
+    if (target) inspectedInmate = { ...target };
+    calculatedDanger = needsManager.getGlobalDanger();
+    metrics.dangerLevel = calculatedDanger;
+    psychologyTelemetry = `🚨 RIOT ALERT IMMINENT: Extreme deprivation across 15 needs + 35 incident unrest points! Danger: ${calculatedDanger.toFixed(1)}%`;
+  }
+
+  function triggerArmedGuardSuppressionDemo() {
+    needsManager.armedGuardsCount = 4;
+    for (const p of needsManager.inmates.values()) {
+      p.isSuppressed = true;
+      p.suppressionTimer = 5.0;
+    }
+    const target = needsManager.inmates.get(inspectedInmate.id) || needsManager.inmates.get(1);
+    if (target) inspectedInmate = { ...target };
+    calculatedDanger = needsManager.getGlobalDanger();
+    metrics.dangerLevel = calculatedDanger;
+    psychologyTelemetry = `👮 Armed Guard Suppression Aura Active: 4 Armed Guards discount danger (-20 pts) & dampen active anger by 75%`;
+  }
+
+  function setInmateSecurity(secClass: SecurityClass) {
+    const target = needsManager.inmates.get(inspectedInmate.id);
+    if (target) {
+      target.securityClass = secClass;
+      inspectedInmate = { ...target };
+      calculatedDanger = needsManager.getGlobalDanger();
+      metrics.dangerLevel = calculatedDanger;
+    }
+  }
+
+  function adjustInmateNeed(need: keyof InmateNeedsProfile, delta: number) {
+    const target = needsManager.inmates.get(inspectedInmate.id);
+    if (target && typeof target[need] === 'number') {
+      (target[need] as number) = Math.min(100.0, Math.max(0.0, (target[need] as number) + delta));
+      inspectedInmate = { ...target };
+      calculatedDanger = needsManager.getGlobalDanger();
+      metrics.dangerLevel = calculatedDanger;
+    }
+  }
+
+  function toggleAddiction(type: 'drug' | 'alcohol') {
+    const target = needsManager.inmates.get(inspectedInmate.id);
+    if (target) {
+      if (type === 'drug') {
+        target.hasDrugAddiction = !target.hasDrugAddiction;
+        if (target.hasDrugAddiction && target.withdrawalLevel === 0) target.withdrawalLevel = 50.0;
+      } else {
+        target.hasAlcoholAddiction = !target.hasAlcoholAddiction;
+        if (target.hasAlcoholAddiction && target.withdrawalLevel === 0) target.withdrawalLevel = 50.0;
+      }
+      inspectedInmate = { ...target };
+      calculatedDanger = needsManager.getGlobalDanger();
+      metrics.dangerLevel = calculatedDanger;
+    }
+  }
+
+  function toggleSuppression() {
+    const target = needsManager.inmates.get(inspectedInmate.id);
+    if (target) {
+      target.isSuppressed = !target.isSuppressed;
+      target.suppressionTimer = target.isSuppressed ? 5.0 : 0.0;
+      inspectedInmate = { ...target };
+      calculatedDanger = needsManager.getGlobalDanger();
+      metrics.dangerLevel = calculatedDanger;
+    }
+  }
+
+  // ==========================================
+  // TASK 4.3: UTILITY AI SCENARIO CONTROLS
+  // ==========================================
+
+  function triggerUrgentToiletScenario() {
+    adjustInmateNeed('bladder', 85);
+    utilityTelemetryMessage = `🚽 Emergency Bladder Need (95%): Utility AI prioritizes UseToilet (+50 emergency bonus) over all other options`;
+  }
+
+  function triggerMealRegimeScenario() {
+    regimeManager.clock.hour = 12;
+    clockTimeDisplay = regimeManager.clock.getTimeString();
+    adjustInmateNeed('food', 70);
+    utilityTelemetryMessage = `🍽️ Meal Regime (12:00 PM): Canteen mandate adds +150 utility score to Eat action`;
+  }
+
+  function triggerExhaustionSleepScenario() {
+    regimeManager.clock.hour = 23;
+    clockTimeDisplay = regimeManager.clock.getTimeString();
+    adjustInmateNeed('sleep', 80);
+    utilityTelemetryMessage = `💤 Night Sleep Regime (23:00 PM): Bed mandate adds +200 utility score to Sleep action`;
+  }
+
+  function triggerAutonomousFreeTimeScenario() {
+    regimeManager.clock.hour = 15;
+    clockTimeDisplay = regimeManager.clock.getTimeString();
+    utilityTelemetryMessage = `🕊️ Free Time Regime (15:00 PM): Inmate autonomously pursues recreation, wandering, and socialization`;
+  }
+
+  function stepManualHFSM(dt: number = 0.5) {
+    const act = regimeManager.getEffectiveActivity(inspectedInmate.securityClass, inspectedInmate.angerScore);
+    inmateHFSM.step(dt, inspectedInmate, actionDistances, act);
+    const target = needsManager.inmates.get(inspectedInmate.id);
+    if (target) inspectedInmate = { ...target };
+    utilityTelemetryMessage = `⚡ Stepped HFSM (dt=${dt}s): State is "${inmateHFSM.state.kind}" (Action: ${inmateHFSM.state.action !== null ? InmateActionName[inmateHFSM.state.action] : 'None'})`;
+  }
+
+  // ==========================================
+  // TASK 4.4: 24-HOUR REGIME & EMERGENCY OVERRIDES
+  // ==========================================
+
+  function setEmergencyOverride(override: GlobalEmergencyOverride) {
+    activeEmergencyOverride = override;
+    regimeManager.activeOverride = override;
+    if (override === GlobalEmergencyOverride.Lockdown) {
+      regimeTelemetryMessage = `🚨 FULL LOCKDOWN ACTIVE: All servo & solenoid doors sealed shut! Inmates confined to cells.`;
+    } else if (override === GlobalEmergencyOverride.Bangup) {
+      regimeTelemetryMessage = `🔒 BANGUP ACTIVE: Compliant inmates locking down in cells; hostile rioters (Anger >80) refusing order!`;
+    } else if (override === GlobalEmergencyOverride.Shakedown) {
+      regimeTelemetryMessage = `🔍 SHAKEDOWN ACTIVE: All guards ordered to systematically search every cell, toilet, and prisoner for contraband.`;
+    } else if (override === GlobalEmergencyOverride.FreeFire) {
+      regimeTelemetryMessage = `🔥 FREE FIRE AUTHORIZED: Armed guards authorized to use lethal force on sight against rioting mobs.`;
+    } else {
+      regimeTelemetryMessage = `🟢 NORMAL REGIME RESTORED: Master timetable resumed across all security tiers.`;
+    }
+  }
+
+  function setClockSpeed(scale: number) {
+    regimeManager.clock.timeScale = scale;
+  }
+
+  function cycleScheduleBlock(tier: number, hour: number) {
+    const current = regimeManager.schedule.getActivity(tier, hour);
+    const next = ((current + 1) % 8) as RegimeActivity;
+    regimeManager.schedule.setActivity(tier, hour, next);
+  }
+
   function stepConstructionJobs(dt: number) {
     // 1. Assign idle workmen to queued jobs
     for (const worker of workmen) {
@@ -912,6 +1176,7 @@
       setupDefaultDemoCircuit();
       setupPlumbingDemo();
       setupValidCellDemo();
+      setupWellFedCompliantDemo();
 
       renderer = new WebGPURenderer(canvasElement, 1.0);
       renderer.isPanToolActive = false; // Default: Wall tool active for drag construction
@@ -982,6 +1247,25 @@
         const flow = flowManager.getOrCreateFlowField(activeNavGoal, navGoalTiles);
         flowManager.stepAgents(navInmates, flow, navGoalTiles, 1 / 60);
       }
+
+      // Step Inmate Psychology & Continuous Need Decay
+      if (needsManager.inmates.size > 0) {
+        needsManager.stepAll(0.0002);
+        const live = needsManager.inmates.get(inspectedInmate.id);
+        if (live) {
+          inspectedInmate = { ...live };
+        }
+        calculatedDanger = needsManager.getGlobalDanger();
+        metrics.dangerLevel = calculatedDanger;
+      }
+
+      // Step 24-Hour Master Clock & Regime Engine
+      regimeManager.clock.tick(1 / 60);
+      clockTimeDisplay = regimeManager.clock.getTimeString();
+
+      // Step Inmate HFSM Action Execution
+      const currentAct = regimeManager.getEffectiveActivity(inspectedInmate.securityClass, inspectedInmate.angerScore);
+      inmateHFSM.step(1 / 60, inspectedInmate, actionDistances, currentAct);
 
       if (renderer) {
         renderer.setElectricalData({
@@ -1077,13 +1361,13 @@
 
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-mono mb-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-            <span>Phase 4 • Flow Field Mass Navigation & Agent AI (13 of 28 Tasks Complete &bull; 46%)</span>
+          <div class="inline-flex items-center space-x-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Phase 4 • Navigation, Psychology, Utility AI & Regime (16 of 28 Tasks Complete &bull; 57%)</span>
           </div>
-          <h2 class="text-2xl font-bold text-white tracking-tight">Flow Field Vector Navigation, Dijkstra Wavefronts & Door Weighting</h2>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Navigation Flow Fields, 15-Need Psychology, Utility AI & 24h Master Regime Engine</h2>
           <p class="text-xs text-slate-400 mt-1 max-w-2xl">
-            Real-time 2D integration fields and directional vector maps for collective goals (Canteen, Yard, Cells), applying clearance costs and dynamic detours around locked doors and security barriers.
+            Complete Phase 4 simulation stack: Dijkstra flow fields, 15-need polynomial decay calculus, hierarchical finite state machines (HFSM), utility action scoring, and 24-hour master timetable with global emergency overrides.
           </p>
         </div>
 
@@ -1411,6 +1695,24 @@
           >
             🧭 Navigation (4.1)
           </button>
+          <button
+            onclick={() => (activeViewTab = 'psychology')}
+            class="px-2.5 py-1 rounded text-xs font-mono font-medium transition-all cursor-pointer {activeViewTab === 'psychology' ? 'bg-rose-900 text-rose-100 font-bold shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'text-slate-400 hover:text-slate-200'}"
+          >
+            🧠 Psychology (4.2)
+          </button>
+          <button
+            onclick={() => (activeViewTab = 'utility')}
+            class="px-2.5 py-1 rounded text-xs font-mono font-medium transition-all cursor-pointer {activeViewTab === 'utility' ? 'bg-purple-900 text-purple-100 font-bold shadow-[0_0_8px_rgba(168,85,247,0.4)]' : 'text-slate-400 hover:text-slate-200'}"
+          >
+            🤖 Utility AI (4.3)
+          </button>
+          <button
+            onclick={() => (activeViewTab = 'regime')}
+            class="px-2.5 py-1 rounded text-xs font-mono font-medium transition-all cursor-pointer {activeViewTab === 'regime' ? 'bg-amber-900 text-amber-100 font-bold shadow-[0_0_8px_rgba(245,158,11,0.4)]' : 'text-slate-400 hover:text-slate-200'}"
+          >
+            📅 Regime (4.4)
+          </button>
         </div>
 
         <!-- Telemetry Badges -->
@@ -1448,6 +1750,30 @@
             </span>
             <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
               Door Policy: <strong class="{doorPolicy === DoorAccessPolicy.LockedShut ? 'text-rose-400' : 'text-emerald-400'}">{doorPolicy === DoorAccessPolicy.LockedShut ? 'Locked Shut' : doorPolicy === DoorAccessPolicy.StaffOnly ? 'Staff Only' : 'Prisoners & Staff'}</strong>
+            </span>
+          {:else if activeViewTab === 'psychology'}
+            <span class="px-2.5 py-1 rounded bg-slate-950 border {calculatedDanger > 70 ? 'border-rose-600 text-rose-300 animate-pulse bg-rose-950/40' : calculatedDanger > 35 ? 'border-amber-600 text-amber-300 bg-amber-950/40' : 'border-emerald-600 text-emerald-300'} font-bold">
+              🔥 Danger: {calculatedDanger.toFixed(1)}%
+            </span>
+            <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
+              Inmate #{inspectedInmate.id} Anger: <strong class="{inspectedInmate.angerScore > 50 ? 'text-rose-400' : 'text-emerald-400'}">{inspectedInmate.angerScore.toFixed(1)}</strong>
+            </span>
+            <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-cyan-300">
+              Guards: {needsManager.armedGuardsCount} Armed
+            </span>
+          {:else if activeViewTab === 'utility'}
+            <span class="px-2.5 py-1 rounded bg-slate-950 border border-purple-700/60 text-purple-300 font-bold">
+              🤖 State: {inmateHFSM.state.kind}
+            </span>
+            <span class="px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-slate-300">
+              Action: <strong class="text-amber-300">{inmateHFSM.state.action !== null ? InmateActionName[inmateHFSM.state.action] : 'Evaluating'}</strong>
+            </span>
+          {:else if activeViewTab === 'regime'}
+            <span class="px-2.5 py-1 rounded bg-slate-950 border border-amber-700/60 text-amber-300 font-bold">
+              ⏰ {clockTimeDisplay} ({regimeManager.clock.timeScale}x)
+            </span>
+            <span class="px-2.5 py-1 rounded bg-slate-950 border {activeEmergencyOverride === GlobalEmergencyOverride.Lockdown ? 'border-rose-600 text-rose-300 bg-rose-950/40 animate-pulse' : activeEmergencyOverride === GlobalEmergencyOverride.Bangup ? 'border-amber-600 text-amber-300 bg-amber-950/40' : 'border-slate-800 text-slate-300'} font-bold">
+              {activeEmergencyOverride === GlobalEmergencyOverride.Lockdown ? '🚨 LOCKDOWN' : activeEmergencyOverride === GlobalEmergencyOverride.Bangup ? '🔒 BANGUP' : '🟢 NORMAL REGIME'}
             </span>
           {:else}
             <span class="px-2.5 py-1 rounded bg-slate-950 border border-amber-800/60 text-amber-300 font-bold">
@@ -1712,6 +2038,546 @@
             <span>{navTelemetryMessage}</span>
           </div>
           <span class="text-[10px] text-slate-400">Dijkstra Integration & Packed 8-Bit Direction Vectors</span>
+        </div>
+      {:else if activeViewTab === 'psychology'}
+        <!-- Task 4.2: 15-Need Psychology Controls, Global Danger Bar & Inmate Inspector -->
+        <div class="space-y-3 font-mono text-xs">
+          <!-- Scenario Buttons Toolbar -->
+          <div class="p-3 rounded-lg bg-slate-950/90 border border-rose-800/80 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-rose-400 font-bold uppercase text-[10px] mr-1 flex items-center space-x-1">
+                <span>🧠 Psychology Scenarios:</span>
+              </span>
+
+              <button
+                onclick={setupWellFedCompliantDemo}
+                class="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/80 text-emerald-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(16,185,129,0.3)] active:scale-95"
+                title="Reset 20 inmates with all 15 needs fully satisfied (0% Danger, Compliant)"
+              >
+                <span>🌿 Compliant (Calm)</span>
+              </button>
+
+              <button
+                onclick={triggerMissedMealHungerDemo}
+                class="px-3 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 border border-amber-500/80 text-amber-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(245,158,11,0.3)] active:scale-95"
+                title="Spike Food and Bowels above 80% to demonstrate polynomial acceleration and anger escalation"
+              >
+                <span>🍽️ Missed Meal (Hunger Spike)</span>
+              </button>
+
+              <button
+                onclick={triggerCriticalRiotAlertDemo}
+                class="px-3 py-1.5 rounded-lg bg-rose-950 hover:bg-rose-900 border border-rose-500/80 text-rose-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(244,63,94,0.4)] active:scale-95 animate-pulse"
+                title="Simulate severe multi-need deprivation and incident unrest points triggering 100% Danger Riot Alert"
+              >
+                <span>🚨 Riot Alert (100% Danger)</span>
+              </button>
+
+              <button
+                onclick={triggerArmedGuardSuppressionDemo}
+                class="px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/80 text-cyan-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(34,211,238,0.3)] active:scale-95"
+                title="Deploy 4 Armed Guards with 12m suppression auras (-20 danger discount, 75% anger dampening)"
+              >
+                <span>👮 Armed Guard Suppression</span>
+              </button>
+            </div>
+
+            <!-- Inmate Security Class Multiplier Selector -->
+            <div class="flex items-center space-x-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase mr-1">Sec Class:</span>
+              <button
+                onclick={() => setInmateSecurity(SecurityClass.MinimumSecurity)}
+                class="px-2 py-0.5 rounded text-[10px] {inspectedInmate.securityClass === SecurityClass.MinimumSecurity ? 'bg-emerald-800 text-emerald-100 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+              >
+                Min (0.5x)
+              </button>
+              <button
+                onclick={() => setInmateSecurity(SecurityClass.MediumSecurity)}
+                class="px-2 py-0.5 rounded text-[10px] {inspectedInmate.securityClass === SecurityClass.MediumSecurity ? 'bg-amber-800 text-amber-100 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+              >
+                Med (1.0x)
+              </button>
+              <button
+                onclick={() => setInmateSecurity(SecurityClass.MaximumSecurity)}
+                class="px-2 py-0.5 rounded text-[10px] {inspectedInmate.securityClass === SecurityClass.MaximumSecurity ? 'bg-rose-800 text-rose-100 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+              >
+                Max (2.0x)
+              </button>
+              <button
+                onclick={() => setInmateSecurity(SecurityClass.SuperMax)}
+                class="px-2 py-0.5 rounded text-[10px] {inspectedInmate.securityClass === SecurityClass.SuperMax ? 'bg-purple-800 text-purple-100 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+              >
+                SuperMax (3.5x)
+              </button>
+            </div>
+          </div>
+
+          <!-- Global Prison Danger Bar Matrix -->
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div class="flex-1">
+              <div class="flex items-center justify-between mb-1.5 text-xs">
+                <span class="font-bold flex items-center space-x-1.5 {calculatedDanger > 70 ? 'text-rose-400' : calculatedDanger > 35 ? 'text-amber-400' : 'text-emerald-400'}">
+                  <span>🔥 GLOBAL PRISON DANGER LEVEL:</span>
+                  <span class="text-sm font-black">{calculatedDanger.toFixed(1)}%</span>
+                  <span>({calculatedDanger > 70 ? 'CRITICAL RIOT RISK' : calculatedDanger > 35 ? 'HIGH TENSION' : 'CALM & COMPLIANT'})</span>
+                </span>
+                <span class="text-slate-400 text-[10px]">
+                  Unrest: +{needsManager.unrestPoints.toFixed(0)} pts &bull; Suppression: -{(needsManager.armedGuardsCount * 5).toFixed(0)} pts
+                </span>
+              </div>
+              <div class="w-full h-4 rounded-full bg-slate-900 border border-slate-700 overflow-hidden relative">
+                <div
+                  class="h-full transition-all duration-300 rounded-full {calculatedDanger > 70 ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-red-600 shadow-[0_0_12px_rgba(244,63,94,0.8)]' : calculatedDanger > 35 ? 'bg-gradient-to-r from-yellow-500 to-amber-500' : 'bg-gradient-to-r from-teal-500 to-emerald-500'}"
+                  style="width: {Math.max(2, calculatedDanger)}%"
+                ></div>
+                <!-- 80% Riot Threshold Indicator Line -->
+                <div class="absolute top-0 bottom-0 left-[80%] w-0.5 bg-rose-300/80 z-10" title="80% Riot Threshold"></div>
+              </div>
+            </div>
+
+            <!-- Inmate Controls & Suppression State -->
+            <div class="flex items-center space-x-2">
+              <button
+                onclick={toggleSuppression}
+                class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer {inspectedInmate.isSuppressed ? 'bg-cyan-950 border-cyan-400 text-cyan-200' : 'bg-slate-900 border-slate-700 text-slate-400'}"
+              >
+                {inspectedInmate.isSuppressed ? '🛡️ Suppressed (75% Damp)' : '🛡️ Not Suppressed'}
+              </button>
+              <button
+                onclick={() => toggleAddiction('drug')}
+                class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer {inspectedInmate.hasDrugAddiction ? 'bg-purple-950 border-purple-400 text-purple-200' : 'bg-slate-900 border-slate-700 text-slate-400'}"
+              >
+                {inspectedInmate.hasDrugAddiction ? '💊 Drug Withdrawal' : '💊 No Addiction'}
+              </button>
+            </div>
+          </div>
+
+          <!-- 15 Needs Real-Time Dashboard Grid -->
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800">
+            <div class="flex items-center justify-between mb-2 text-[11px] text-slate-400 border-b border-slate-800 pb-1.5">
+              <span class="font-bold text-slate-200">INMATE #{inspectedInmate.id} PSYCHOLOGY MATRIX (15 CONTINUOUS ACCELERATING DECAY CURVES)</span>
+              <span class="text-rose-400 font-semibold">Decay: BaseRate &times; (1 + (Need/100)²) &bull; Anger triggers &gt;80%</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
+              {#each [
+                { name: 'Food', key: 'food', icon: '🍕', rate: '8.33%/h', val: inspectedInmate.food },
+                { name: 'Bladder', key: 'bladder', icon: '🚽', rate: '12.5%/h', val: inspectedInmate.bladder },
+                { name: 'Bowel', key: 'bowel', icon: '🧻', rate: '6.25%/h', val: inspectedInmate.bowel },
+                { name: 'Sleep', key: 'sleep', icon: '💤', rate: '4.17%/h', val: inspectedInmate.sleep },
+                { name: 'Hygiene', key: 'hygiene', icon: '🧼', rate: '5.0%/h', val: inspectedInmate.hygiene },
+                { name: 'Exercise', key: 'exercise', icon: '🏃', rate: '4.0%/h', val: inspectedInmate.exercise },
+                { name: 'Freedom', key: 'freedom', icon: '🕊️', rate: '5.0%/h', val: inspectedInmate.freedom },
+                { name: 'Privacy', key: 'privacy', icon: '🚪', rate: '6.0%/h', val: inspectedInmate.privacy },
+                { name: 'Comfort', key: 'comfort', icon: '🛋️', rate: '3.0%/h', val: inspectedInmate.comfort },
+                { name: 'Environment', key: 'environment', icon: '🌿', rate: 'Spatial', val: inspectedInmate.environment },
+                { name: 'Family', key: 'family', icon: '👨‍👩‍👧', rate: '2.0%/h', val: inspectedInmate.family },
+                { name: 'Recreation', key: 'recreation', icon: '🎮', rate: '5.0%/h', val: inspectedInmate.recreation },
+                { name: 'Spirituality', key: 'spirituality', icon: '⛪', rate: '2.5%/h', val: inspectedInmate.spirituality },
+                { name: 'Literacy', key: 'literacy', icon: '📚', rate: '2.0%/h', val: inspectedInmate.literacy },
+                { name: 'Safety', key: 'safety', icon: '🛡️', rate: 'Security', val: inspectedInmate.safety, isSafety: true },
+              ] as needItem}
+                {@const isCritical = needItem.isSafety ? needItem.val < 20 : needItem.val > 80}
+                <div class="p-2 rounded bg-slate-900 border {isCritical ? 'border-rose-600 bg-rose-950/20' : 'border-slate-800'} flex flex-col justify-between space-y-1">
+                  <div class="flex items-center justify-between text-[11px]">
+                    <span class="font-semibold flex items-center space-x-1 {isCritical ? 'text-rose-300' : 'text-slate-300'}">
+                      <span>{needItem.icon}</span>
+                      <span>{needItem.name}</span>
+                    </span>
+                    <span class="font-bold {isCritical ? 'text-rose-400 animate-pulse' : needItem.val > 50 ? 'text-amber-400' : 'text-emerald-400'}">
+                      {needItem.val.toFixed(0)}%
+                    </span>
+                  </div>
+
+                  <!-- Need Progress Bar -->
+                  <div class="w-full h-1.5 rounded-full bg-slate-950 overflow-hidden">
+                    <div
+                      class="h-full rounded-full transition-all duration-150 {isCritical ? 'bg-rose-500' : needItem.val > 50 ? 'bg-amber-400' : 'bg-emerald-400'}"
+                      style="width: {needItem.val}%"
+                    ></div>
+                  </div>
+
+                  <!-- Adjustment Buttons -->
+                  <div class="flex items-center justify-between text-[9px] text-slate-500 pt-0.5">
+                    <span>{needItem.rate}</span>
+                    <div class="flex items-center space-x-1">
+                      <button
+                        onclick={() => adjustInmateNeed(needItem.key as keyof InmateNeedsProfile, -20)}
+                        class="px-1 py-0.2 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer"
+                        title="Satisfy need (-20%)"
+                      >
+                        -20
+                      </button>
+                      <button
+                        onclick={() => adjustInmateNeed(needItem.key as keyof InmateNeedsProfile, 20)}
+                        class="px-1 py-0.2 rounded bg-slate-800 hover:bg-slate-700 text-rose-300 cursor-pointer"
+                        title="Increase need (+20%)"
+                      >
+                        +20
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+
+          <div class="px-3 py-1.5 rounded bg-slate-950/80 border border-rose-800/60 text-xs font-mono flex items-center justify-between text-rose-300">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
+              <span>{psychologyTelemetry}</span>
+            </div>
+            <span class="text-[10px] text-slate-400">Continuous Accelerating Polynomial Need Decay & Danger Calculus</span>
+          </div>
+        </div>
+      {:else if activeViewTab === 'utility'}
+        <!-- Task 4.3: Utility AI Action Scoring & HFSM State Machine -->
+        <div class="space-y-3 font-mono text-xs">
+          <!-- Scenario Buttons Toolbar -->
+          <div class="p-3 rounded-lg bg-slate-950/90 border border-purple-800/80 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-purple-400 font-bold uppercase text-[10px] mr-1 flex items-center space-x-1">
+                <span>🤖 Utility AI Scenarios:</span>
+              </span>
+
+              <button
+                onclick={triggerUrgentToiletScenario}
+                class="px-3 py-1.5 rounded-lg bg-purple-950 hover:bg-purple-900 border border-purple-500/80 text-purple-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(168,85,247,0.3)] active:scale-95"
+                title="Set Bladder to 95% to trigger immediate UseToilet action (+50 emergency relief bonus)"
+              >
+                <span>🚽 Emergency Bladder (95%)</span>
+              </button>
+
+              <button
+                onclick={triggerMealRegimeScenario}
+                class="px-3 py-1.5 rounded-lg bg-amber-950 hover:bg-amber-900 border border-amber-500/80 text-amber-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(245,158,11,0.3)] active:scale-95"
+                title="Set Clock to 12:00 PM and Food to 70% to trigger Canteen Eat action (+150 regime mandate bonus)"
+              >
+                <span>🍽️ Lunch Regime (12:00 PM)</span>
+              </button>
+
+              <button
+                onclick={triggerExhaustionSleepScenario}
+                class="px-3 py-1.5 rounded-lg bg-indigo-950 hover:bg-indigo-900 border border-indigo-500/80 text-indigo-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(99,102,241,0.3)] active:scale-95"
+                title="Set Clock to 23:00 PM and Sleep to 80% to trigger Sleep action (+200 sleep regime bonus)"
+              >
+                <span>💤 Night Sleep (23:00 PM)</span>
+              </button>
+
+              <button
+                onclick={triggerAutonomousFreeTimeScenario}
+                class="px-3 py-1.5 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-500/80 text-emerald-200 font-bold transition-all cursor-pointer flex items-center space-x-1.5 shadow-[0_0_8px_rgba(16,185,129,0.3)] active:scale-95"
+                title="Set Clock to 15:00 PM Free Time to trigger autonomous wandering & recreation"
+              >
+                <span>🕊️ Free Time (15:00 PM)</span>
+              </button>
+
+              <button
+                onclick={() => stepManualHFSM(1.0)}
+                class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-300 font-bold transition-all cursor-pointer flex items-center space-x-1 active:scale-95"
+                title="Step HFSM by +1.0 second"
+              >
+                <span>⚡ Step HFSM (+1s)</span>
+              </button>
+            </div>
+
+            <!-- Inmate HFSM State Badge -->
+            <div class="flex items-center space-x-2">
+              <span class="px-2.5 py-1 rounded bg-purple-950/80 border border-purple-500 text-purple-200 font-bold">
+                State: {inmateHFSM.state.kind}
+              </span>
+              <span class="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                Action: <strong class="text-amber-300">{inmateHFSM.state.action !== null ? InmateActionName[inmateHFSM.state.action] : 'Evaluating'}</strong>
+              </span>
+            </div>
+          </div>
+
+          <!-- HFSM Execution State Card -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5">
+              <span class="text-slate-400 text-[10px] uppercase font-bold block">1. Target Waypoint Coordinates</span>
+              <div class="text-sm font-bold text-cyan-300">
+                Target: ({inmateHFSM.state.targetX.toFixed(1)}, {inmateHFSM.state.targetY.toFixed(1)})
+              </div>
+              <div class="text-[11px] text-slate-400">
+                Inmate Position: ({inmateHFSM.x.toFixed(1)}, {inmateHFSM.y.toFixed(1)}) &bull; Speed: {inmateHFSM.speed} tiles/s
+              </div>
+            </div>
+
+            <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5">
+              <span class="text-slate-400 text-[10px] uppercase font-bold block">2. Object Interaction Progress</span>
+              <div class="flex items-center justify-between text-xs font-bold text-amber-300">
+                <span>{inmateHFSM.state.progress.toFixed(1)}s / {inmateHFSM.state.totalDuration.toFixed(1)}s</span>
+                <span>{inmateHFSM.state.totalDuration > 0 ? ((inmateHFSM.state.progress / inmateHFSM.state.totalDuration) * 100).toFixed(0) : 0}%</span>
+              </div>
+              <div class="w-full h-2 rounded-full bg-slate-900 overflow-hidden">
+                <div
+                  class="h-full bg-amber-400 transition-all duration-150"
+                  style="width: {inmateHFSM.state.totalDuration > 0 ? (inmateHFSM.state.progress / inmateHFSM.state.totalDuration) * 100 : 0}%"
+                ></div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1.5">
+              <span class="text-slate-400 text-[10px] uppercase font-bold block">3. Active Regime Mandate</span>
+              <div class="text-sm font-bold text-emerald-300">
+                Mandate: {RegimeActivityName[regimeManager.getEffectiveActivity(inspectedInmate.securityClass, inspectedInmate.angerScore)]}
+              </div>
+              <div class="text-[11px] text-slate-400">
+                Clock: {clockTimeDisplay} &bull; Security: {inspectedInmate.securityClass === SecurityClass.MinimumSecurity ? 'Min-Sec' : inspectedInmate.securityClass === SecurityClass.MediumSecurity ? 'Med-Sec' : 'Max-Sec'}
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-Time Utility Action Decision Ranking Grid -->
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800">
+            <div class="flex items-center justify-between mb-2 text-[11px] text-slate-400 border-b border-slate-800 pb-1.5">
+              <span class="font-bold text-slate-200">DYNAMIC UTILITY ACTION SCORING CURVES (HIGHEST SCORE WINS NEXT STATE MACHINE TRANSITION)</span>
+              <span class="text-purple-400 font-semibold">Formula: (Need/100)² &times; 100 + EmergencySpike + RegimeBonus - DistancePenalty</span>
+            </div>
+
+            {#if inspectedInmate}
+              {@const currentAct = regimeManager.getEffectiveActivity(inspectedInmate.securityClass, inspectedInmate.angerScore)}
+              {@const best = selectBestAction(inspectedInmate, actionDistances, currentAct)}
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                {#each [
+                  { id: InmateAction.UseToilet, name: 'Use Toilet', icon: '🚽', needKey: 'bladder', needVal: Math.max(inspectedInmate.bladder, inspectedInmate.bowel) },
+                  { id: InmateAction.Eat, name: 'Eat (Canteen)', icon: '🍽️', needKey: 'food', needVal: inspectedInmate.food },
+                  { id: InmateAction.Sleep, name: 'Sleep (Bed)', icon: '💤', needKey: 'sleep', needVal: inspectedInmate.sleep },
+                  { id: InmateAction.Shower, name: 'Shower', icon: '🚿', needKey: 'hygiene', needVal: inspectedInmate.hygiene },
+                  { id: InmateAction.Exercise, name: 'Exercise (Yard)', icon: '🏃', needKey: 'exercise', needVal: inspectedInmate.exercise },
+                  { id: InmateAction.WanderFreeTime, name: 'Free Time Wander', icon: '🕊️', needKey: 'freedom', needVal: inspectedInmate.freedom },
+                  { id: InmateAction.Work, name: 'Work (Job Site)', icon: '🔨', needKey: 'literacy', needVal: inspectedInmate.literacy },
+                  { id: InmateAction.LockupInCell, name: 'Lockup in Cell', icon: '🚪', needKey: 'privacy', needVal: inspectedInmate.privacy },
+                ] as actionItem}
+                  {@const score = scoreAction(actionItem.id, inspectedInmate, actionDistances, currentAct)}
+                  {@const isChosen = best.action === actionItem.id}
+                  <div class="p-2 rounded bg-slate-900 border {isChosen ? 'border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.3)] bg-amber-950/20' : 'border-slate-800'} flex flex-col justify-between space-y-1">
+                    <div class="flex items-center justify-between text-[11px]">
+                      <span class="font-semibold flex items-center space-x-1 {isChosen ? 'text-amber-300' : 'text-slate-300'}">
+                        <span>{actionItem.icon}</span>
+                        <span>{actionItem.name}</span>
+                      </span>
+                      {#if isChosen}
+                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 font-black uppercase">CHOSEN</span>
+                      {/if}
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-slate-400 text-[10px]">Utility Score:</span>
+                      <span class="font-bold {isChosen ? 'text-amber-400 text-sm' : 'text-slate-300'}">{score.toFixed(1)}</span>
+                    </div>
+
+                    <!-- Utility Score Visual Bar -->
+                    <div class="w-full h-1.5 rounded-full bg-slate-950 overflow-hidden">
+                      <div
+                        class="h-full rounded-full transition-all duration-150 {isChosen ? 'bg-amber-400' : 'bg-purple-500'}"
+                        style="width: {Math.min(100, Math.max(5, (score / 350) * 100))}%"
+                      ></div>
+                    </div>
+
+                    <div class="text-[9px] text-slate-500 flex justify-between pt-0.5">
+                      <span>Need: {actionItem.needVal.toFixed(0)}%</span>
+                      <span>Dist: 5m</span>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+
+          <div class="px-3 py-1.5 rounded bg-slate-950/80 border border-purple-800/60 text-xs font-mono flex items-center justify-between text-purple-300">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+              <span>{utilityTelemetryMessage}</span>
+            </div>
+            <span class="text-[10px] text-slate-400">Task 4.3 Utility AI Action Scoring & HFSM State Machine Active</span>
+          </div>
+        </div>
+      {:else if activeViewTab === 'regime'}
+        <!-- Task 4.4: 24-Hour Master Regime Timetable & Emergency Overrides -->
+        <div class="space-y-3 font-mono text-xs">
+          <!-- Master Clock & Emergency Override Toolbar -->
+          <div class="p-3 rounded-lg bg-slate-950/90 border border-amber-800/80 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <!-- Big Digital Clock -->
+              <div class="px-3 py-1.5 rounded-lg bg-slate-900 border border-amber-500/80 text-amber-300 font-black text-sm flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                <span>{clockTimeDisplay}</span>
+              </div>
+
+              <!-- Time Scale Controls -->
+              <div class="flex items-center rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+                <button
+                  onclick={() => setClockSpeed(0)}
+                  class="px-2 py-1 rounded text-[11px] {regimeManager.clock.timeScale === 0 ? 'bg-amber-800 text-amber-100 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+                >
+                  ⏸️ Pause
+                </button>
+                <button
+                  onclick={() => setClockSpeed(1.0)}
+                  class="px-2 py-1 rounded text-[11px] {regimeManager.clock.timeScale === 1.0 ? 'bg-amber-800 text-amber-100 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+                >
+                  ▶ 1.0x
+                </button>
+                <button
+                  onclick={() => setClockSpeed(2.0)}
+                  class="px-2 py-1 rounded text-[11px] {regimeManager.clock.timeScale === 2.0 ? 'bg-amber-800 text-amber-100 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+                >
+                  ⏩ 2.0x
+                </button>
+                <button
+                  onclick={() => setClockSpeed(5.0)}
+                  class="px-2 py-1 rounded text-[11px] {regimeManager.clock.timeScale === 5.0 ? 'bg-amber-800 text-amber-100 font-bold' : 'text-slate-400 hover:text-slate-200'}"
+                >
+                  ⚡ 5.0x
+                </button>
+              </div>
+            </div>
+
+            <!-- Global Emergency Override Commands -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button
+                onclick={() => setEmergencyOverride(GlobalEmergencyOverride.None)}
+                class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer {activeEmergencyOverride === GlobalEmergencyOverride.None ? 'bg-emerald-950 border-emerald-400 text-emerald-200 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-900 border-slate-700 text-slate-400'}"
+                title="Normal master regime timetable active"
+              >
+                🟢 Normal Regime
+              </button>
+
+              <button
+                onclick={() => setEmergencyOverride(GlobalEmergencyOverride.Bangup)}
+                class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer {activeEmergencyOverride === GlobalEmergencyOverride.Bangup ? 'bg-amber-950 border-amber-400 text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.3)]' : 'bg-slate-900 border-slate-700 text-slate-400'}"
+                title="Send all compliant prisoners directly to lock down in their cells"
+              >
+                🔒 Bangup
+              </button>
+
+              <button
+                onclick={() => setEmergencyOverride(GlobalEmergencyOverride.Lockdown)}
+                class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer {activeEmergencyOverride === GlobalEmergencyOverride.Lockdown ? 'bg-rose-950 border-rose-400 text-rose-200 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'bg-slate-900 border-slate-700 text-slate-400'}"
+                title="Lock and seal shut every servo and solenoid door across the prison"
+              >
+                🚨 Full Lockdown
+              </button>
+
+              <button
+                onclick={() => setEmergencyOverride(GlobalEmergencyOverride.Shakedown)}
+                class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer {activeEmergencyOverride === GlobalEmergencyOverride.Shakedown ? 'bg-cyan-950 border-cyan-400 text-cyan-200' : 'bg-slate-900 border-slate-700 text-slate-400'}"
+                title="Order guards to search every cell, toilet, and prisoner for contraband"
+              >
+                🔍 Shakedown
+              </button>
+
+              <button
+                onclick={() => setEmergencyOverride(GlobalEmergencyOverride.FreeFire)}
+                class="px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all cursor-pointer {activeEmergencyOverride === GlobalEmergencyOverride.FreeFire ? 'bg-red-950 border-red-500 text-red-200 animate-pulse' : 'bg-slate-900 border-slate-700 text-slate-400'}"
+                title="Authorize armed guards to use lethal shotgun fire on sight"
+              >
+                🔥 Free Fire
+              </button>
+            </div>
+          </div>
+
+          <!-- Staggered Schedule Comparison Cards -->
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+              <div>
+                <span class="font-bold text-slate-200 block text-xs">24-HOUR MASTER REGIME TIMETABLE & STAGGERED SHIFTS</span>
+                <span class="text-[10px] text-slate-400">Click any hour block to cycle activity • Staggered meal times prevent cross-tier canteen riots</span>
+              </div>
+
+              <!-- Security Tier Filter Tabs -->
+              <div class="flex items-center rounded-lg bg-slate-900 p-0.5 border border-slate-800">
+                <button
+                  onclick={() => (selectedTimetableTier = 0)}
+                  class="px-2 py-0.5 rounded text-[10px] {selectedTimetableTier === 0 ? 'bg-emerald-800 text-emerald-100 font-bold' : 'text-slate-400'}"
+                >
+                  Min-Sec
+                </button>
+                <button
+                  onclick={() => (selectedTimetableTier = 1)}
+                  class="px-2 py-0.5 rounded text-[10px] {selectedTimetableTier === 1 ? 'bg-amber-800 text-amber-100 font-bold' : 'text-slate-400'}"
+                >
+                  Med-Sec
+                </button>
+                <button
+                  onclick={() => (selectedTimetableTier = 2)}
+                  class="px-2 py-0.5 rounded text-[10px] {selectedTimetableTier === 2 ? 'bg-rose-800 text-rose-100 font-bold' : 'text-slate-400'}"
+                >
+                  Max-Sec
+                </button>
+                <button
+                  onclick={() => (selectedTimetableTier = 3)}
+                  class="px-2 py-0.5 rounded text-[10px] {selectedTimetableTier === 3 ? 'bg-purple-800 text-purple-100 font-bold' : 'text-slate-400'}"
+                >
+                  SuperMax
+                </button>
+              </div>
+            </div>
+
+            <!-- 24-Hour Interactive Grid -->
+            <div class="overflow-x-auto">
+              <div class="min-w-[760px] space-y-1.5">
+                <!-- Hours Header Row -->
+                <div class="grid grid-cols-24 gap-1 text-[9px] text-slate-400 text-center font-bold">
+                  {#each Array(24) as _, h}
+                    {@const isCurrentHour = regimeManager.clock.hour === h}
+                    <div class="p-1 rounded {isCurrentHour ? 'bg-amber-400 text-slate-950 font-black shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'bg-slate-900'}">
+                      {h.toString().padStart(2, '0')}
+                    </div>
+                  {/each}
+                </div>
+
+                <!-- Timetable Tier Rows -->
+                {#each [
+                  { tier: 0, label: 'Min-Sec' },
+                  { tier: 1, label: 'Med-Sec' },
+                  { tier: 2, label: 'Max-Sec' },
+                  { tier: 3, label: 'SuperMax' },
+                ] as tierItem}
+                  <div class="flex items-center space-x-2">
+                    <span class="w-16 text-[10px] font-bold text-slate-400 text-right whitespace-nowrap">{tierItem.label}</span>
+                    <div class="grid grid-cols-24 gap-1 flex-1">
+                      {#each Array(24) as _, h}
+                        {@const act = regimeManager.schedule.getActivity(tierItem.tier, h)}
+                        {@const isCurrentHour = regimeManager.clock.hour === h}
+                        <button
+                          onclick={() => cycleScheduleBlock(tierItem.tier, h)}
+                          class="h-9 rounded flex flex-col items-center justify-center border text-[8px] font-bold uppercase transition-all cursor-pointer select-none active:scale-90 {RegimeActivityColors[act]} {isCurrentHour ? 'ring-2 ring-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' : ''}"
+                          title="{tierItem.label} @ {h}:00 - {RegimeActivityName[act]} (Click to cycle)"
+                        >
+                          <span class="truncate px-0.5">{RegimeActivityName[act].slice(0, 4)}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+
+            <!-- Activity Legend -->
+            <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80 text-[10px]">
+              <span class="text-slate-500 uppercase font-semibold">Legend:</span>
+              <span class="px-2 py-0.5 rounded bg-indigo-950 border border-indigo-700 text-indigo-300">Sleep</span>
+              <span class="px-2 py-0.5 rounded bg-blue-950 border border-blue-700 text-blue-300">Shower</span>
+              <span class="px-2 py-0.5 rounded bg-amber-950 border border-amber-700 text-amber-300">Eat</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-700 text-emerald-300">Yard</span>
+              <span class="px-2 py-0.5 rounded bg-purple-950 border border-purple-700 text-purple-300">Work/Lock</span>
+              <span class="px-2 py-0.5 rounded bg-teal-950 border border-teal-700 text-teal-300">Work/Free</span>
+              <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-600 text-slate-200">Free Time</span>
+              <span class="px-2 py-0.5 rounded bg-rose-950 border border-rose-700 text-rose-300">Lockdown</span>
+            </div>
+          </div>
+
+          <div class="px-3 py-1.5 rounded bg-slate-950/80 border border-amber-800/60 text-xs font-mono flex items-center justify-between text-amber-300">
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+              <span>{regimeTelemetryMessage}</span>
+            </div>
+            <span class="text-[10px] text-slate-400">Task 4.4 24-Hour Regime Timetable & Emergency Overrides Active</span>
+          </div>
         </div>
       {:else}
         <!-- Construction Tool Selection Toolbar -->
@@ -2224,15 +3090,15 @@
         </div>
       </div>
 
-      <!-- Phase 4 Card (In Progress) -->
+      <!-- Phase 4 Card (Complete) -->
       <div class="p-6 rounded-xl bg-slate-900/80 border border-slate-800 shadow-xl">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="text-base font-bold text-white tracking-wide">Phase 4: Navigation, Agent AI & Regime</h3>
-            <p class="text-xs text-slate-400">Flow Fields, 15-Need Psychology & Timetable Scheduling</p>
+            <p class="text-xs text-slate-400">Flow Fields, 15-Need Psychology, Utility AI & Master Timetable Scheduling</p>
           </div>
-          <span class="text-xs font-mono px-3 py-1 rounded bg-indigo-950 border border-indigo-800 text-indigo-300 font-bold">
-            1 of 4 Tasks (25%) • Phase 4 In Progress
+          <span class="text-xs font-mono px-3 py-1 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-bold">
+            4 of 4 Tasks (100%) • Phase 4 Complete
           </span>
         </div>
 
@@ -2246,31 +3112,31 @@
             <span class="text-[10px] text-emerald-300 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
           </div>
 
-          <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+          <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
             <div class="flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full bg-slate-600"></span>
-              <span class="font-semibold text-slate-300">Task 4.2: 15-Need Psychology</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="font-bold text-emerald-300">Task 4.2: 15-Need Psychology</span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-1">Decay Curves & Global Danger Bar</p>
-            <span class="text-[10px] text-slate-600 block mt-2">UPCOMING</span>
+            <p class="text-[11px] text-emerald-400/80 mt-1">Decay Curves & Global Danger Bar</p>
+            <span class="text-[10px] text-emerald-300 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
           </div>
 
-          <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+          <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
             <div class="flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full bg-slate-600"></span>
-              <span class="font-semibold text-slate-300">Task 4.3: Utility AI & HFSM</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="font-bold text-emerald-300">Task 4.3: Utility AI & HFSM</span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-1">Behavior Scoring & State Machine</p>
-            <span class="text-[10px] text-slate-600 block mt-2">UPCOMING</span>
+            <p class="text-[11px] text-emerald-400/80 mt-1">Behavior Scoring & State Machine</p>
+            <span class="text-[10px] text-emerald-300 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
           </div>
 
-          <div class="p-3 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400">
+          <div class="p-3 rounded-lg bg-emerald-950/40 border border-emerald-700/60 text-emerald-300">
             <div class="flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full bg-slate-600"></span>
-              <span class="font-semibold text-slate-300">Task 4.4: 24-Hour Regime</span>
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="font-bold text-emerald-300">Task 4.4: 24-Hour Regime</span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-1">Master Timetable & Emergency Overrides</p>
-            <span class="text-[10px] text-slate-600 block mt-2">UPCOMING</span>
+            <p class="text-[11px] text-emerald-400/80 mt-1">Master Timetable & Emergency Overrides</p>
+            <span class="text-[10px] text-emerald-300 font-bold block mt-2">✓ VERIFIED & COMPLETE</span>
           </div>
         </div>
       </div>

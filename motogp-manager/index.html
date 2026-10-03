@@ -219,24 +219,19 @@
             <!-- TAB 3: RIDERS & STAFF -->
             <section class="tab-pane" id="pane-staff">
                 <div class="pane-grid">
-                    <!-- Left: Rider Management -->
-                    <div class="panel-card">
-                        <div class="card-header">
-                            <h2>🏍️ Lead Rider & Development</h2>
-                            <small>Upgrade rider skills to boost performance on race weekend</small>
+                    <!-- Left: Dual Rider Management -->
+                    <div class="panel-card team-riders-panel">
+                        <div class="card-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                            <div>
+                                <h2>🏍️ Official Team Racers (2-Rider Lineup)</h2>
+                                <small>Upgrade individual rider technical skills & manage your official paddock lineup</small>
+                            </div>
+                            <button class="btn-change-lineup" id="btn-open-racer-selection" style="background:linear-gradient(135deg, rgba(0,210,255,0.2), rgba(0,100,255,0.2)); border:1px solid var(--accent-cyan); color:#00f2fe; padding:8px 14px; border-radius:8px; font-weight:700; cursor:pointer; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
+                                👥 Manage / Switch Racers
+                            </button>
                         </div>
-                        <div class="rider-profile-card">
-                            <div class="rider-header">
-                                <div class="rider-avatar" id="rider-avatar">🏎️</div>
-                                <div class="rider-meta">
-                                    <h3 id="rider-name">Marco Rossi</h3>
-                                    <span class="rider-tier" id="rider-rating">Overall Skill: 62</span>
-                                </div>
-                            </div>
-
-                            <div class="rider-skills-list" id="rider-skills-list">
-                                <!-- Dynamic Rider Skill Upgrades -->
-                            </div>
+                        <div class="team-riders-dual-container" id="team-riders-container">
+                            <!-- Dynamic Dual Rider Cards (Rider 1 & Rider 2) -->
                         </div>
                     </div>
 
@@ -818,6 +813,88 @@
                         <div class="longrun-radio-container" id="longrun-radio-feed">
                             <!-- Dynamic radio bubbles -->
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RACER SELECTION & ONBOARDING MODAL -->
+        <div class="custom-modal-overlay" id="modal-racer-selection" style="display:none;">
+            <div class="modal-backdrop" id="racer-modal-backdrop"></div>
+            <div class="modal-window wide-modal racer-selection-window">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-title-pill">
+                            <span class="flag-icon">🏆</span>
+                            <div class="title-main">
+                                <span class="gp-sub">OFFICIAL MOTOGP™ PADDOCK LINEUP</span>
+                                <h2>SELECT YOUR 2 FACTORY TEAM RACERS</h2>
+                            </div>
+                        </div>
+                        <div class="modal-subtitle">Choose 2 official MotoGP, Moto2, or Moto3 racers to lead your team on the world stage.</div>
+                    </div>
+                    <button class="btn-close-modal" id="btn-close-racer-modal" title="Close Modal">✕</button>
+                </div>
+
+                <div class="modal-body-scroll racer-modal-body">
+                    <!-- Selected Racers Dashboard / Dock -->
+                    <div class="selected-racers-dock">
+                        <div class="dock-slots-row">
+                            <div class="dock-slot-wrapper" id="selected-slot-1">
+                                <!-- Dynamic Slot 1 Card -->
+                            </div>
+                            <div class="dock-vs-badge">VS</div>
+                            <div class="dock-slot-wrapper" id="selected-slot-2">
+                                <!-- Dynamic Slot 2 Card -->
+                            </div>
+                        </div>
+
+                        <div class="dock-action-bar">
+                            <div class="dock-status-group">
+                                <span class="selection-counter" id="selection-count-badge">0 / 2 Selected</span>
+                                <span class="dock-hint">Click any racer card below to add or swap.</span>
+                            </div>
+                            <div class="dock-buttons-group">
+                                <button class="btn-secondary-paddock" id="btn-random-racers">
+                                    <span>🎲</span> Balanced Quick Pick
+                                </button>
+                                <button class="btn-confirm-lineup" id="btn-confirm-racers" disabled>
+                                    Select 2 Racers (0/2)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search and Category Filters Bar -->
+                    <div class="racer-filters-bar">
+                        <div class="search-input-wrapper">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" id="racer-search-input" placeholder="Search official racer, #number, team, or country..." autocomplete="off">
+                        </div>
+
+                        <div class="racer-cat-chips-group">
+                            <button class="racer-cat-chip active" data-cat="all">All</button>
+                            <button class="racer-cat-chip" data-cat="motogp">MotoGP™</button>
+                            <button class="racer-cat-chip" data-cat="moto2">Moto2™</button>
+                            <button class="racer-cat-chip" data-cat="moto3">Moto3™</button>
+                            <button class="racer-cat-chip" data-cat="legends">Legends & Test</button>
+                        </div>
+
+                        <div class="racer-sort-wrapper">
+                            <label for="racer-sort-select">Sort:</label>
+                            <select id="racer-sort-select">
+                                <option value="overall">Overall Skill</option>
+                                <option value="speed">Top Speed</option>
+                                <option value="racecraft">Racecraft</option>
+                                <option value="number">Racing Number</option>
+                                <option value="name">Alphabetical</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Official Racers Grid -->
+                    <div class="racer-cards-grid" id="racer-cards-grid">
+                        <!-- Dynamic Racer Cards -->
                     </div>
                 </div>
             </div>

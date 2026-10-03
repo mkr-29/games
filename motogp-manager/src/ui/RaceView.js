@@ -59,7 +59,7 @@ export class RaceView {
     static render(state) {
         const rs = state.raceState;
         const gp = RaceSystem.getCurrentGP();
-        const r = state.rider;
+        const userRiders = state.riders || [state.rider];
 
         // GP Info Header & Weather Status
         this.updateText('championship-season-lbl', `Season ${state.season} - Round ${(rs.currentGPIndex % GP_CALENDAR.length) + 1} of ${GP_CALENDAR.length}`);
@@ -71,7 +71,8 @@ export class RaceView {
         const weatherIcon = rs.weather === 'wet' ? '🌧️ Wet Track' : '☀️ Dry Track';
         const weatherStr = ` | ${weatherIcon} (${rs.trackTempC || 28}°C)`;
         const tireStr = ` | Tires: ${currentCompound.shortName} (${Math.floor(rs.tireCondition)}% life)`;
-        const injuryStr = r.injury ? ` | 🩺 INJURED: ${r.injury.name} (-${r.injury.penalty} skill)` : '';
+        const injuredRiders = userRiders.filter(ur => ur && ur.injury);
+        const injuryStr = injuredRiders.length > 0 ? ` | 🩺 INJURED: ${injuredRiders.map(ir => `${ir.name} (${ir.injury.name})`).join(', ')}` : '';
 
         this.updateText('gp-track-info', `Length: ${gp.lengthKm} km | Focus: ${gp.type.toUpperCase()}${setupStr}${weatherStr}${tireStr}${injuryStr}`);
 
@@ -442,14 +443,16 @@ export class RaceView {
 
                 const pRider = paddock.riders[r.id];
                 let statusBadge = '';
+                const uRiderObj = r.isUser ? ((state.riders && state.riders.find(ur => ur.name === r.name)) || state.rider) : null;
+
                 if (pRider && pRider.injury) {
                     if (pRider.injury.severity === 'sidelined') {
                         statusBadge = ` <span style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(255,51,75,0.18); color:#ff4d6d; border:1px solid rgba(255,51,75,0.4);" title="${pRider.injury.desc}">🏥 OUT (${pRider.injury.racesRemaining} GP)</span>`;
                     } else {
                         statusBadge = ` <span style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(255,183,0,0.18); color:#ffb700; border:1px solid rgba(255,183,0,0.4);" title="${pRider.injury.desc}">🩺 ${pRider.injury.name}</span>`;
                     }
-                } else if (r.isUser && state.rider.injury) {
-                    statusBadge = ` <span style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(255,183,0,0.18); color:#ffb700; border:1px solid rgba(255,183,0,0.4);">🩺 ${state.rider.injury.name}</span>`;
+                } else if (uRiderObj && uRiderObj.injury) {
+                    statusBadge = ` <span style="font-size:10px; padding:1px 5px; border-radius:4px; background:rgba(255,183,0,0.18); color:#ffb700; border:1px solid rgba(255,183,0,0.4);">🩺 ${uRiderObj.injury.name}</span>`;
                 }
 
                 let row = tbody.querySelector(`[data-standing-name="${CSS.escape(r.name)}"]`);

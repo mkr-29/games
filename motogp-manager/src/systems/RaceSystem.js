@@ -84,7 +84,12 @@ export class RaceSystem {
     }
 
     static getTierRiders(tier) {
-        return RiderSystem.getActiveGridRoster(tier);
+        const state = gameState.getState();
+        const userRiders = (state.riders || [state.rider]).filter(Boolean);
+        const userIds = userRiders.map(r => r.id).filter(Boolean);
+        const userNames = userRiders.map(r => r.name).filter(Boolean);
+        const allRiders = RiderSystem.getActiveGridRoster(tier);
+        return allRiders.filter(r => !userIds.includes(r.id) && !userNames.includes(r.name));
     }
 
     static getTierSpeedMultiplier(tier) {
@@ -129,8 +134,9 @@ export class RaceSystem {
     static initChampionshipStandings(force = false) {
         const state = gameState.getState();
         const rs = state.raceState;
-        const tierRiders = RiderSystem.getTierDatabase(state.tier);
-        const expectedCount = tierRiders.length + 1;
+        const tierRiders = this.getTierRiders(state.tier);
+        const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
+        const expectedCount = tierRiders.length + userRiders.length;
 
         if (force || !rs.championshipStandings || rs.championshipStandings.length !== expectedCount || rs.championshipTier !== state.tier) {
             const standings = tierRiders.map(ai => ({
@@ -145,16 +151,20 @@ export class RaceSystem {
                 fastestLaps: 0
             }));
 
-            standings.push({
-                id: 'user',
-                name: state.rider.name,
-                team: "Your Team",
-                isUser: true,
-                points: 0,
-                wins: 0,
-                sprintWins: 0,
-                podiums: 0,
-                fastestLaps: 0
+            userRiders.forEach((u, idx) => {
+                standings.push({
+                    id: `user_${idx + 1}`,
+                    name: u.name,
+                    number: u.number,
+                    team: u.team || "Your Team",
+                    isUser: true,
+                    userSlot: idx,
+                    points: 0,
+                    wins: 0,
+                    sprintWins: 0,
+                    podiums: 0,
+                    fastestLaps: 0
+                });
             });
 
             rs.championshipStandings = standings;
@@ -175,6 +185,7 @@ export class RaceSystem {
         const bikeStats = BikeSystem.getBikeStats();
         const gp = this.getCurrentGP();
         const tierRiders = this.getTierRiders(state.tier);
+        const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
 
         const setupMatch = Math.min(99, 72 + Math.floor(bikeStats.overallRating * 0.35) + Math.floor(Math.random() * 8));
         rs.setupMatch = setupMatch;
@@ -188,6 +199,11 @@ export class RaceSystem {
         this.syncCalendarActivity('race_fp1');
 
         gameState.addLog(`🏁 Free Practice 1 Complete at ${gp.title}! Setup Dialed In: ${setupMatch}%. Telemetry +35, RP +12.`);
+
+        userRiders.forEach((r, idx) => {
+            const numStr = r.number ? `#${r.number}` : `Racer ${idx + 1}`;
+            gameState.addLog(`🎙️ Pit Telemetry (${r.name} ${numStr}): "Bike balance feels responsive across Sectors 1 & 2."`);
+        });
 
         const favsAtThisTrack = tierRiders.filter(r => r.favoriteTracks && r.favoriteTracks.includes(gp.id));
         if (favsAtThisTrack.length > 0) {
@@ -247,9 +263,6 @@ export class RaceSystem {
         if (rs.stage !== 'PR') return false;
 
         const bikeStats = BikeSystem.getBikeStats();
-        let riderSkill = state.rider.overallSkill;
-        if (state.rider.injury) riderSkill = Math.max(20, riderSkill - state.rider.injury.penalty);
-
         const gp = this.getCurrentGP();
         const tierMult = this.getTierSpeedMultiplier(state.tier);
         const baseTrackSec = gp.baseSec * tierMult;
@@ -261,8 +274,6 @@ export class RaceSystem {
         if (gp.favors === 'ecu') trackBonus = (bikeStats.ecu - 5) * 0.90;
 
         const setupBonus = ((rs.setupMatch || 75) - 70) * 0.15;
-        const userScore = (bikeStats.overallRating * 0.45) + (riderSkill * 0.45) + trackBonus + setupBonus;
-
         const tierRiders = this.getTierRiders(state.tier);
 
         const practiceList = tierRiders.map(ai => {
@@ -295,23 +306,47 @@ export class RaceSystem {
             };
         });
 
-        const userConsistency = state.rider.consistency || 65;
-        const { bestLap: userBestLap, bestSectors: userBestSectors } = this.simulateHotLap(userScore, userConsistency, baseTrackSec, gp.sectorRatios);
+        const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
+        userRiders.forEach((uRider, uIdx) => {
+            let riderSkill = uRider.overallSkill || 80;
+            if (uRider.injury) riderSkill = Math.max(20, riderSkill - uRider.injury.penalty);
 
-        practiceList.push({
-            name: state.rider.name,
-            team: "Your Team",
-            isUser: true,
-            score: userScore,
-            consistency: userConsistency,
-            bestLapSec: userBestLap,
-            lastLapSec: userBestLap,
-            lastLapStr: this.formatLapTime(userBestLap),
-            bestLapStr: this.formatLapTime(userBestLap),
-            lastSectors: userBestSectors,
-            lastSectorColors: ['yellow', 'yellow', 'yellow', 'yellow'],
-            personalBestSectors: [...userBestSectors],
-            dnf: false
+            let uTrackBonus = trackBonus;
+            if (uRider.favoriteTracks && uRider.favoriteTracks.includes(gp.id)) {
+                uTrackBonus += 3.5;
+            }
+            if (rs.weather === 'wet') {
+                uTrackBonus += ((uRider.wetSkill || 75) - 75) * 0.25;
+            }
+
+            const userScore = (bikeStats.overallRating * 0.45) + (riderSkill * 0.45) + uTrackBonus + setupBonus;
+            const userConsistency = uRider.consistency || 70;
+            const { bestLap: userBestLap, bestSectors: userBestSectors } = this.simulateHotLap(userScore, userConsistency, baseTrackSec, gp.sectorRatios);
+
+            practiceList.push({
+                id: `user_${uIdx + 1}`,
+                name: uRider.name,
+                number: uRider.number,
+                team: uRider.team || "Your Team",
+                isUser: true,
+                userSlot: uIdx,
+                favoriteTracks: uRider.favoriteTracks || [],
+                isFavTrack: uRider.favoriteTracks ? uRider.favoriteTracks.includes(gp.id) : false,
+                speed: uRider.speed || 80,
+                racecraft: uRider.racecraft || 80,
+                tireMgmt: uRider.tireMgmt || 80,
+                injury: uRider.injury || null,
+                score: userScore,
+                consistency: userConsistency,
+                bestLapSec: userBestLap,
+                lastLapSec: userBestLap,
+                lastLapStr: this.formatLapTime(userBestLap),
+                bestLapStr: this.formatLapTime(userBestLap),
+                lastSectors: userBestSectors,
+                lastSectorColors: ['yellow', 'yellow', 'yellow', 'yellow'],
+                personalBestSectors: [...userBestSectors],
+                dnf: false
+            });
         });
 
         practiceList.sort((a, b) => a.bestLapSec - b.bestLapSec);
@@ -332,17 +367,22 @@ export class RaceSystem {
         rs.q2DirectRiders = topDirect;
         rs.q1Riders = bottomQ1;
 
-        const userPos = practiceList.findIndex(r => r.isUser) + 1;
-        rs.directQ2 = userPos <= directQ2Count;
         rs.practiceCompleted = true;
         rs.stage = 'Q1';
         this.syncCalendarActivity('race_pr');
 
-        if (rs.directQ2) {
-            gameState.addLog(`🌟 TIMED PRACTICE SUCCESS: ${state.rider.name} finished P${userPos} and qualified DIRECTLY into Q2! (Time: ${this.formatLapTime(userBestLap)})`);
-        } else {
-            gameState.addLog(`⚠️ TIMED PRACTICE: ${state.rider.name} finished P${userPos}. Must fight in Q1 Shootout for top spots into Q2!`);
-        }
+        userRiders.forEach((uRider, uIdx) => {
+            const pos = practiceList.findIndex(r => r.isUser && r.userSlot === uIdx) + 1;
+            const direct = pos <= directQ2Count;
+            const uEntry = practiceList.find(r => r.isUser && r.userSlot === uIdx);
+            if (direct) {
+                gameState.addLog(`🌟 TIMED PRACTICE SUCCESS: ${uRider.name} (#${uRider.number || (uIdx + 1)}) finished P${pos} and qualified DIRECTLY into Q2! (Time: ${this.formatLapTime(uEntry?.bestLapSec)})`);
+            } else {
+                gameState.addLog(`⚠️ TIMED PRACTICE: ${uRider.name} (#${uRider.number || (uIdx + 1)}) finished P${pos}. Must fight in Q1 Shootout for top spots into Q2!`);
+            }
+        });
+
+        rs.directQ2 = practiceList.findIndex(r => r.isUser && r.userSlot === 0) < directQ2Count;
 
         return true;
     }
@@ -395,15 +435,17 @@ export class RaceSystem {
         rs.stage = 'Q2';
         rs.leaderboard = q1Grid;
 
-        const userInQ1 = q1Grid.find(r => r.isUser);
-        if (userInQ1) {
-            const q1Pos = q1Grid.indexOf(userInQ1) + 1;
-            if (q1Pos <= q1GraduateCount) {
-                gameState.addLog(`🔥 Q1 GRADUATION! ${state.rider.name} finished P${q1Pos} in Q1 and advanced to Q2! (Time: ${this.formatLapTime(userInQ1.q1LapSec)})`);
-            } else {
-                const finalGridPos = directQ2Count + q1GraduateCount + (q1Pos - q1GraduateCount);
-                gameState.addLog(`⏱️ Q1 COMPLETE: ${state.rider.name} knocked out in Q1 (P${q1Pos}). Starting grid locked at P${finalGridPos}.`);
-            }
+        const userInQ1List = q1Grid.filter(r => r.isUser);
+        if (userInQ1List.length > 0) {
+            userInQ1List.forEach(userInQ1 => {
+                const q1Pos = q1Grid.indexOf(userInQ1) + 1;
+                if (q1Pos <= q1GraduateCount) {
+                    gameState.addLog(`🔥 Q1 GRADUATION! ${userInQ1.name} finished P${q1Pos} in Q1 and advanced to Q2! (Time: ${this.formatLapTime(userInQ1.q1LapSec)})`);
+                } else {
+                    const finalGridPos = directQ2Count + q1GraduateCount + (q1Pos - q1GraduateCount);
+                    gameState.addLog(`⏱️ Q1 COMPLETE: ${userInQ1.name} knocked out in Q1 (P${q1Pos}). Starting grid locked at P${finalGridPos}.`);
+                }
+            });
         } else {
             const gradNames = q1Graduates.map(g => `${g.name} (${g.lapTimeStr})`).join(', ');
             gameState.addLog(`⏱️ Q1 Shootout finished! Graduates to Q2: ${gradNames}.`);
@@ -459,6 +501,12 @@ export class RaceSystem {
 
         rs.grid = finalGrid;
         rs.leaderboard = finalGrid;
+
+        const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
+        const userPositions = userRiders.map((u, uIdx) => {
+            const pos = finalGrid.findIndex(r => r.isUser && r.userSlot === uIdx) + 1;
+            return `${u.name} (#${u.number || (uIdx + 1)}) starts P${pos}`;
+        });
         const userPos = finalGrid.findIndex(r => r.isUser) + 1;
         rs.qpGridPosition = userPos;
         rs.q2Completed = true;
@@ -468,11 +516,8 @@ export class RaceSystem {
         rs.stage = hasSprint ? 'SPRINT' : 'RACE';
 
         const poleRider = finalGrid[0];
-        if (hasSprint) {
-            gameState.addLog(`👑 POLE POSITION! ${poleRider.name} takes POLE with ${this.formatLapTime(poleTime)}! ${state.rider.name} starts P${userPos} for both Saturday Sprint & Sunday Grand Prix!`);
-        } else {
-            gameState.addLog(`👑 POLE POSITION! ${poleRider.name} takes POLE with ${this.formatLapTime(poleTime)}! ${state.rider.name} starts P${userPos} for the Sunday Grand Prix!`);
-        }
+        const sessionLabel = hasSprint ? 'Saturday Sprint & Sunday Grand Prix' : 'Sunday Grand Prix';
+        gameState.addLog(`👑 POLE POSITION! ${poleRider.name} takes POLE with ${this.formatLapTime(poleTime)}! Team Lineup: ${userPositions.join(' | ')} for the ${sessionLabel}!`);
         return true;
     }
 
@@ -690,11 +735,6 @@ export class RaceSystem {
         }
 
         const bikeStats = BikeSystem.getBikeStats();
-        let userSkill = state.rider.overallSkill;
-        if (state.rider.injury) {
-            userSkill = Math.max(20, userSkill - state.rider.injury.penalty);
-        }
-
         const trackEvolution = -Math.min(0.25, (currentLap / totalLaps) * 0.25);
         const fuelWeightDelta = ((totalLaps - currentLap + 1) / totalLaps) * (rs.sessionType === 'SPRINT' ? 0.40 : 0.75);
 
@@ -710,14 +750,28 @@ export class RaceSystem {
             let compoundDef = TIRE_COMPOUNDS[compoundKey] || TIRE_COMPOUNDS.medium;
 
             if (r.isUser) {
+                const uSlot = r.userSlot !== undefined ? r.userSlot : 0;
+                const uRiderObj = (state.riders && state.riders[uSlot]) || state.rider;
+                let userSkill = uRiderObj.overallSkill || 80;
+                if (uRiderObj.injury) {
+                    userSkill = Math.max(20, userSkill - uRiderObj.injury.penalty);
+                }
+
                 let trackBonus = 0;
                 if (gp.favors === 'hp') trackBonus = (bikeStats.hp - 55) * 0.30;
                 if (gp.favors === 'aero') trackBonus = (bikeStats.aero - 10) * 0.65;
                 if (gp.favors === 'chassis') trackBonus = (bikeStats.chassis - 15) * 0.65;
                 if (gp.favors === 'ecu') trackBonus = (bikeStats.ecu - 5) * 0.90;
+                if (uRiderObj.favoriteTracks && uRiderObj.favoriteTracks.includes(gp.id)) {
+                    trackBonus += 3.5;
+                }
+                if (rs.weather === 'wet') {
+                    trackBonus += ((uRiderObj.wetSkill || 75) - 75) * 0.25;
+                }
+
                 const setupBonus = ((rs.setupMatch || 75) - 70) * 0.15;
                 riderScore = (bikeStats.overallRating * 0.45) + (userSkill * 0.45) + trackBonus + setupBonus;
-                consistency = state.rider.consistency || 65;
+                consistency = uRiderObj.consistency || 70;
             }
 
             const paceOffset = (92 - riderScore) * (baseBenchmarkSec * 0.0016);
@@ -726,7 +780,9 @@ export class RaceSystem {
             // Lap 1 Standing Start
             if (currentLap === 1) {
                 const gridRank = r.gridPosition || 10;
-                const launchSkill = r.isUser ? (state.rider.braking || 60) : 75;
+                const uSlot = r.userSlot !== undefined ? r.userSlot : 0;
+                const uRiderObj = r.isUser ? ((state.riders && state.riders[uSlot]) || state.rider) : null;
+                const launchSkill = r.isUser ? (uRiderObj.braking || 75) : 75;
                 const startPenalty = 3.2 + (gridRank * 0.07) - ((launchSkill - 50) * 0.015);
                 lapPace += startPenalty;
             }
@@ -738,7 +794,7 @@ export class RaceSystem {
 
             const lapWear = (compoundDef.wearRate * wearMult) * (12 / totalLaps);
             r.tireCondition = Math.max(0, (r.tireCondition || 100) - lapWear);
-            if (r.isUser) rs.tireCondition = r.tireCondition;
+            if (r.isUser && (r.userSlot === 0 || r.userSlot === undefined)) rs.tireCondition = r.tireCondition;
 
             let tirePaceLoss = 0;
             if (r.tireCondition < 75 && r.tireCondition >= 45) {
@@ -807,10 +863,16 @@ export class RaceSystem {
                 this.setFlag('YELLOW', crashSector, 1, `${r.name} crashed in Sector ${crashSector}`);
                 gameState.addLog(`💥 CRASH! ${r.name} (${r.team}) suffered a ${r.dnfReason}! DNF on Lap ${currentLap}.`);
 
-                const inj = RiderSystem.processRiderCrash(r.id, r.name, false, state.tier);
+                const inj = RiderSystem.processRiderCrash(r.id, r.name, r.isUser, state.tier);
                 if (inj) {
+                    if (r.isUser) {
+                        const uSlot = r.userSlot !== undefined ? r.userSlot : 0;
+                        const uRiderObj = (state.riders && state.riders[uSlot]) || state.rider;
+                        uRiderObj.injury = inj;
+                        if (uSlot === 0) state.rider.injury = inj;
+                    }
                     if (inj.severity === 'sidelined') {
-                        gameState.addLog(`🏥 MEDICAL ALERT: ${r.name} sustained a ${inj.name} and is SIDELINED for ${inj.racesRemaining} Grand Prix! A reserve test rider will substitute next round.`);
+                        gameState.addLog(`🏥 MEDICAL ALERT: ${r.name} sustained a ${inj.name} and is SIDELINED for ${inj.racesRemaining} Grand Prix!`);
                     } else {
                         gameState.addLog(`🩺 MEDICAL UPDATE: ${r.name} sustained ${inj.name} (-${inj.penalty}% pace penalty for ${inj.racesRemaining} race).`);
                     }
@@ -1055,26 +1117,35 @@ export class RaceSystem {
             return b.podiums - a.podiums;
         });
 
-        const userRider = rs.leaderboard.find(r => r.isUser);
-        const userPos = rs.leaderboard.findIndex(r => r.isUser) + 1;
         const winner = rs.leaderboard[0];
+        const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
+        const tierDef = TIERS[state.tier] || TIERS[1];
+        let totalSprintPrize = 0;
+        let totalSprintHype = 0;
 
-        if (userRider && userRider.dnf) {
-            gameState.addLog(`💥 SPRINT RESULT: ${state.rider.name} suffered a DNF in the Sprint Race.`);
-        } else {
-            const sprintPts = userPos <= 9 ? sprintPointsTable[userPos - 1] : 0;
-            const tierDef = TIERS[state.tier] || TIERS[1];
-            const prizeMoney = this.calculateSprintPrize(tierDef, userPos, state.heritagePerks);
-            const hypeEarned = userPos === 1 ? 12 : (userPos <= 3 ? 8 : 4);
+        userRiders.forEach((uRider, uIdx) => {
+            const userPos = rs.leaderboard.findIndex(r => r.isUser && (r.userSlot === uIdx || (r.userSlot === undefined && uIdx === 0) || r.name === uRider.name)) + 1;
+            const userEntry = userPos > 0 ? rs.leaderboard[userPos - 1] : null;
 
-            state.cash = (Number.isFinite(state.cash) ? state.cash : 0) + prizeMoney;
-            state.hype += hypeEarned;
-            rs.seasonPoints += sprintPts;
+            if (userEntry && userEntry.dnf) {
+                gameState.addLog(`💥 SPRINT RESULT: ${uRider.name} (#${uRider.number || (uIdx + 1)}) suffered a DNF in the Sprint Race.`);
+            } else if (userPos > 0) {
+                const sprintPts = userPos <= 9 ? sprintPointsTable[userPos - 1] : 0;
+                const prizeMoney = this.calculateSprintPrize(tierDef, userPos, state.heritagePerks);
+                const hypeEarned = userPos === 1 ? 12 : (userPos <= 3 ? 8 : 4);
 
-            gameState.addLog(`⚡ SPRINT FINISH: ${winner.name} wins the Saturday Sprint! ${state.rider.name} crossed the line P${userPos} (+${sprintPts} Sprint PTS, +$${prizeMoney.toLocaleString()}, +${hypeEarned} Hype)!`);
-        }
+                totalSprintPrize += prizeMoney;
+                totalSprintHype += hypeEarned;
+                rs.seasonPoints += sprintPts;
 
-        gameState.addLog(`🏁 Saturday Sprint Complete! Prepare your machine for the Sunday Main Grand Prix.`);
+                gameState.addLog(`⚡ SPRINT FINISH: ${uRider.name} (#${uRider.number || (uIdx + 1)}) crossed the line P${userPos} (+${sprintPts} Sprint PTS, +$${prizeMoney.toLocaleString()}, +${hypeEarned} Hype)!`);
+            }
+        });
+
+        state.cash = (Number.isFinite(state.cash) ? state.cash : 0) + totalSprintPrize;
+        state.hype += totalSprintHype;
+
+        gameState.addLog(`🏁 Saturday Sprint Complete! Winner: ${winner.name}. Team Purse: +$${totalSprintPrize.toLocaleString()}, +${totalSprintHype} Hype. Prepare for Sunday Main Grand Prix.`);
     }
 
     // ==========================================
@@ -1130,61 +1201,75 @@ export class RaceSystem {
             return b.podiums - a.podiums;
         });
 
-        const userRider = rs.leaderboard.find(r => r.isUser);
-        const userPos = rs.leaderboard.findIndex(r => r.isUser) + 1;
+        const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
+        const tierDef = TIERS[state.tier] || TIERS[1];
+        let totalGPPrize = 0;
+        let totalGPHype = 0;
 
-        if (userRider && userRider.dnf) {
-            gameState.addLog(`💥 RACE RESULT: ${state.rider.name} suffered a DNF crash and scored 0 points.`);
-        } else {
-            const tierDef = TIERS[state.tier] || TIERS[1];
-            let prizeMoney = Math.floor(tierDef.gpTop10Prize * 0.30);
-            let pointsEarned = userPos <= 15 ? pointsTable[userPos - 1] : 0;
-            let hypeEarned = 2;
+        userRiders.forEach((uRider, uIdx) => {
+            const userPos = rs.leaderboard.findIndex(r => r.isUser && (r.userSlot === uIdx || (r.userSlot === undefined && uIdx === 0) || r.name === uRider.name)) + 1;
+            const userEntry = userPos > 0 ? rs.leaderboard[userPos - 1] : null;
 
-            if (userPos === 1) {
-                prizeMoney = tierDef.gpWinPrize;
-                hypeEarned = 30;
-            } else if (userPos <= 3) {
-                prizeMoney = tierDef.gpPodiumPrize;
-                hypeEarned = 18;
-            } else if (userPos <= 10) {
-                prizeMoney = tierDef.gpTop10Prize;
-                hypeEarned = 10;
-            }
+            if (userEntry && userEntry.dnf) {
+                gameState.addLog(`💥 RACE RESULT: ${uRider.name} (#${uRider.number || (uIdx + 1)}) suffered a DNF crash and scored 0 points.`);
+            } else if (userPos > 0) {
+                let prizeMoney = Math.floor(tierDef.gpTop10Prize * 0.30);
+                let pointsEarned = userPos <= 15 ? pointsTable[userPos - 1] : 0;
+                let hypeEarned = 2;
 
-            if (rs.fastestLap && rs.fastestLap.riderName === state.rider.name && userPos <= 10) {
-                pointsEarned += 1;
-                prizeMoney += Math.floor(tierDef.gpTop10Prize * 0.50);
-            }
+                if (userPos === 1) {
+                    prizeMoney = tierDef.gpWinPrize;
+                    hypeEarned = 30;
+                } else if (userPos <= 3) {
+                    prizeMoney = tierDef.gpPodiumPrize;
+                    hypeEarned = 18;
+                } else if (userPos <= 10) {
+                    prizeMoney = tierDef.gpTop10Prize;
+                    hypeEarned = 10;
+                }
 
-            if (state.heritagePerks.includes('heritage_paddock_brand')) {
-                prizeMoney *= 2;
-            }
+                if (rs.fastestLap && rs.fastestLap.riderName === uRider.name && userPos <= 10) {
+                    pointsEarned += 1;
+                    prizeMoney += Math.floor(tierDef.gpTop10Prize * 0.50);
+                }
 
-            state.cash = (Number.isFinite(state.cash) ? state.cash : 0) + (Number.isFinite(prizeMoney) ? prizeMoney : 0);
-            state.hype += hypeEarned;
-            rs.seasonPoints += pointsEarned;
-            this.syncCalendarActivity('race_gp');
+                if (state.heritagePerks.includes('heritage_paddock_brand')) {
+                    prizeMoney *= 2;
+                }
 
-            gameState.addLog(`🏆 GRAND PRIX COMPLETE! ${state.rider.name} finished P${userPos}! Prize: +$${prizeMoney.toLocaleString()}, +${pointsEarned} PTS, +${hypeEarned} Hype.`);
+                totalGPPrize += prizeMoney;
+                totalGPHype += hypeEarned;
+                rs.seasonPoints += pointsEarned;
 
-            if (Math.random() < 0.10) {
-                const injuries = [
-                    { name: "Arm Pump Strain", penalty: 8, racesRemaining: 2 },
-                    { name: "Shoulder Contusion", penalty: 12, racesRemaining: 2 },
-                    { name: "Wrist Sprain", penalty: 10, racesRemaining: 1 }
-                ];
-                const inj = injuries[Math.floor(Math.random() * injuries.length)];
-                state.rider.injury = inj;
-                gameState.addLog(`🩺 MEDICAL CENTER: ${state.rider.name} sustained ${inj.name} (-${inj.penalty} skill penalty for ${inj.racesRemaining} races)! Hire Physio Trainer to heal.`);
-            } else if (state.rider.injury) {
-                state.rider.injury.racesRemaining -= 1;
-                if (state.rider.injury.racesRemaining <= 0) {
-                    gameState.addLog(`💪 MEDICAL CLEARANCE: ${state.rider.name} has fully recovered from ${state.rider.injury.name}!`);
-                    state.rider.injury = null;
+                gameState.addLog(`🏆 GRAND PRIX RESULT: ${uRider.name} (#${uRider.number || (uIdx + 1)}) finished P${userPos}! Prize: +$${prizeMoney.toLocaleString()}, +${pointsEarned} PTS, +${hypeEarned} Hype.`);
+
+                // Natural injury check / healing for this rider
+                if (Math.random() < 0.10) {
+                    const injuries = [
+                        { name: "Arm Pump Strain", penalty: 8, racesRemaining: 2 },
+                        { name: "Shoulder Contusion", penalty: 12, racesRemaining: 2 },
+                        { name: "Wrist Sprain", penalty: 10, racesRemaining: 1 }
+                    ];
+                    const inj = injuries[Math.floor(Math.random() * injuries.length)];
+                    uRider.injury = inj;
+                    if (uIdx === 0) state.rider.injury = inj;
+                    gameState.addLog(`🩺 MEDICAL CENTER: ${uRider.name} sustained ${inj.name} (-${inj.penalty} skill penalty for ${inj.racesRemaining} races)! Hire Physio Trainer to heal.`);
+                } else if (uRider.injury) {
+                    uRider.injury.racesRemaining -= 1;
+                    if (uRider.injury.racesRemaining <= 0) {
+                        gameState.addLog(`💪 MEDICAL CLEARANCE: ${uRider.name} has fully recovered from ${uRider.injury.name}!`);
+                        uRider.injury = null;
+                        if (uIdx === 0) state.rider.injury = null;
+                    }
                 }
             }
-        }
+        });
+
+        state.cash = (Number.isFinite(state.cash) ? state.cash : 0) + (Number.isFinite(totalGPPrize) ? totalGPPrize : 0);
+        state.hype += totalGPHype;
+        this.syncCalendarActivity('race_gp');
+
+        gameState.addLog(`🏁 GRAND PRIX WEEKEND CONCLUDED! Total Team Winnings: +$${totalGPPrize.toLocaleString()}, +${totalGPHype} Hype.`);
 
         rs.currentGPIndex += 1;
         RiderSystem.advancePaddockAfterRace(state.tier, rs.currentGPIndex);

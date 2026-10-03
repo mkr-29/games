@@ -351,67 +351,90 @@ export class UIComponents {
     }
 
     static renderStaff(state, forceRebuild = false) {
-        // Rider Skills
-        const riderContainer = document.getElementById('rider-skills-list');
-        if (riderContainer) {
-            if (forceRebuild) riderContainer.innerHTML = '';
+        // Dual Team Riders Management
+        const teamRidersContainer = document.getElementById('team-riders-container');
+        if (teamRidersContainer) {
+            const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
 
-            const r = state.rider;
-            this.updateText('rider-name', r.name);
-            this.updateText('rider-rating', `Overall Skill: ${r.overallSkill}`);
+            teamRidersContainer.innerHTML = userRiders.map((r, rIdx) => {
+                const numStr = r.number ? `#${r.number}` : `#${rIdx + 1}`;
+                const injuryBadge = r.injury 
+                    ? `<span class="rider-injury-badge">🩺 ${r.injury.name} (-${r.injury.penalty} pts, ${r.injury.racesRemaining} GP left)</span>`
+                    : `<span class="rider-healthy-badge">💪 100% Fit</span>`;
 
-            const skills = [
-                { id: 'cornering', name: 'Cornering Technique', val: r.cornering, lvl: r.corneringLvl },
-                { id: 'braking', name: 'Trail Braking', val: r.braking, lvl: r.brakingLvl },
-                { id: 'consistency', name: 'Race Consistency', val: r.consistency, lvl: r.consistencyLvl },
-                { id: 'wetSkill', name: 'Wet Track Mastery', val: r.wetSkill, lvl: r.wetLvl }
-            ];
+                const skills = [
+                    { id: 'cornering', name: 'Cornering Technique', val: r.cornering || 80, lvl: r.corneringLvl || 1 },
+                    { id: 'braking', name: 'Trail Braking', val: r.braking || 80, lvl: r.brakingLvl || 1 },
+                    { id: 'consistency', name: 'Race Consistency', val: r.consistency || 80, lvl: r.consistencyLvl || 1 },
+                    { id: 'wetSkill', name: 'Wet Track Mastery', val: r.wetSkill || 75, lvl: r.wetLvl || 1 }
+                ];
 
-            skills.forEach(s => {
-                const cost = StaffSystem.getRiderSkillCost(s.id);
-                const canAfford = state.cash >= cost.cash;
+                const skillsHtml = skills.map(s => {
+                    const cost = StaffSystem.getRiderSkillCost(s.id, rIdx);
+                    const canAfford = state.cash >= cost.cash;
+                    return `
+                        <div class="rider-skill-row" data-skill-id="${s.id}">
+                            <div class="skill-info">
+                                <span class="skill-name">${s.name} <small class="skill-lvl-tag">Lvl ${s.lvl}</small></span>
+                                <span class="skill-score">${s.val} pts</span>
+                            </div>
+                            <button class="btn-train-skill" data-skill="${s.id}" data-slot="${rIdx}" ${!canAfford ? 'disabled' : ''}>
+                                Train ($${cost.cash.toLocaleString()})
+                            </button>
+                        </div>
+                    `;
+                }).join('');
 
-                let card = riderContainer.querySelector(`[data-skill-id="${s.id}"]`);
-                if (!card) {
-                    card = document.createElement('div');
-                    card.className = 'producer-card';
-                    card.setAttribute('data-skill-id', s.id);
+                const favTracksStr = (r.favoriteTracks && r.favoriteTracks.length > 0)
+                    ? r.favoriteTracks.map(t => `<span class="fav-track-tag">⭐ ${t.toUpperCase()}</span>`).join(' ')
+                    : '<span class="fav-track-tag">Global All-Rounder</span>';
 
-                    card.innerHTML = `
-                        <div class="prod-details">
-                            <div class="prod-title">
-                                <span class="skill-label">${s.name} (Lvl ${s.lvl})</span>
-                                <span class="skill-val" style="color:var(--accent-cyan); font-weight:700;">${s.val} pts</span>
+                return `
+                    <div class="team-rider-card" data-racer-slot="${rIdx}">
+                        <div class="rider-card-header">
+                            <div class="rider-slot-pill">RIDER #${rIdx + 1}</div>
+                            <div class="rider-id-group">
+                                <div class="rider-number-circle">${numStr}</div>
+                                <div class="rider-title-info">
+                                    <h3 class="rider-full-name">${r.name}</h3>
+                                    <div class="rider-sub-meta">
+                                        <span>${r.country || '🏁 World'}</span> • <span>${r.category || 'MotoGP'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rider-rating-badge">
+                                <span class="ovr-num">${r.overallSkill}</span>
+                                <span class="ovr-label">OVR</span>
                             </div>
                         </div>
-                        <button class="btn-buy" data-skill="${s.id}">
-                            Train ($${cost.cash})
-                        </button>
-                    `;
 
-                    const btn = card.querySelector('.btn-buy');
-                    btn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        if (StaffSystem.upgradeRiderSkill(s.id)) {
-                            this.forceRender();
-                        }
-                    });
+                        <div class="rider-status-bar">
+                            ${injuryBadge}
+                            <span class="rider-style-tag">🎯 ${r.ridingStyle || 'Balanced Racer'}</span>
+                        </div>
 
-                    riderContainer.appendChild(card);
-                } else {
-                    const lbl = card.querySelector('.skill-label');
-                    if (lbl && lbl.textContent !== `${s.name} (Lvl ${s.lvl})`) lbl.textContent = `${s.name} (Lvl ${s.lvl})`;
+                        <div class="rider-fav-tracks">
+                            <small class="fav-label">Favorite Circuits:</small>
+                            <div class="fav-tags-wrap">${favTracksStr}</div>
+                        </div>
 
-                    const val = card.querySelector('.skill-val');
-                    if (val && val.textContent !== `${s.val} pts`) val.textContent = `${s.val} pts`;
+                        <div class="rider-skills-training-list">
+                            ${skillsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
-                    const btn = card.querySelector('.btn-buy');
-                    if (btn) {
-                        const btnText = `Train ($${cost.cash})`;
-                        if (btn.textContent.trim() !== btnText) btn.textContent = btnText;
-                        btn.disabled = !canAfford;
+            // Attach event listeners for skill train buttons
+            teamRidersContainer.querySelectorAll('.btn-train-skill').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const skillId = btn.getAttribute('data-skill');
+                    const slot = parseInt(btn.getAttribute('data-slot'), 10) || 0;
+                    if (StaffSystem.upgradeRiderSkill(skillId, slot)) {
+                        UIComponents.forceRender();
                     }
-                }
+                });
             });
         }
 

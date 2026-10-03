@@ -52,19 +52,92 @@ export const INITIAL_STATE = {
         reliability: 95 // % Machine reliability
     },
 
-    // Lead Rider
+    // Flag indicating whether user completed initial racer selection
+    selectedRacersChosen: false,
+
+    // Team Racers (2 Official Racers per team)
+    riders: [
+        {
+            id: "quiles",
+            name: "Máximo Quiles",
+            shortName: "M. Quiles",
+            number: 28,
+            team: "Your Factory Team",
+            country: "🇪🇸 Spain",
+            countryCode: "ESP",
+            category: "Moto3",
+            tier: 1,
+            overallSkill: 83,
+            speed: 86,
+            racecraft: 84,
+            cornering: 84,
+            braking: 85,
+            consistency: 82,
+            wetSkill: 72,
+            tireMgmt: 80,
+            aggression: 78,
+            bikeRating: 88,
+            corneringLvl: 1,
+            brakingLvl: 1,
+            consistencyLvl: 1,
+            wetLvl: 1,
+            injury: null,
+            form: 1.0,
+            favoriteTracks: ["jerez", "catalunya", "valencia", "aragon"],
+            ridingStyle: "High Braking Force & Red Bull Rookies Ace",
+            avatar: "🇪🇸 #28",
+            slot: 0,
+            isUser: true
+        },
+        {
+            id: "munoz_d",
+            name: "David Muñoz",
+            shortName: "D. Muñoz",
+            number: 64,
+            team: "Your Factory Team",
+            country: "🇪🇸 Spain",
+            countryCode: "ESP",
+            category: "Moto3",
+            tier: 1,
+            overallSkill: 83,
+            speed: 87,
+            racecraft: 88,
+            cornering: 86,
+            braking: 88,
+            consistency: 70,
+            wetSkill: 76,
+            tireMgmt: 73,
+            aggression: 92,
+            bikeRating: 85,
+            corneringLvl: 1,
+            brakingLvl: 1,
+            consistencyLvl: 1,
+            wetLvl: 1,
+            injury: null,
+            form: 1.0,
+            favoriteTracks: ["jerez", "sachsenring", "assen", "aragon"],
+            ridingStyle: "Fierce Inside Dive-Bomber & Fearless Combatant",
+            avatar: "🇪🇸 #64",
+            slot: 1,
+            isUser: true
+        }
+    ],
+
+    // Lead Rider (Synced with riders[0] for backward compatibility)
     rider: {
-        name: "Marco Rossi",
-        overallSkill: 60,
-        cornering: 58,
-        braking: 60,
-        consistency: 62,
-        wetSkill: 55,
+        id: "quiles",
+        name: "Máximo Quiles",
+        shortName: "M. Quiles",
+        overallSkill: 83,
+        cornering: 84,
+        braking: 85,
+        consistency: 82,
+        wetSkill: 72,
         corneringLvl: 1,
         brakingLvl: 1,
         consistencyLvl: 1,
         wetLvl: 1,
-        injury: null // e.g. { name: "Arm Pump Strain", penalty: 10, racesRemaining: 2 }
+        injury: null
     },
 
     // Crew & Engineers
@@ -130,20 +203,34 @@ export const INITIAL_STATE = {
 class GameStateStore {
     constructor() {
         this.state = JSON.parse(JSON.stringify(INITIAL_STATE));
+        this.syncRiders();
         this.listeners = [];
     }
 
+    syncRiders() {
+        if (!this.state.riders || !Array.isArray(this.state.riders) || this.state.riders.length === 0) {
+            this.state.riders = JSON.parse(JSON.stringify(INITIAL_STATE.riders));
+        }
+        if (this.state.riders.length === 1) {
+            this.state.riders.push(JSON.parse(JSON.stringify(INITIAL_STATE.riders[1])));
+        }
+        this.state.rider = this.state.riders[0];
+    }
+
     getState() {
+        this.syncRiders();
         return this.state;
     }
 
     setState(newState) {
         this.state = { ...this.state, ...newState };
+        this.syncRiders();
         this.notify();
     }
 
     update(updaterFn) {
         updaterFn(this.state);
+        this.syncRiders();
         this.notify();
     }
 
@@ -166,6 +253,7 @@ class GameStateStore {
 
     resetState() {
         this.state = JSON.parse(JSON.stringify(INITIAL_STATE));
+        this.syncRiders();
         this.notify();
     }
 }

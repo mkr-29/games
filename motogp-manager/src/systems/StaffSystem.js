@@ -46,9 +46,10 @@ export const CREW_TYPES = [
 ];
 
 export class StaffSystem {
-    static getRiderSkillCost(skillType) {
+    static getRiderSkillCost(skillType, riderSlot = 0) {
         const state = gameState.getState();
-        const r = state.rider;
+        const r = (state.riders && state.riders[riderSlot]) ? state.riders[riderSlot] : state.rider;
+        if (!r) return { cash: 100 };
         const levelKey = `${skillType}Lvl`;
         const currentLvl = r[levelKey] || 1;
         return {
@@ -56,22 +57,32 @@ export class StaffSystem {
         };
     }
 
-    static upgradeRiderSkill(skillType) {
+    static upgradeRiderSkill(skillType, riderSlot = 0) {
         const state = gameState.getState();
-        const r = state.rider;
-        const cost = this.getRiderSkillCost(skillType);
+        const r = (state.riders && state.riders[riderSlot]) ? state.riders[riderSlot] : state.rider;
+        if (!r) return false;
+
+        const cost = this.getRiderSkillCost(skillType, riderSlot);
 
         if (state.cash < cost.cash) return false;
 
         state.cash -= cost.cash;
         const levelKey = `${skillType}Lvl`;
         r[levelKey] = (r[levelKey] || 1) + 1;
-        r[skillType] += 3; // +3 stat per level
+        r[skillType] = (r[skillType] || 75) + 3; // +3 stat per level
 
         // Recalculate overall rider skill
-        r.overallSkill = Math.round((r.cornering + r.braking + r.consistency + r.wetSkill) / 4);
+        const c = r.cornering || 80;
+        const b = r.braking || 80;
+        const co = r.consistency || 80;
+        const w = r.wetSkill || 75;
+        r.overallSkill = Math.round((c + b + co + w) / 4);
 
-        gameState.addLog(`🏎️ Rider ${r.name} improved ${skillType.toUpperCase()} (Lvl ${r[levelKey]})!`);
+        if (riderSlot === 0) {
+            state.rider = r;
+        }
+
+        gameState.addLog(`🏎️ Racer ${r.name} (#${r.number || (riderSlot + 1)}) improved ${skillType.toUpperCase()} (Lvl ${r[levelKey]})!`);
         return true;
     }
 
@@ -105,12 +116,22 @@ export class StaffSystem {
         const crewDef = CREW_TYPES.find(c => c.id === crewId);
 
         if (crewId === 'physio_trainer') {
-            state.rider.consistency += 5;
-            state.rider.overallSkill = Math.round((state.rider.cornering + state.rider.braking + state.rider.consistency + state.rider.wetSkill) / 4);
-            if (state.rider.injury) {
-                gameState.addLog(`🩺 Physio Trainer treated ${state.rider.name}'s ${state.rider.injury.name}! Injury healed.`);
-                state.rider.injury = null;
-            }
+            const teamRiders = state.riders || [state.rider];
+            teamRiders.forEach(r => {
+                if (r) {
+                    r.consistency = (r.consistency || 75) + 5;
+                    const c = r.cornering || 80;
+                    const b = r.braking || 80;
+                    const co = r.consistency || 80;
+                    const w = r.wetSkill || 75;
+                    r.overallSkill = Math.round((c + b + co + w) / 4);
+                    if (r.injury) {
+                        gameState.addLog(`🩺 Physio Trainer treated ${r.name}'s ${r.injury.name}! Injury fully healed.`);
+                        r.injury = null;
+                    }
+                }
+            });
+            state.rider = teamRiders[0];
         }
 
         gameState.addLog(`👨‍🔧 Hired ${crewDef.name} (Level ${state.crew[crewId]})!`);

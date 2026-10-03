@@ -3408,4 +3408,823 @@ html, body {
     color: var(--text-main);
 }
 
+/* ==========================================
+   OFFICIAL RACER SELECTION MODAL & DOCK
+   ========================================== */
+.racer-selection-window {
+    max-width: 1100px;
+    width: 95vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, rgba(14, 18, 28, 0.98), rgba(8, 11, 18, 0.99));
+    border: 1px solid rgba(0, 210, 255, 0.35);
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 210, 255, 0.15);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.racer-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px 20px 24px;
+    overflow-y: auto;
+}
+
+/* Selected Racers Top Dock */
+.selected-racers-dock {
+    background: rgba(18, 24, 38, 0.85);
+    border: 1px solid rgba(0, 210, 255, 0.25);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.dock-slots-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+}
+
+.dock-slot-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.dock-vs-badge {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: var(--accent-gold);
+    background: rgba(255, 184, 0, 0.12);
+    border: 1px solid rgba(255, 184, 0, 0.3);
+    padding: 6px 10px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    letter-spacing: 1px;
+}
+
+.dock-racer-card {
+    position: relative;
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dock-racer-card.empty-slot {
+    border: 2px dashed rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.02);
+    min-height: 80px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.dock-racer-card.empty-slot .empty-icon {
+    font-size: 1.2rem;
+    margin-bottom: 2px;
+    opacity: 0.6;
+}
+
+.dock-racer-card.empty-slot .empty-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.dock-racer-card.active-slot {
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.12), rgba(0, 100, 255, 0.06));
+    border: 1px solid var(--accent-cyan);
+    box-shadow: 0 2px 12px rgba(0, 210, 255, 0.18);
+}
+
+.dock-slot-tag {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+}
+
+.dock-racer-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dock-num {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 900;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 2px 8px;
+    border-radius: 6px;
+    line-height: 1.2;
+}
+
+.dock-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.dock-meta strong {
+    font-size: 0.92rem;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dock-meta small {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.dock-ovr {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--accent-green);
+    background: rgba(0, 230, 118, 0.12);
+    border: 1px solid rgba(0, 230, 118, 0.3);
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.btn-dock-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(255, 68, 68, 0.15);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    color: #ff5252;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-dock-remove:hover {
+    background: #ff5252;
+    color: #fff;
+    transform: scale(1.1);
+}
+
+.dock-action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 10px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.dock-status-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.selection-counter {
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.selection-counter.ready {
+    background: rgba(0, 230, 118, 0.18);
+    color: var(--accent-green);
+    border-color: var(--accent-green);
+}
+
+.dock-hint {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+}
+
+.dock-buttons-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-secondary-paddock {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #e0e0e0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-secondary-paddock:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.btn-confirm-lineup {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+    border: none;
+    color: #000;
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 800;
+    padding: 9px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-confirm-lineup:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 230, 118, 0.5);
+}
+
+.btn-confirm-lineup:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Filters and Search Bar */
+.racer-filters-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(12, 16, 26, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 8px 14px;
+    flex-wrap: wrap;
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 220px;
+}
+
+.search-input-wrapper .search-icon {
+    position: absolute;
+    left: 10px;
+    font-size: 0.85rem;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.search-input-wrapper input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 7px 10px 7px 32px;
+    color: #fff;
+    font-size: 0.84rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.search-input-wrapper input:focus {
+    border-color: var(--accent-cyan);
+}
+
+.racer-cat-chips-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.racer-cat-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.racer-cat-chip:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.racer-cat-chip.active {
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.25), rgba(0, 100, 255, 0.25));
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
+}
+
+.racer-sort-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.racer-sort-wrapper select {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 0.8rem;
+    padding: 5px 8px;
+    border-radius: 6px;
+    outline: none;
+}
+
+/* Racers Cards Grid */
+.racer-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    max-height: 52vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.racer-selection-card {
+    background: rgba(18, 22, 34, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.racer-selection-card:hover {
+    background: rgba(24, 30, 48, 0.95);
+    border-color: rgba(0, 210, 255, 0.4);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.racer-selection-card.selected {
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.12), rgba(0, 230, 118, 0.08));
+    border: 1.5px solid var(--accent-cyan);
+    box-shadow: 0 0 16px rgba(0, 210, 255, 0.25);
+}
+
+.racer-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.racer-num-badge {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 2px 7px;
+    border-radius: 6px;
+}
+
+.racer-cat-badge {
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.racer-cat-badge.cat-motogp {
+    background: rgba(255, 59, 48, 0.18);
+    color: #ff5252;
+    border: 1px solid rgba(255, 59, 48, 0.35);
+}
+
+.racer-cat-badge.cat-moto2 {
+    background: rgba(0, 122, 255, 0.18);
+    color: #40a9ff;
+    border: 1px solid rgba(0, 122, 255, 0.35);
+}
+
+.racer-cat-badge.cat-moto3 {
+    background: rgba(52, 199, 89, 0.18);
+    color: #52c41a;
+    border: 1px solid rgba(52, 199, 89, 0.35);
+}
+
+.racer-ovr-pill {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: var(--accent-gold);
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+}
+
+.racer-ovr-pill small {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+}
+
+.racer-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.racer-card-name {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.racer-card-sub {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.racer-card-style {
+    font-size: 0.70rem;
+    color: var(--accent-cyan);
+    margin-top: 2px;
+}
+
+.racer-card-stats-mini {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 8px 10px;
+    border-radius: 6px;
+}
+
+.stat-mini-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+}
+
+.stat-mini-bar .lbl {
+    font-weight: 700;
+    color: var(--text-muted);
+    width: 32px;
+}
+
+.stat-mini-bar .bar-track {
+    flex: 1;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.stat-mini-bar .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+    border-radius: 3px;
+}
+
+.stat-mini-bar .val {
+    font-weight: 800;
+    color: #fff;
+    width: 20px;
+    text-align: right;
+}
+
+.racer-card-bottom {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 2px;
+}
+
+.btn-select-racer {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    width: 100%;
+}
+
+.racer-selection-card:hover .btn-select-racer {
+    background: var(--accent-cyan);
+    color: #000;
+    border-color: var(--accent-cyan);
+}
+
+.slot-badge {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+    color: #000;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 6px;
+    width: 100%;
+    text-align: center;
+}
+
+.racer-empty-search {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 30px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* ==========================================
+   TAB 3: DUAL TEAM RIDERS CONTAINER & CARDS
+   ========================================== */
+.team-riders-dual-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.team-rider-card {
+    background: rgba(18, 22, 34, 0.9);
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.rider-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 12px;
+}
+
+.rider-slot-pill {
+    position: absolute;
+    top: -8px;
+    left: 0;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--accent-cyan);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.rider-id-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.rider-number-circle {
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1.5px solid var(--accent-cyan);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.rider-title-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.rider-full-name {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.rider-sub-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.rider-rating-badge {
+    background: rgba(255, 184, 0, 0.12);
+    border: 1px solid rgba(255, 184, 0, 0.35);
+    padding: 6px 10px;
+    border-radius: 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.rider-rating-badge .ovr-num {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: var(--accent-gold);
+    line-height: 1;
+}
+
+.rider-rating-badge .ovr-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.rider-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+}
+
+.rider-healthy-badge {
+    background: rgba(0, 230, 118, 0.12);
+    color: var(--accent-green);
+    border: 1px solid rgba(0, 230, 118, 0.3);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+}
+
+.rider-injury-badge {
+    background: rgba(255, 68, 68, 0.18);
+    color: #ff5252;
+    border: 1px solid rgba(255, 68, 68, 0.4);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+}
+
+.rider-style-tag {
+    color: var(--text-muted);
+    font-size: 0.74rem;
+}
+
+.rider-fav-tracks {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+}
+
+.fav-label {
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.fav-tags-wrap {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.fav-track-tag {
+    color: var(--accent-cyan);
+    font-weight: 700;
+}
+
+.rider-skills-training-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rider-skill-row {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.rider-skill-row .skill-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.rider-skill-row .skill-name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rider-skill-row .skill-lvl-tag {
+    font-size: 0.65rem;
+    color: var(--accent-cyan);
+    background: rgba(0, 210, 255, 0.12);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.rider-skill-row .skill-score {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.btn-train-skill {
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(0, 100, 255, 0.2));
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.btn-train-skill:hover:not(:disabled) {
+    background: var(--accent-cyan);
+    color: #000;
+    box-shadow: 0 2px 8px rgba(0, 210, 255, 0.4);
+}
+
+.btn-train-skill:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+
 

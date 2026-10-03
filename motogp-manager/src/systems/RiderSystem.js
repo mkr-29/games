@@ -1,5 +1,9 @@
 // RiderSystem.js - Authentic MotoGP Paddock Rider Database, Stats, Favorite Tracks, Form & Injury Engine
 
+import officialRacersData from '../data/official_racers.json' with { type: 'json' };
+
+export const OFFICIAL_RACERS = officialRacersData.racers || [];
+
 export const MOTO3_RIDERS_DB = [
     { id: 'quiles', name: 'M. Quiles', team: 'CFMOTO Aspar Team', speed: 86, racecraft: 84, consistency: 82, wetSkill: 72, tireMgmt: 80, aggression: 78, bikeRating: 88, favoriteTracks: ['jerez', 'catalunya', 'valencia', 'aragon'] },
     { id: 'morelli', name: 'M. Morelli', team: 'CFMOTO Aspar Team', speed: 79, racecraft: 77, consistency: 75, wetSkill: 78, tireMgmt: 74, aggression: 70, bikeRating: 88, favoriteTracks: ['argentina', 'mugello', 'misano'] },
@@ -141,6 +145,50 @@ export const INJURY_TYPES = [
 ];
 
 export class RiderSystem {
+    static getOfficialRacers() {
+        return OFFICIAL_RACERS;
+    }
+
+    static getRacerById(id) {
+        return OFFICIAL_RACERS.find(r => r.id === id) || null;
+    }
+
+    static formatRiderForTeam(racerData, slotIndex = 0) {
+        if (!racerData) return null;
+        return {
+            id: racerData.id,
+            name: racerData.name,
+            shortName: racerData.shortName || racerData.name,
+            number: racerData.number || 99,
+            country: racerData.country || "🏁 World",
+            countryCode: racerData.countryCode || "WLD",
+            category: racerData.category || "MotoGP",
+            tier: racerData.tier || 1,
+            team: "Your Factory Team",
+            overallSkill: racerData.overallSkill || 80,
+            speed: racerData.speed || 80,
+            racecraft: racerData.racecraft || 80,
+            cornering: racerData.speed || 80,
+            braking: racerData.racecraft || 80,
+            consistency: racerData.consistency || 80,
+            wetSkill: racerData.wetSkill || 75,
+            tireMgmt: racerData.tireMgmt || 80,
+            aggression: racerData.aggression || 80,
+            bikeRating: racerData.bikeRating || 85,
+            corneringLvl: 1,
+            brakingLvl: 1,
+            consistencyLvl: 1,
+            wetLvl: 1,
+            injury: null,
+            form: 1.0,
+            favoriteTracks: racerData.favoriteTracks ? [...racerData.favoriteTracks] : [],
+            ridingStyle: racerData.ridingStyle || "Dynamic Paddock Racer",
+            avatar: racerData.avatar || `🏎️ #${racerData.number || 99}`,
+            slot: slotIndex,
+            isUser: true
+        };
+    }
+
     static getTierDatabase(tier) {
         if (tier === 1) return MOTO3_RIDERS_DB;
         if (tier === 2) return MOTO2_RIDERS_DB;

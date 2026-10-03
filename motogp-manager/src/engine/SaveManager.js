@@ -30,7 +30,8 @@ export class SaveManager {
                 ...parsed,
                 producers: { ...INITIAL_STATE.producers, ...(parsed.producers || {}) },
                 bike: { ...INITIAL_STATE.bike, ...(parsed.bike || {}) },
-                rider: { ...INITIAL_STATE.rider, ...(parsed.rider || {}) },
+                riders: (parsed.riders && Array.isArray(parsed.riders) && parsed.riders.length >= 2) ? parsed.riders : INITIAL_STATE.riders,
+                rider: (parsed.riders && parsed.riders[0]) ? parsed.riders[0] : (parsed.rider || INITIAL_STATE.rider),
                 crew: { ...INITIAL_STATE.crew, ...(parsed.crew || {}) },
                 raceState: { ...INITIAL_STATE.raceState, ...(parsed.raceState || {}) }
             };
