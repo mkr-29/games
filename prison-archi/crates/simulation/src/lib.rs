@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod construction;
 pub mod ecs;
 pub mod grid;
@@ -5,6 +6,7 @@ pub mod memory;
 pub mod rooms;
 pub mod utilities;
 
+pub use ai::*;
 pub use construction::*;
 pub use ecs::*;
 pub use grid::*;

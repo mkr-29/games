@@ -6,7 +6,7 @@
 
 ## Task Matrix & Checklist
 
-- [ ] **Task 4.1:** Flow Field (Dijkstra Vector Map) Generator & Door Weighting
+- [x] **Task 4.1:** Flow Field (Dijkstra Vector Map) Generator & Door Weighting
 - [ ] **Task 4.2:** 15-Need Psychology Engine & Global Danger Bar Calculus
 - [ ] **Task 4.3:** Utility AI Behavior Scoring & Action State Machine
 - [ ] **Task 4.4:** 24-Hour Master Regime Timetable & Emergency Overrides
