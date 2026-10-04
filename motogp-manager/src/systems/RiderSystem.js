@@ -1,6 +1,5 @@
-// RiderSystem.js - Authentic MotoGP Paddock Rider Database, Stats, Favorite Tracks, Form & Injury Engine
-
 import officialRacersData from '../data/official_racers.json' with { type: 'json' };
+import { gameState } from '../engine/GameState.js';
 
 export const OFFICIAL_RACERS = officialRacersData.racers || [];
 
@@ -196,16 +195,27 @@ export class RiderSystem {
     }
 
     /**
-     * Initializes or updates persistent paddock state (injuries, form, replacement riders)
+     * Initializes or updates persistent paddock state (injuries, form, replacement riders, AI team R&D and rider upgrades)
      */
     static getPaddockState() {
+        if (typeof gameState !== 'undefined' && gameState && typeof gameState.getState === 'function') {
+            const state = gameState.getState();
+            if (state && state.paddockState) {
+                if (!state.paddockState.riders) state.paddockState.riders = {};
+                if (!state.paddockState.teams) state.paddockState.teams = {};
+                return state.paddockState;
+            }
+        }
         const root = typeof window !== 'undefined' ? window : globalThis;
         if (!root._motogpPaddockState) {
             root._motogpPaddockState = {
                 riders: {},
+                teams: {},
                 lastRoundIndex: -1
             };
         }
+        if (!root._motogpPaddockState.riders) root._motogpPaddockState.riders = {};
+        if (!root._motogpPaddockState.teams) root._motogpPaddockState.teams = {};
         return root._motogpPaddockState;
     }
 
@@ -213,42 +223,46 @@ export class RiderSystem {
      * Calculates realistic dynamic performance score for a rider at a specific circuit
      */
     static calculateRiderPerformanceScore(rider, circuitId, weather, currentTier) {
-        // Base team machine power (40%) + Rider core speed (45%)
-        const bikeRating = rider.bikeRating || 85;
-        const speedRating = rider.speed || 80;
-        const racecraftRating = rider.racecraft || 80;
-        const consistencyRating = rider.consistency || 80;
+        const paddock = this.getPaddockState();
+        const riderPaddock = (paddock.riders && paddock.riders[rider.id]) || { form: 1.0, injury: null, speedBonus: 0, racecraftBonus: 0, consistencyBonus: 0 };
+        const teamPaddock = (rider.team && paddock.teams && paddock.teams[rider.team]) || { bikeBonus: 0 };
 
-        let score = (bikeRating * 0.40) + (speedRating * 0.45) + (racecraftRating * 0.10) + (consistencyRating * 0.05);
+        // Machine power + AI R&D upgrade bonus
+        const bikeRating = (rider.bikeRating || 85) + (teamPaddock.bikeBonus || 0);
+        
+        // Rider core speed & racecraft + AI rider experience upgrade bonus
+        const speedRating = (rider.speed || 80) + (riderPaddock.speedBonus || 0);
+        const racecraftRating = (rider.racecraft || 80) + (riderPaddock.racecraftBonus || 0);
+        const consistencyRating = (rider.consistency || 80) + (riderPaddock.consistencyBonus || 0);
 
-        // Favorite / Home Track Specialist Bonus (+3.0 to +5.5 points, approx 0.3s - 0.6s per lap!)
+        let score = (bikeRating * 0.45) + (speedRating * 0.45) + (racecraftRating * 0.06) + (consistencyRating * 0.04);
+
+        // Favorite / Home Track Specialist Bonus (+1.5 to +2.5 points)
         if (rider.favoriteTracks && rider.favoriteTracks.includes(circuitId)) {
-            score += 4.2;
+            score += 2.0;
         }
 
         // Wet Weather Mastery Bonus
         if (weather === 'wet') {
             const wetSkill = rider.wetSkill || 75;
-            const wetDelta = (wetSkill - 75) * 0.25;
+            const wetDelta = (wetSkill - 75) * 0.06;
             score += wetDelta;
         }
 
-        // Dynamic Form / Confidence Variance (+/- 2.5 points)
-        const paddock = this.getPaddockState();
-        const riderPaddock = paddock.riders[rider.id] || { form: 1.0, injury: null };
+        // Dynamic Form / Confidence Variance (+/- 1.5 points)
         const formMultiplier = riderPaddock.form || 1.0;
-        score = score * (0.95 + (formMultiplier * 0.05));
+        score = score * (0.97 + (formMultiplier * 0.03));
 
         // Injury Penalty
         if (riderPaddock.injury && riderPaddock.injury.severity === 'minor') {
-            score -= riderPaddock.injury.penalty;
+            score -= (riderPaddock.injury.penalty * 0.4);
         }
 
         // Session natural variance
-        const sessionVariance = (Math.random() * 2.8) - 1.4;
+        const sessionVariance = (Math.random() * 1.6) - 0.8;
         score += sessionVariance;
 
-        return Math.max(50, Math.min(99.8, score));
+        return Math.max(50, Math.min(99.5, score));
     }
 
     /**
@@ -272,29 +286,68 @@ export class RiderSystem {
     }
 
     /**
-     * Advances paddock injury recovery & form after each completed Grand Prix weekend
+     * Advances paddock AI team R&D, rider skill progression, injury recovery & form after each completed Grand Prix weekend
      */
     static advancePaddockAfterRace(tier, completedGPIndex) {
         const paddock = this.getPaddockState();
         const tierRiders = this.getTierDatabase(tier);
 
+        // 1. Advance AI Team Bike R&D Upgrades
+        const teamsProcessed = new Set();
+        tierRiders.forEach(r => {
+            if (!r.team || teamsProcessed.has(r.team)) return;
+            teamsProcessed.add(r.team);
+
+            if (!paddock.teams[r.team]) {
+                paddock.teams[r.team] = {
+                    bikeBonus: 0,
+                    rAndDCount: 0
+                };
+            }
+
+            const pTeam = paddock.teams[r.team];
+            // Continuous R&D upgrade progression: +0.35 to +0.75 rating points per completed Grand Prix (max +9.0)
+            const upgradeAmount = 0.35 + (Math.random() * 0.40);
+            pTeam.bikeBonus = Math.min(9.0, (pTeam.bikeBonus || 0) + upgradeAmount);
+            pTeam.rAndDCount = (pTeam.rAndDCount || 0) + 1;
+        });
+
+        // 2. Advance AI Rider Skill Upgrades, Form & Injuries
         tierRiders.forEach(r => {
             if (!paddock.riders[r.id]) {
-                paddock.riders[r.id] = { form: 1.0 + (Math.random() * 0.08 - 0.04), injury: null };
+                paddock.riders[r.id] = {
+                    form: 1.0 + (Math.random() * 0.08 - 0.04),
+                    injury: null,
+                    speedBonus: 0,
+                    racecraftBonus: 0,
+                    consistencyBonus: 0,
+                    tireMgmtBonus: 0
+                };
             }
 
             const pRider = paddock.riders[r.id];
+
+            // AI Rider continuous training & racecraft evolution: +0.25 to +0.55 points per GP (max +6.0)
+            const speedGain = 0.20 + (Math.random() * 0.30);
+            const racecraftGain = 0.20 + (Math.random() * 0.30);
+            const consistencyGain = 0.15 + (Math.random() * 0.25);
+            const tireMgmtGain = 0.15 + (Math.random() * 0.25);
+
+            pRider.speedBonus = Math.min(6.0, (pRider.speedBonus || 0) + speedGain);
+            pRider.racecraftBonus = Math.min(6.0, (pRider.racecraftBonus || 0) + racecraftGain);
+            pRider.consistencyBonus = Math.min(6.0, (pRider.consistencyBonus || 0) + consistencyGain);
+            pRider.tireMgmtBonus = Math.min(6.0, (pRider.tireMgmtBonus || 0) + tireMgmtGain);
 
             // Heal injuries
             if (pRider.injury) {
                 pRider.injury.racesRemaining -= 1;
                 if (pRider.injury.racesRemaining <= 0) {
                     pRider.injury = null;
-                    pRider.form = Math.min(1.10, pRider.form + 0.05);
+                    pRider.form = Math.min(1.10, (pRider.form || 1.0) + 0.05);
                 }
             } else {
                 // Natural form oscillation towards mean (1.0)
-                pRider.form = (pRider.form * 0.70) + (1.0 * 0.30) + (Math.random() * 0.04 - 0.02);
+                pRider.form = ((pRider.form || 1.0) * 0.70) + (1.0 * 0.30) + (Math.random() * 0.04 - 0.02);
             }
         });
 
@@ -303,6 +356,7 @@ export class RiderSystem {
 
     /**
      * Gets the active grid roster for the current Grand Prix, replacing sidelined injured riders with reserve riders
+     * and applying active team R&D and rider upgrades.
      */
     static getActiveGridRoster(tier) {
         const tierRiders = this.getTierDatabase(tier);
@@ -310,9 +364,16 @@ export class RiderSystem {
         const reserves = RESERVE_RIDERS[tier] || RESERVE_RIDERS[1];
         let reserveIdx = 0;
 
-        return tierRiders.map((r, idx) => {
-            const pRider = paddock.riders[r.id];
+        return tierRiders.map((r) => {
+            const pRider = paddock.riders && paddock.riders[r.id];
+            const pTeam = paddock.teams && paddock.teams[r.team];
             const isSidelined = pRider && pRider.injury && pRider.injury.severity === 'sidelined' && pRider.injury.racesRemaining > 0;
+
+            const activeBikeRating = (r.bikeRating || 85) + (pTeam ? (pTeam.bikeBonus || 0) : 0);
+            const activeSpeed = (r.speed || 80) + (pRider ? (pRider.speedBonus || 0) : 0);
+            const activeRacecraft = (r.racecraft || 80) + (pRider ? (pRider.racecraftBonus || 0) : 0);
+            const activeConsistency = (r.consistency || 80) + (pRider ? (pRider.consistencyBonus || 0) : 0);
+            const activeTireMgmt = (r.tireMgmt || 80) + (pRider ? (pRider.tireMgmtBonus || 0) : 0);
 
             if (isSidelined) {
                 const sub = reserves[reserveIdx % reserves.length];
@@ -328,7 +389,7 @@ export class RiderSystem {
                     wetSkill: sub.wetSkill,
                     tireMgmt: sub.tireMgmt,
                     aggression: sub.aggression,
-                    bikeRating: r.bikeRating,
+                    bikeRating: activeBikeRating,
                     favoriteTracks: [],
                     isReplacement: true,
                     sidelinedRider: r,
@@ -338,6 +399,11 @@ export class RiderSystem {
 
             return {
                 ...r,
+                speed: activeSpeed,
+                racecraft: activeRacecraft,
+                consistency: activeConsistency,
+                tireMgmt: activeTireMgmt,
+                bikeRating: activeBikeRating,
                 isReplacement: false,
                 injury: pRider ? pRider.injury : null
             };

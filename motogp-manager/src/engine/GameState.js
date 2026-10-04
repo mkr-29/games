@@ -203,6 +203,13 @@ export const INITIAL_STATE = {
         activeIncident: null // Prompt object for mid-race choices
     },
 
+    // Persistent Paddock State (AI rival team R&D upgrades & rider skill progression)
+    paddockState: {
+        riders: {},
+        teams: {},
+        lastRoundIndex: -1
+    },
+
     // Heritage / Prestige Perks Owned
     heritagePerks: [],
     totalPrestigeResets: 0,
@@ -228,6 +235,12 @@ class GameStateStore {
             this.state.riders.push(JSON.parse(JSON.stringify(INITIAL_STATE.riders[1])));
         }
         this.state.rider = this.state.riders[0];
+
+        if (!this.state.paddockState || typeof this.state.paddockState !== 'object') {
+            this.state.paddockState = { riders: {}, teams: {}, lastRoundIndex: -1 };
+        }
+        if (!this.state.paddockState.riders) this.state.paddockState.riders = {};
+        if (!this.state.paddockState.teams) this.state.paddockState.teams = {};
 
         if (!this.state.raceState) {
             this.state.raceState = JSON.parse(JSON.stringify(INITIAL_STATE.raceState));

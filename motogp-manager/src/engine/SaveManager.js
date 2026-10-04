@@ -36,6 +36,7 @@ export class SaveManager {
                 activeUpgrades: parsed.activeUpgrades || {},
                 refinedTechs: parsed.refinedTechs || {},
                 riderTraining: parsed.riderTraining || {},
+                paddockState: { ...INITIAL_STATE.paddockState, ...(parsed.paddockState || {}) },
                 raceState: { ...INITIAL_STATE.raceState, ...(parsed.raceState || {}) }
             };
 

@@ -235,18 +235,20 @@ export class RaceSystem {
     }
 
     static simulateHotLap(score, consistency = 75, baseTrackSec, sectorRatios) {
-        const paceOffset = (92 - score) * (baseTrackSec * 0.0018);
+        const boundedScore = Math.max(50, Math.min(100, score));
+        const scoreDelta = Math.max(-12, Math.min(12, 90 - boundedScore));
+        const paceOffset = scoreDelta * (baseTrackSec * 0.00075);
         let bestLap = 999;
         let bestSectors = [];
 
         for (let lap = 1; lap <= 3; lap++) {
-            const variance = ((Math.random() - 0.5) * 2) * ((105 - consistency) * 0.006);
+            const variance = ((Math.random() - 0.5) * 2) * ((105 - consistency) * 0.0035);
             const lapSec = baseTrackSec + paceOffset + variance;
             if (lapSec < bestLap) {
                 bestLap = lapSec;
-                const s1 = bestLap * sectorRatios[0] + (Math.random() * 0.1 - 0.05);
-                const s2 = bestLap * sectorRatios[1] + (Math.random() * 0.1 - 0.05);
-                const s3 = bestLap * sectorRatios[2] + (Math.random() * 0.1 - 0.05);
+                const s1 = bestLap * sectorRatios[0] + (Math.random() * 0.06 - 0.03);
+                const s2 = bestLap * sectorRatios[1] + (Math.random() * 0.06 - 0.03);
+                const s3 = bestLap * sectorRatios[2] + (Math.random() * 0.06 - 0.03);
                 const s4 = bestLap - (s1 + s2 + s3);
                 bestSectors = [s1, s2, s3, s4];
             }
@@ -268,12 +270,12 @@ export class RaceSystem {
         const baseTrackSec = gp.baseSec * tierMult;
 
         let trackBonus = 0;
-        if (gp.favors === 'hp') trackBonus = (bikeStats.hp - 55) * 0.30;
-        if (gp.favors === 'aero') trackBonus = (bikeStats.aero - 10) * 0.65;
-        if (gp.favors === 'chassis') trackBonus = (bikeStats.chassis - 15) * 0.65;
-        if (gp.favors === 'ecu') trackBonus = (bikeStats.ecu - 5) * 0.90;
+        if (gp.favors === 'hp') trackBonus = (bikeStats.hpProgress || 0) * 2.2;
+        if (gp.favors === 'aero') trackBonus = (bikeStats.aeroProgress || 0) * 2.2;
+        if (gp.favors === 'chassis') trackBonus = (bikeStats.chassisProgress || 0) * 2.2;
+        if (gp.favors === 'ecu') trackBonus = (bikeStats.ecuProgress || 0) * 2.2;
 
-        const setupBonus = ((rs.setupMatch || 75) - 70) * 0.15;
+        const setupBonus = (((rs.setupMatch || 75) - 70) / 30) * 1.5;
         const tierRiders = this.getTierRiders(state.tier);
 
         const practiceList = tierRiders.map(ai => {
@@ -309,17 +311,17 @@ export class RaceSystem {
         const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
         userRiders.forEach((uRider, uIdx) => {
             let riderSkill = uRider.overallSkill || 80;
-            if (uRider.injury) riderSkill = Math.max(20, riderSkill - uRider.injury.penalty);
+            if (uRider.injury) riderSkill = Math.max(20, riderSkill - (uRider.injury.penalty * 0.4));
 
             let uTrackBonus = trackBonus;
             if (uRider.favoriteTracks && uRider.favoriteTracks.includes(gp.id)) {
-                uTrackBonus += 3.5;
+                uTrackBonus += 1.8;
             }
             if (rs.weather === 'wet') {
-                uTrackBonus += ((uRider.wetSkill || 75) - 75) * 0.25;
+                uTrackBonus += ((uRider.wetSkill || 75) - 75) * 0.06;
             }
 
-            const userScore = (bikeStats.overallRating * 0.45) + (riderSkill * 0.45) + uTrackBonus + setupBonus;
+            const userScore = (bikeStats.overallRating * 0.50) + (riderSkill * 0.50) + uTrackBonus + setupBonus;
             const userConsistency = uRider.consistency || 70;
             const { bestLap: userBestLap, bestSectors: userBestSectors } = this.simulateHotLap(userScore, userConsistency, baseTrackSec, gp.sectorRatios);
 
@@ -821,27 +823,29 @@ export class RaceSystem {
                 const uRiderObj = (state.riders && state.riders[uSlot]) || state.rider;
                 let userSkill = uRiderObj.overallSkill || 80;
                 if (uRiderObj.injury) {
-                    userSkill = Math.max(20, userSkill - uRiderObj.injury.penalty);
+                    userSkill = Math.max(20, userSkill - (uRiderObj.injury.penalty * 0.4));
                 }
 
                 let trackBonus = 0;
-                if (gp.favors === 'hp') trackBonus = (bikeStats.hp - 55) * 0.30;
-                if (gp.favors === 'aero') trackBonus = (bikeStats.aero - 10) * 0.65;
-                if (gp.favors === 'chassis') trackBonus = (bikeStats.chassis - 15) * 0.65;
-                if (gp.favors === 'ecu') trackBonus = (bikeStats.ecu - 5) * 0.90;
+                if (gp.favors === 'hp') trackBonus = (bikeStats.hpProgress || 0) * 2.2;
+                if (gp.favors === 'aero') trackBonus = (bikeStats.aeroProgress || 0) * 2.2;
+                if (gp.favors === 'chassis') trackBonus = (bikeStats.chassisProgress || 0) * 2.2;
+                if (gp.favors === 'ecu') trackBonus = (bikeStats.ecuProgress || 0) * 2.2;
                 if (uRiderObj.favoriteTracks && uRiderObj.favoriteTracks.includes(gp.id)) {
-                    trackBonus += 3.5;
+                    trackBonus += 1.8;
                 }
                 if (rs.weather === 'wet') {
-                    trackBonus += ((uRiderObj.wetSkill || 75) - 75) * 0.25;
+                    trackBonus += ((uRiderObj.wetSkill || 75) - 75) * 0.06;
                 }
 
-                const setupBonus = ((rs.setupMatch || 75) - 70) * 0.15;
-                riderScore = (bikeStats.overallRating * 0.45) + (userSkill * 0.45) + trackBonus + setupBonus;
+                const setupBonus = (((rs.setupMatch || 75) - 70) / 30) * 1.5;
+                riderScore = (bikeStats.overallRating * 0.50) + (userSkill * 0.50) + trackBonus + setupBonus;
                 consistency = uRiderObj.consistency || 70;
             }
 
-            const paceOffset = (92 - riderScore) * (baseBenchmarkSec * 0.0016);
+            const boundedScore = Math.max(50, Math.min(100, riderScore));
+            const scoreDelta = Math.max(-12, Math.min(12, 90 - boundedScore));
+            const paceOffset = scoreDelta * (baseBenchmarkSec * 0.00075);
             let lapPace = baseBenchmarkSec + paceOffset + trackEvolution + fuelWeightDelta;
 
             // Lap 1 Standing Start
@@ -883,8 +887,8 @@ export class RaceSystem {
             lapPace += (compoundDef.paceDelta + tirePaceLoss);
 
             // Strategy power delta
-            if (strategy === 'push') lapPace -= (rs.sessionType === 'SPRINT' ? 0.58 : 0.52);
-            if (strategy === 'conserve') lapPace += 0.44;
+            if (strategy === 'push') lapPace -= (rs.sessionType === 'SPRINT' ? 0.22 : 0.18);
+            if (strategy === 'conserve') lapPace += 0.16;
 
             // Yellow flag caution delta in sector
             if (rs.flagState && rs.flagState.status === 'YELLOW') {
