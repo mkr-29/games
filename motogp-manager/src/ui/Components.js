@@ -50,6 +50,18 @@ export class UIComponents {
                 this.forceRender(true);
             }
         });
+
+        // Team Riders Skill Training (Delegated Handler - smooth and flicker-free)
+        document.getElementById('team-riders-container')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-train-skill');
+            if (!btn || btn.disabled) return;
+            e.preventDefault();
+            const skillId = btn.getAttribute('data-skill');
+            const slot = parseInt(btn.getAttribute('data-slot'), 10) || 0;
+            if (StaffSystem.upgradeRiderSkill(skillId, slot)) {
+                this.forceRender();
+            }
+        });
     }
 
     static forceRender(fullRebuild = false) {
@@ -450,66 +462,33 @@ export class UIComponents {
         // Dual Team Riders Management
         const teamRidersContainer = document.getElementById('team-riders-container');
         if (teamRidersContainer) {
+            if (forceRebuild) teamRidersContainer.innerHTML = '';
+
             const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
 
-            teamRidersContainer.innerHTML = userRiders.map((r, rIdx) => {
+            // Remove extra cards if rider count decreased
+            const existingCards = teamRidersContainer.querySelectorAll('.team-rider-card');
+            existingCards.forEach((card, idx) => {
+                if (idx >= userRiders.length) card.remove();
+            });
+
+            userRiders.forEach((r, rIdx) => {
                 const numStr = r.number ? `#${r.number}` : `#${rIdx + 1}`;
-                const injuryBadge = r.injury 
+                const injuryBadgeHtml = r.injury 
                     ? `<span class="rider-injury-badge">🩺 ${r.injury.name} (-${r.injury.penalty} pts, ${r.injury.racesRemaining} GP left)</span>`
                     : `<span class="rider-healthy-badge">💪 100% Fit</span>`;
-
-                const skills = [
-                    { id: 'cornering', name: 'Cornering Technique', val: r.cornering || 80, lvl: r.corneringLvl || 1 },
-                    { id: 'braking', name: 'Trail Braking', val: r.braking || 80, lvl: r.brakingLvl || 1 },
-                    { id: 'consistency', name: 'Race Consistency', val: r.consistency || 80, lvl: r.consistencyLvl || 1 },
-                    { id: 'wetSkill', name: 'Wet Track Mastery', val: r.wetSkill || 75, lvl: r.wetLvl || 1 }
-                ];
-
-                const skillsHtml = skills.map(s => {
-                    const cost = StaffSystem.getRiderSkillCost(s.id, rIdx);
-                    const canAfford = state.cash >= cost.cash;
-                    const isTraining = StaffSystem.isTrainingActive(s.id, rIdx);
-                    const trainObj = StaffSystem.getActiveTraining(s.id, rIdx);
-
-                    if (isTraining && trainObj) {
-                        const pct = Math.min(100, Math.round((trainObj.progress / trainObj.duration) * 100));
-                        const remSec = Math.max(0, Math.ceil(trainObj.duration - trainObj.progress));
-                        return `
-                            <div class="rider-skill-row training-in-progress" data-skill-id="${s.id}">
-                                <div class="skill-info">
-                                    <span class="skill-name">${s.name} <small class="skill-lvl-tag training-tag">🏋️ Camp (Lvl ${trainObj.targetLvl})</small></span>
-                                    <span class="skill-score">${remSec}s remaining</span>
-                                </div>
-                                <div class="rider-training-progress-box">
-                                    <div class="training-bar-track">
-                                        <div class="training-bar-fill" style="width:${pct}%;"></div>
-                                    </div>
-                                    <span class="training-pct">${pct}%</span>
-                                </div>
-                            </div>
-                        `;
-                    }
-
-                    const trainDuration = StaffSystem.getTrainingDuration(s.id, rIdx);
-                    return `
-                        <div class="rider-skill-row" data-skill-id="${s.id}">
-                            <div class="skill-info">
-                                <span class="skill-name">${s.name} <small class="skill-lvl-tag">Lvl ${s.lvl}</small></span>
-                                <span class="skill-score">${s.val} pts</span>
-                            </div>
-                            <button class="btn-train-skill" data-skill="${s.id}" data-slot="${rIdx}" ${!canAfford ? 'disabled' : ''}>
-                                Train ($${cost.cash.toLocaleString()}) ~${trainDuration}s
-                            </button>
-                        </div>
-                    `;
-                }).join('');
 
                 const favTracksStr = (r.favoriteTracks && r.favoriteTracks.length > 0)
                     ? r.favoriteTracks.map(t => `<span class="fav-track-tag">⭐ ${t.toUpperCase()}</span>`).join(' ')
                     : '<span class="fav-track-tag">Global All-Rounder</span>';
 
-                return `
-                    <div class="team-rider-card" data-racer-slot="${rIdx}">
+                let card = teamRidersContainer.querySelector(`[data-racer-slot="${rIdx}"]`);
+                if (!card) {
+                    card = document.createElement('div');
+                    card.className = 'team-rider-card';
+                    card.setAttribute('data-racer-slot', rIdx);
+
+                    card.innerHTML = `
                         <div class="rider-card-header">
                             <div class="rider-slot-pill">RIDER #${rIdx + 1}</div>
                             <div class="rider-id-group">
@@ -528,7 +507,7 @@ export class UIComponents {
                         </div>
 
                         <div class="rider-status-bar">
-                            ${injuryBadge}
+                            <span class="rider-injury-slot">${injuryBadgeHtml}</span>
                             <span class="rider-style-tag">🎯 ${r.ridingStyle || 'Balanced Racer'}</span>
                         </div>
 
@@ -537,23 +516,127 @@ export class UIComponents {
                             <div class="fav-tags-wrap">${favTracksStr}</div>
                         </div>
 
-                        <div class="rider-skills-training-list">
-                            ${skillsHtml}
-                        </div>
-                    </div>
-                `;
-            }).join('');
+                        <div class="rider-skills-training-list"></div>
+                    `;
 
-            // Attach event listeners for skill train buttons
-            teamRidersContainer.querySelectorAll('.btn-train-skill').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const skillId = btn.getAttribute('data-skill');
-                    const slot = parseInt(btn.getAttribute('data-slot'), 10) || 0;
-                    if (StaffSystem.upgradeRiderSkill(skillId, slot)) {
-                        UIComponents.forceRender();
-                    }
-                });
+                    teamRidersContainer.appendChild(card);
+                } else {
+                    // In-place update card metadata
+                    const nameEl = card.querySelector('.rider-full-name');
+                    if (nameEl && nameEl.textContent !== r.name) nameEl.textContent = r.name;
+
+                    const numEl = card.querySelector('.rider-number-circle');
+                    if (numEl && numEl.textContent !== numStr) numEl.textContent = numStr;
+
+                    const ovrEl = card.querySelector('.ovr-num');
+                    if (ovrEl && ovrEl.textContent !== String(r.overallSkill)) ovrEl.textContent = String(r.overallSkill);
+
+                    const injurySlot = card.querySelector('.rider-injury-slot');
+                    if (injurySlot && injurySlot.innerHTML !== injuryBadgeHtml) injurySlot.innerHTML = injuryBadgeHtml;
+
+                    const favWrap = card.querySelector('.fav-tags-wrap');
+                    if (favWrap && favWrap.innerHTML !== favTracksStr) favWrap.innerHTML = favTracksStr;
+                }
+
+                // In-place update skill rows
+                const skillsListEl = card.querySelector('.rider-skills-training-list');
+                if (skillsListEl) {
+                    const skills = [
+                        { id: 'cornering', name: 'Cornering Technique', val: r.cornering || 80, lvl: r.corneringLvl || 1 },
+                        { id: 'braking', name: 'Trail Braking', val: r.braking || 80, lvl: r.brakingLvl || 1 },
+                        { id: 'consistency', name: 'Race Consistency', val: r.consistency || 80, lvl: r.consistencyLvl || 1 },
+                        { id: 'wetSkill', name: 'Wet Track Mastery', val: r.wetSkill || 75, lvl: r.wetLvl || 1 }
+                    ];
+
+                    skills.forEach(s => {
+                        const cost = StaffSystem.getRiderSkillCost(s.id, rIdx);
+                        const canAfford = state.cash >= cost.cash;
+                        const isTraining = StaffSystem.isTrainingActive(s.id, rIdx);
+                        const trainObj = StaffSystem.getActiveTraining(s.id, rIdx);
+                        const trainDuration = StaffSystem.getTrainingDuration(s.id, rIdx);
+
+                        let row = skillsListEl.querySelector(`[data-skill-id="${s.id}"]`);
+
+                        if (isTraining && trainObj) {
+                            const pct = Math.min(100, Math.round((trainObj.progress / trainObj.duration) * 100));
+                            const remSec = Math.max(0, Math.ceil(trainObj.duration - trainObj.progress));
+
+                            if (!row || !row.classList.contains('training-in-progress')) {
+                                if (!row) {
+                                    row = document.createElement('div');
+                                    row.setAttribute('data-skill-id', s.id);
+                                    skillsListEl.appendChild(row);
+                                }
+                                row.className = 'rider-skill-row training-in-progress';
+                                row.innerHTML = `
+                                    <div class="skill-info">
+                                        <span class="skill-name">${s.name} <small class="skill-lvl-tag training-tag">🏋️ Camp (Lvl ${trainObj.targetLvl})</small></span>
+                                        <span class="skill-score skill-rem-sec">${remSec}s remaining</span>
+                                    </div>
+                                    <div class="rider-training-progress-box">
+                                        <div class="training-bar-track">
+                                            <div class="training-bar-fill" style="width:${pct}%;"></div>
+                                        </div>
+                                        <span class="training-pct">${pct}%</span>
+                                    </div>
+                                `;
+                            } else {
+                                // In-place update progress bar and remaining seconds
+                                const remSecEl = row.querySelector('.skill-rem-sec');
+                                if (remSecEl && remSecEl.textContent !== `${remSec}s remaining`) {
+                                    remSecEl.textContent = `${remSec}s remaining`;
+                                }
+                                const fillEl = row.querySelector('.training-bar-fill');
+                                if (fillEl && fillEl.style.width !== `${pct}%`) {
+                                    fillEl.style.width = `${pct}%`;
+                                }
+                                const pctEl = row.querySelector('.training-pct');
+                                if (pctEl && pctEl.textContent !== `${pct}%`) {
+                                    pctEl.textContent = `${pct}%`;
+                                }
+                            }
+                        } else {
+                            const btnText = `Train ($${cost.cash.toLocaleString()}) ~${trainDuration}s`;
+
+                            if (!row || row.classList.contains('training-in-progress') || !row.querySelector('.btn-train-skill')) {
+                                if (!row) {
+                                    row = document.createElement('div');
+                                    row.setAttribute('data-skill-id', s.id);
+                                    skillsListEl.appendChild(row);
+                                }
+                                row.className = 'rider-skill-row';
+                                row.innerHTML = `
+                                    <div class="skill-info">
+                                        <span class="skill-name">${s.name} <small class="skill-lvl-tag">Lvl ${s.lvl}</small></span>
+                                        <span class="skill-score">${s.val} pts</span>
+                                    </div>
+                                    <button class="btn-train-skill" data-skill="${s.id}" data-slot="${rIdx}" ${!canAfford ? 'disabled' : ''}>
+                                        ${btnText}
+                                    </button>
+                                `;
+                            } else {
+                                // In-place update level, score, button text and disabled state
+                                const lvlEl = row.querySelector('.skill-lvl-tag');
+                                if (lvlEl && lvlEl.textContent !== `Lvl ${s.lvl}`) {
+                                    lvlEl.textContent = `Lvl ${s.lvl}`;
+                                }
+                                const scoreEl = row.querySelector('.skill-score');
+                                if (scoreEl && scoreEl.textContent !== `${s.val} pts`) {
+                                    scoreEl.textContent = `${s.val} pts`;
+                                }
+                                const btn = row.querySelector('.btn-train-skill');
+                                if (btn) {
+                                    if (btn.textContent.trim() !== btnText) {
+                                        btn.textContent = btnText;
+                                    }
+                                    btn.disabled = !canAfford;
+                                    btn.setAttribute('data-slot', rIdx);
+                                    btn.setAttribute('data-skill', s.id);
+                                }
+                            }
+                        }
+                    });
+                }
             });
         }
 
