@@ -26,25 +26,29 @@ export class RaceView {
             }
         });
 
-        // Strategy Buttons
+        // Strategy Buttons (supports both Rider 1 and Rider 2 via data-slot)
         document.querySelectorAll('.strat-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                document.querySelectorAll('.strat-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                const slot = parseInt(btn.getAttribute('data-slot') || '0', 10);
                 const map = btn.getAttribute('data-map');
-                RaceSystem.setStrategy(map);
+                RaceSystem.setStrategy(map, slot);
+
+                document.querySelectorAll(`.strat-btn[data-slot="${slot}"]`).forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
             });
         });
 
-        // Tire Compound Buttons
+        // Tire Compound Buttons (supports both Rider 1 and Rider 2 via data-slot)
         document.querySelectorAll('.compound-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                document.querySelectorAll('.compound-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                const slot = parseInt(btn.getAttribute('data-slot') || '0', 10);
                 const compound = btn.getAttribute('data-compound');
-                RaceSystem.setTireCompound(compound);
+                RaceSystem.setTireCompound(compound, slot);
+
+                document.querySelectorAll(`.compound-btn[data-slot="${slot}"]`).forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
             });
         });
     }
@@ -60,21 +64,41 @@ export class RaceView {
         const rs = state.raceState;
         const gp = RaceSystem.getCurrentGP();
         const userRiders = state.riders || [state.rider];
+        const r0 = (state.riders && state.riders[0]) || state.rider;
+        const r1 = (state.riders && state.riders[1]) || null;
 
         // GP Info Header & Weather Status
         this.updateText('championship-season-lbl', `Season ${state.season} - Round ${(rs.currentGPIndex % GP_CALENDAR.length) + 1} of ${GP_CALENDAR.length}`);
         this.updateText('gp-flag', gp.flag);
         this.updateText('gp-title', gp.title);
 
-        const currentCompound = TIRE_COMPOUNDS[rs.tireCompound] || TIRE_COMPOUNDS.medium;
+        const r0CompoundKey = (rs.riderCompounds && rs.riderCompounds[0]) || rs.tireCompound || 'medium';
+        const r1CompoundKey = (rs.riderCompounds && rs.riderCompounds[1]) || 'medium';
+        const r0Compound = TIRE_COMPOUNDS[r0CompoundKey] || TIRE_COMPOUNDS.medium;
+        const r1Compound = TIRE_COMPOUNDS[r1CompoundKey] || TIRE_COMPOUNDS.medium;
+        const r0Life = Math.floor(rs.riderTireConditions?.[0] !== undefined ? rs.riderTireConditions[0] : rs.tireCondition);
+        const r1Life = Math.floor(rs.riderTireConditions?.[1] !== undefined ? rs.riderTireConditions[1] : 100);
+
         const setupStr = rs.setupMatch ? ` | Setup: ${rs.setupMatch}%` : '';
         const weatherIcon = rs.weather === 'wet' ? '🌧️ Wet Track' : '☀️ Dry Track';
         const weatherStr = ` | ${weatherIcon} (${rs.trackTempC || 28}°C)`;
-        const tireStr = ` | Tires: ${currentCompound.shortName} (${Math.floor(rs.tireCondition)}% life)`;
+        const tireStr = r1
+            ? ` | Tires: #${r0.number || 1} ${r0Compound.shortName} (${r0Life}%) • #${r1.number || 2} ${r1Compound.shortName} (${r1Life}%)`
+            : ` | Tires: ${r0Compound.shortName} (${r0Life}% life)`;
         const injuredRiders = userRiders.filter(ur => ur && ur.injury);
         const injuryStr = injuredRiders.length > 0 ? ` | 🩺 INJURED: ${injuredRiders.map(ir => `${ir.name} (${ir.injury.name})`).join(', ')}` : '';
 
         this.updateText('gp-track-info', `Length: ${gp.lengthKm} km | Focus: ${gp.type.toUpperCase()}${setupStr}${weatherStr}${tireStr}${injuryStr}`);
+
+        // Update Rider labels in Strategy Box
+        if (r0) {
+            this.updateText('strat-rider-0-name', r0.name);
+            this.updateText('strat-rider-0-num', `#${r0.number || 1}`);
+        }
+        if (r1) {
+            this.updateText('strat-rider-1-name', r1.name);
+            this.updateText('strat-rider-1-num', `#${r1.number || 2}`);
+        }
 
         // Update Weather Label above progress bar
         const sessionTag = rs.sessionType === 'SPRINT' ? '⚡ SATURDAY SPRINT' : (rs.stage === 'RACE' ? '🏆 SUNDAY GRAND PRIX' : '⏱️ PRACTICE / QUALIFYING');
@@ -153,10 +177,12 @@ export class RaceView {
             }
         }
 
-        // Keep active strategy and compound buttons synchronized
+        // Keep active strategy and compound buttons synchronized per rider slot
         document.querySelectorAll('.strat-btn').forEach(btn => {
+            const slot = parseInt(btn.getAttribute('data-slot') || '0', 10);
+            const activeMap = (rs.riderStrategies && rs.riderStrategies[slot]) || (slot === 0 ? rs.strategy : 'balanced') || 'balanced';
             const map = btn.getAttribute('data-map');
-            if (map === rs.strategy) {
+            if (map === activeMap) {
                 if (!btn.classList.contains('active')) btn.classList.add('active');
             } else {
                 btn.classList.remove('active');
@@ -164,8 +190,10 @@ export class RaceView {
         });
 
         document.querySelectorAll('.compound-btn').forEach(btn => {
+            const slot = parseInt(btn.getAttribute('data-slot') || '0', 10);
+            const activeComp = (rs.riderCompounds && rs.riderCompounds[slot]) || (slot === 0 ? rs.tireCompound : 'medium') || 'medium';
             const comp = btn.getAttribute('data-compound');
-            if (comp === rs.tireCompound) {
+            if (comp === activeComp) {
                 if (!btn.classList.contains('active')) btn.classList.add('active');
             } else {
                 btn.classList.remove('active');
@@ -383,7 +411,8 @@ export class RaceView {
             if (emptyState) tbody.innerHTML = '';
 
             rs.lapHistory.forEach(h => {
-                let row = tbody.querySelector(`[data-lap-num="${h.lap}"]`);
+                const entryKey = `${h.lap}-${h.riderSlot !== undefined ? h.riderSlot : (h.riderName || '0')}`;
+                let row = tbody.querySelector(`[data-lap-entry="${entryKey}"]`);
                 const s1Html = `<span class="sector-chip sector-${h.sectorColors[0]}">${h.sectors[0]}</span>`;
                 const s2Html = `<span class="sector-chip sector-${h.sectorColors[1]}">${h.sectors[1]}</span>`;
                 const s3Html = `<span class="sector-chip sector-${h.sectorColors[2]}">${h.sectors[2]}</span>`;
@@ -398,11 +427,13 @@ export class RaceView {
                 else if (h.eventNote && h.eventNote.includes('Wide')) noteTag = `<span class="badge-err">⚠️ ${h.eventNote}</span>`;
                 else if (h.eventNote && h.eventNote.includes('slide')) noteTag = `<span class="badge-warn">⚠️ ${h.eventNote}</span>`;
 
+                const riderTag = h.riderName ? `<small style="display:block; font-size:0.65rem; color:var(--text-muted);">${h.riderName}</small>` : '';
+
                 if (!row) {
                     row = document.createElement('tr');
-                    row.setAttribute('data-lap-num', h.lap);
+                    row.setAttribute('data-lap-entry', entryKey);
                     row.innerHTML = `
-                        <td class="cell-lap-num" style="font-weight:700;">L${h.lap}</td>
+                        <td class="cell-lap-num" style="font-weight:700;">L${h.lap}${riderTag}</td>
                         <td class="cell-lap-time" style="font-weight:700; ${isFl ? 'color:#d070ff;' : (isPb ? 'color:#00e676;' : '')}">${h.lapTimeStr}</td>
                         <td>${s1Html}</td>
                         <td>${s2Html}</td>

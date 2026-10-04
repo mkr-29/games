@@ -521,12 +521,32 @@ export class RaceSystem {
         return true;
     }
 
-    static setTireCompound(compoundId) {
+    static setTireCompound(compoundId, riderSlot = 0) {
         const state = gameState.getState();
         if (!TIRE_COMPOUNDS[compoundId]) return;
-        state.raceState.tireCompound = compoundId;
-        state.raceState.tireType = compoundId === 'wet' ? 'wet' : 'slicks';
-        gameState.addLog(`🛞 Tire compound selected: ${TIRE_COMPOUNDS[compoundId].name} (${TIRE_COMPOUNDS[compoundId].badge})`);
+        const slot = Number(riderSlot) || 0;
+
+        if (!Array.isArray(state.raceState.riderCompounds) || state.raceState.riderCompounds.length < 2) {
+            state.raceState.riderCompounds = ['medium', 'medium'];
+        }
+        state.raceState.riderCompounds[slot] = compoundId;
+
+        if (slot === 0) {
+            state.raceState.tireCompound = compoundId;
+            state.raceState.tireType = compoundId === 'wet' ? 'wet' : 'slicks';
+        }
+
+        // Update live rider on the grid / leaderboard if active
+        if (state.raceState.leaderboard && state.raceState.leaderboard.length > 0) {
+            const userRider = state.raceState.leaderboard.find(r => r.isUser && (r.userSlot === slot || (r.userSlot === undefined && slot === 0)));
+            if (userRider) {
+                userRider.tireCompound = compoundId;
+            }
+        }
+
+        const rObj = (state.riders && state.riders[slot]) || (slot === 0 ? state.rider : null);
+        const riderLabel = rObj ? `${rObj.name} (#${rObj.number || (slot + 1)})` : `Rider ${slot + 1}`;
+        gameState.addLog(`🛞 [${riderLabel}] Tire compound selected: ${TIRE_COMPOUNDS[compoundId].name} (${TIRE_COMPOUNDS[compoundId].badge})`);
     }
 
     // ==========================================
@@ -548,6 +568,7 @@ export class RaceSystem {
         rs.weather = (Math.random() < 0.20) ? "wet" : "dry";
         rs.trackTempC = rs.weather === 'wet' ? 20 : Math.floor(27 + Math.random() * 10);
         rs.tireCondition = 100;
+        rs.riderTireConditions = [100, 100];
         rs.activeIncident = null;
         rs.lapHistory = [];
         rs.fastestLap = null;
@@ -580,6 +601,7 @@ export class RaceSystem {
         rs.weather = (Math.random() < 0.22) ? "wet" : "dry";
         rs.trackTempC = rs.weather === 'wet' ? 19 : Math.floor(26 + Math.random() * 12);
         rs.tireCondition = 100;
+        rs.riderTireConditions = [100, 100];
         rs.activeIncident = null;
         rs.lapHistory = [];
         rs.fastestLap = null;
@@ -598,11 +620,18 @@ export class RaceSystem {
     }
 
     static prepareGridRidersForRace(rs) {
-        if (rs.weather === 'wet' && rs.tireCompound !== 'wet') {
+        if (!Array.isArray(rs.riderCompounds) || rs.riderCompounds.length < 2) {
+            rs.riderCompounds = ['medium', 'medium'];
+        }
+
+        if (rs.weather === 'wet') {
+            rs.riderCompounds = ['wet', 'wet'];
             rs.tireCompound = 'wet';
             rs.tireType = 'wet';
-        } else if (rs.weather === 'dry' && rs.tireCompound === 'wet') {
-            rs.tireCompound = 'medium';
+        } else if (rs.weather === 'dry') {
+            if (rs.riderCompounds[0] === 'wet') rs.riderCompounds[0] = 'medium';
+            if (rs.riderCompounds[1] === 'wet') rs.riderCompounds[1] = 'medium';
+            if (rs.tireCompound === 'wet') rs.tireCompound = 'medium';
             rs.tireType = 'slicks';
         }
 
@@ -630,7 +659,8 @@ export class RaceSystem {
                     riderCopy.tireCompound = (rs.sessionType === 'SPRINT' && Math.random() < 0.4) ? 'soft' : dryCompounds[Math.floor(Math.random() * dryCompounds.length)];
                 }
             } else {
-                riderCopy.tireCompound = rs.tireCompound;
+                const uSlot = riderCopy.userSlot !== undefined ? riderCopy.userSlot : 0;
+                riderCopy.tireCompound = rs.riderCompounds?.[uSlot] || (uSlot === 0 ? rs.tireCompound : 'medium');
             }
 
             riderCopy.gapSeconds = idx === 0 ? 0 : idx * 0.05;
@@ -638,11 +668,31 @@ export class RaceSystem {
         });
     }
 
-    static setStrategy(strategy) {
+    static setStrategy(strategy, riderSlot = 0) {
         const state = gameState.getState();
-        state.raceState.strategy = strategy;
+        const slot = Number(riderSlot) || 0;
+
+        if (!Array.isArray(state.raceState.riderStrategies) || state.raceState.riderStrategies.length < 2) {
+            state.raceState.riderStrategies = ['balanced', 'balanced'];
+        }
+        state.raceState.riderStrategies[slot] = strategy;
+
+        if (slot === 0) {
+            state.raceState.strategy = strategy;
+        }
+
+        // Update active rider in leaderboard if present
+        if (state.raceState.leaderboard && state.raceState.leaderboard.length > 0) {
+            const userRider = state.raceState.leaderboard.find(r => r.isUser && (r.userSlot === slot || (r.userSlot === undefined && slot === 0)));
+            if (userRider) {
+                userRider.strategy = strategy;
+            }
+        }
+
         const labels = { push: "PUSH HARD (PWR 1)", balanced: "BALANCED (PWR 2)", conserve: "TIRE SAVER (PWR 3)" };
-        gameState.addLog(`🔧 Engine mapping changed to: ${labels[strategy] || strategy.toUpperCase()}`);
+        const rObj = (state.riders && state.riders[slot]) || (slot === 0 ? state.rider : null);
+        const riderLabel = rObj ? `${rObj.name} (#${rObj.number || (slot + 1)})` : `Rider ${slot + 1}`;
+        gameState.addLog(`🔧 [${riderLabel}] Engine mapping changed to: ${labels[strategy] || strategy.toUpperCase()}`);
     }
 
     static resolveIncidentChoice(choiceAction) {
@@ -653,30 +703,39 @@ export class RaceSystem {
         if (!inc) return;
 
         if (choiceAction === 'pit_wet') {
+            rs.riderCompounds = ['wet', 'wet'];
             rs.tireCompound = 'wet';
             rs.tireType = 'wet';
+            rs.riderTireConditions = [100, 100];
             rs.tireCondition = 100;
-            const userRider = rs.leaderboard.find(r => r.isUser);
-            if (userRider) {
+            const userRiders = rs.leaderboard.filter(r => r.isUser);
+            userRiders.forEach(userRider => {
                 userRider.tireCompound = 'wet';
                 userRider.tireCondition = 100;
                 userRider.accumulatedRaceTime += 18.5;
-            }
-            gameState.addLog(`🛠️ BOX BOX! Switched to WET Michelin tires (+18.5s pit lane transit). Full rain grip restored!`);
+            });
+            gameState.addLog(`🛠️ BOX BOX! Both team riders switched to WET Michelin tires (+18.5s pit lane transit). Full rain grip restored!`);
         } else if (choiceAction === 'stay_slicks') {
             gameState.addLog(`⚠️ PIT WALL: Staying on slick tires on a wet track! Extreme slide and crash risk!`);
         } else if (choiceAction === 'eco_map') {
+            rs.riderStrategies = ['conserve', 'conserve'];
             rs.strategy = 'conserve';
-            gameState.addLog(`🔧 Switched ECU to Eco Map (PWR 3). Engine coolant temperature stabilized.`);
+            gameState.addLog(`🔧 Switched both team bikes to Eco Map (PWR 3). Engine coolant temperatures stabilized.`);
         } else if (choiceAction === 'risk_push') {
             gameState.addLog(`🔥 PUSHING POWER MAP: Maintaining full power. High risk of engine failure!`);
         } else if (choiceAction === 'restart_soft' || choiceAction === 'restart_med' || choiceAction === 'restart_hard') {
             const comp = choiceAction.replace('restart_', '');
+            rs.riderCompounds = [comp, comp];
             rs.tireCompound = comp;
+            rs.riderTireConditions = [100, 100];
             rs.tireCondition = 100;
+            rs.leaderboard.filter(r => r.isUser).forEach(ur => {
+                ur.tireCompound = comp;
+                ur.tireCondition = 100;
+            });
             rs.raceInProgress = true;
             this.setFlag('GREEN', null, 0, 'Quick Restart underway');
-            gameState.addLog(`🚀 QUICK RESTART! Race resumed from the grid with fresh ${comp.toUpperCase()} tires!`);
+            gameState.addLog(`🚀 QUICK RESTART! Race resumed from the grid with fresh ${comp.toUpperCase()} tires for both riders!`);
         }
 
         rs.activeIncident = null;
@@ -745,8 +804,16 @@ export class RaceSystem {
 
             let riderScore = r.score;
             let consistency = r.consistency || 70;
-            let strategy = r.isUser ? rs.strategy : (Math.random() < 0.2 ? 'push' : (Math.random() < 0.15 ? 'conserve' : 'balanced'));
+            let strategy = 'balanced';
             let compoundKey = r.tireCompound || 'medium';
+
+            if (r.isUser) {
+                const uSlot = r.userSlot !== undefined ? r.userSlot : 0;
+                strategy = (rs.riderStrategies && rs.riderStrategies[uSlot]) || (uSlot === 0 ? rs.strategy : 'balanced') || 'balanced';
+                compoundKey = r.tireCompound || (rs.riderCompounds && rs.riderCompounds[uSlot]) || (uSlot === 0 ? rs.tireCompound : 'medium') || 'medium';
+            } else {
+                strategy = Math.random() < 0.2 ? 'push' : (Math.random() < 0.15 ? 'conserve' : 'balanced');
+            }
             let compoundDef = TIRE_COMPOUNDS[compoundKey] || TIRE_COMPOUNDS.medium;
 
             if (r.isUser) {
@@ -794,7 +861,14 @@ export class RaceSystem {
 
             const lapWear = (compoundDef.wearRate * wearMult) * (12 / totalLaps);
             r.tireCondition = Math.max(0, (r.tireCondition || 100) - lapWear);
-            if (r.isUser && (r.userSlot === 0 || r.userSlot === undefined)) rs.tireCondition = r.tireCondition;
+            if (r.isUser) {
+                const uSlot = r.userSlot !== undefined ? r.userSlot : 0;
+                if (!Array.isArray(rs.riderTireConditions) || rs.riderTireConditions.length < 2) {
+                    rs.riderTireConditions = [100, 100];
+                }
+                rs.riderTireConditions[uSlot] = r.tireCondition;
+                if (uSlot === 0) rs.tireCondition = r.tireCondition;
+            }
 
             let tirePaceLoss = 0;
             if (r.tireCondition < 75 && r.tireCondition >= 45) {
@@ -948,8 +1022,11 @@ export class RaceSystem {
             r.accumulatedRaceTime += lapPace;
 
             if (r.isUser) {
+                const uSlot = r.userSlot !== undefined ? r.userSlot : 0;
                 rs.lapHistory.push({
                     lap: currentLap,
+                    riderName: r.name,
+                    riderSlot: uSlot,
                     lapTimeStr: r.lastLapStr,
                     lapTimeSec: lapPace,
                     sectors: sectors.map(s => this.formatSectorTime(s)),
@@ -1164,6 +1241,13 @@ export class RaceSystem {
         rs.sprintCompleted = false;
         rs.directQ2 = false;
         rs.activeIncident = null;
+        rs.strategy = 'balanced';
+        rs.riderStrategies = ['balanced', 'balanced'];
+        rs.tireCompound = 'medium';
+        rs.riderCompounds = ['medium', 'medium'];
+        rs.tireType = 'slicks';
+        rs.tireCondition = 100;
+        rs.riderTireConditions = [100, 100];
         this.setFlag('GREEN', null, 0, 'Grand Prix Finished');
 
         this.initChampionshipStandings();

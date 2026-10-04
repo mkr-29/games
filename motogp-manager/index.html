@@ -358,19 +358,58 @@
                                 🚀 Start Free Practice 1
                             </button>
                             <div class="race-strategy-options" id="race-strategy-box" style="display:none;">
-                                <h4>Tire Compound Choice</h4>
-                                <div class="tire-compound-buttons" id="tire-compound-selector">
-                                    <button class="compound-btn" data-compound="soft"><span class="compound-badge badge-soft">S</span> Soft</button>
-                                    <button class="compound-btn active" data-compound="medium"><span class="compound-badge badge-med">M</span> Medium</button>
-                                    <button class="compound-btn" data-compound="hard"><span class="compound-badge badge-hard">H</span> Hard</button>
-                                    <button class="compound-btn" data-compound="wet"><span class="compound-badge badge-wet">W</span> Wet</button>
+                                <div class="pit-wall-header">
+                                    <div class="pit-wall-title">🛠️ PIT WALL TEAM STRATEGY</div>
+                                    <div class="pit-wall-sub">Configure Michelin compound & engine power maps for both team riders</div>
                                 </div>
+                                <div class="dual-rider-strategy-grid" id="dual-rider-strategy-container">
+                                    <!-- Rider 1 Slot -->
+                                    <div class="rider-strategy-card" data-slot="0">
+                                        <div class="rider-card-header">
+                                            <span class="rider-slot-tag">RIDER 1</span>
+                                            <strong class="rider-slot-name" id="strat-rider-0-name">Rider 1</strong>
+                                            <span class="rider-slot-num" id="strat-rider-0-num">#1</span>
+                                        </div>
+                                        
+                                        <div class="strat-section-title">Tire Compound</div>
+                                        <div class="tire-compound-buttons" data-slot="0">
+                                            <button class="compound-btn" data-slot="0" data-compound="soft"><span class="compound-badge badge-soft">S</span> Soft</button>
+                                            <button class="compound-btn active" data-slot="0" data-compound="medium"><span class="compound-badge badge-med">M</span> Med</button>
+                                            <button class="compound-btn" data-slot="0" data-compound="hard"><span class="compound-badge badge-hard">H</span> Hard</button>
+                                            <button class="compound-btn" data-slot="0" data-compound="wet"><span class="compound-badge badge-wet">W</span> Wet</button>
+                                        </div>
 
-                                <h4 style="margin-top: 10px;">Race Engine Strategy</h4>
-                                <div class="strategy-buttons">
-                                    <button class="strat-btn active" data-map="balanced">Balanced (PWR 2)</button>
-                                    <button class="strat-btn" data-map="push">Push Hard (PWR 1)</button>
-                                    <button class="strat-btn" data-map="conserve">Tire Saver (PWR 3)</button>
+                                        <div class="strat-section-title" style="margin-top: 8px;">Engine Power Map</div>
+                                        <div class="strategy-buttons" data-slot="0">
+                                            <button class="strat-btn active" data-slot="0" data-map="balanced">Balanced (PWR 2)</button>
+                                            <button class="strat-btn" data-slot="0" data-map="push">Push (PWR 1)</button>
+                                            <button class="strat-btn" data-slot="0" data-map="conserve">Save (PWR 3)</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Rider 2 Slot -->
+                                    <div class="rider-strategy-card" data-slot="1">
+                                        <div class="rider-card-header">
+                                            <span class="rider-slot-tag">RIDER 2</span>
+                                            <strong class="rider-slot-name" id="strat-rider-1-name">Rider 2</strong>
+                                            <span class="rider-slot-num" id="strat-rider-1-num">#2</span>
+                                        </div>
+                                        
+                                        <div class="strat-section-title">Tire Compound</div>
+                                        <div class="tire-compound-buttons" data-slot="1">
+                                            <button class="compound-btn" data-slot="1" data-compound="soft"><span class="compound-badge badge-soft">S</span> Soft</button>
+                                            <button class="compound-btn active" data-slot="1" data-compound="medium"><span class="compound-badge badge-med">M</span> Med</button>
+                                            <button class="compound-btn" data-slot="1" data-compound="hard"><span class="compound-badge badge-hard">H</span> Hard</button>
+                                            <button class="compound-btn" data-slot="1" data-compound="wet"><span class="compound-badge badge-wet">W</span> Wet</button>
+                                        </div>
+
+                                        <div class="strat-section-title" style="margin-top: 8px;">Engine Power Map</div>
+                                        <div class="strategy-buttons" data-slot="1">
+                                            <button class="strat-btn active" data-slot="1" data-map="balanced">Balanced (PWR 2)</button>
+                                            <button class="strat-btn" data-slot="1" data-map="push">Push (PWR 1)</button>
+                                            <button class="strat-btn" data-slot="1" data-map="conserve">Save (PWR 3)</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

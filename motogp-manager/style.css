@@ -958,25 +958,119 @@ html, body {
 
 /* Strategy Buttons & Tire Selectors */
 .race-strategy-options {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid var(--border-card);
-    padding: 10px;
+    background: rgba(10, 14, 22, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 12px;
     border-radius: var(--radius-md);
-    margin-top: 8px;
+    margin-top: 10px;
     width: 100%;
     box-sizing: border-box;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
-.race-strategy-options h4 {
-    font-size: 0.75rem;
+.pit-wall-header {
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 6px;
+}
+
+.pit-wall-title {
+    font-family: var(--font-heading);
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--accent-gold);
+    letter-spacing: 0.5px;
+}
+
+.pit-wall-sub {
+    font-size: 0.65rem;
     color: var(--text-muted);
-    margin-bottom: 6px;
+    margin-top: 2px;
+}
+
+.dual-rider-strategy-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+}
+
+@media (max-width: 650px) {
+    .dual-rider-strategy-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.rider-strategy-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius-sm);
+    padding: 9px;
+    box-sizing: border-box;
+    transition: var(--transition);
+}
+
+.rider-strategy-card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.rider-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rider-slot-tag {
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(0, 210, 255, 0.15);
+    color: #00d2ff;
+    border: 1px solid rgba(0, 210, 255, 0.3);
+    letter-spacing: 0.5px;
+}
+
+.rider-strategy-card[data-slot="1"] .rider-slot-tag {
+    background: rgba(255, 183, 0, 0.15);
+    color: #ffb700;
+    border-color: rgba(255, 183, 0, 0.3);
+}
+
+.rider-slot-name {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.rider-slot-num {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--text-muted);
+}
+
+.strat-section-title {
+    font-size: 0.64rem;
+    font-weight: 700;
+    color: var(--text-muted);
     text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
 }
 
 .strategy-buttons {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     width: 100%;
 }
 
@@ -985,19 +1079,26 @@ html, body {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border-card);
     color: var(--text-muted);
-    padding: 7px 6px;
+    padding: 6px 4px;
     border-radius: var(--radius-sm);
     cursor: pointer;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 600;
     text-align: center;
     white-space: nowrap;
+    transition: var(--transition);
+}
+
+.strat-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
 }
 
 .strat-btn.active {
     background: var(--primary-red);
     color: #fff;
     border-color: var(--primary-red);
+    box-shadow: 0 0 8px var(--primary-red-glow);
 }
 
 .btn-primary-large {

@@ -185,9 +185,13 @@ export const INITIAL_STATE = {
         seasonPoints: 0,
         weather: "dry", // "dry" or "wet"
         trackTempC: 28, // Track temperature in Celsius
-        tireCompound: "medium", // "soft", "medium", "hard", "wet"
+        strategy: "balanced", // Legacy / Slot 0 alias: "push", "balanced", "conserve"
+        riderStrategies: ["balanced", "balanced"], // [Slot 0 Strategy, Slot 1 Strategy]
+        tireCompound: "medium", // Legacy / Slot 0 alias: "soft", "medium", "hard", "wet"
+        riderCompounds: ["medium", "medium"], // [Slot 0 Compound, Slot 1 Compound]
         tireType: "slicks", // "slicks" or "wet"
-        tireCondition: 100, // 100% down to 0%
+        tireCondition: 100, // Legacy / Slot 0 alias: 100% down to 0%
+        riderTireConditions: [100, 100], // [Slot 0 %, Slot 1 %]
         flagState: {
             status: "GREEN", // "GREEN", "YELLOW", "RED", "WHITE_CROSS"
             sector: null, // 1, 2, 3, 4 or null
@@ -224,6 +228,22 @@ class GameStateStore {
             this.state.riders.push(JSON.parse(JSON.stringify(INITIAL_STATE.riders[1])));
         }
         this.state.rider = this.state.riders[0];
+
+        if (!this.state.raceState) {
+            this.state.raceState = JSON.parse(JSON.stringify(INITIAL_STATE.raceState));
+        }
+        if (!Array.isArray(this.state.raceState.riderStrategies) || this.state.raceState.riderStrategies.length < 2) {
+            this.state.raceState.riderStrategies = [this.state.raceState.strategy || 'balanced', 'balanced'];
+        }
+        if (!Array.isArray(this.state.raceState.riderCompounds) || this.state.raceState.riderCompounds.length < 2) {
+            this.state.raceState.riderCompounds = [this.state.raceState.tireCompound || 'medium', 'medium'];
+        }
+        if (!Array.isArray(this.state.raceState.riderTireConditions) || this.state.raceState.riderTireConditions.length < 2) {
+            this.state.raceState.riderTireConditions = [
+                this.state.raceState.tireCondition !== undefined ? this.state.raceState.tireCondition : 100,
+                100
+            ];
+        }
     }
 
     getState() {
