@@ -238,12 +238,14 @@ export class UIComponents {
             const progressEl = branchSec.querySelector('.tech-branch-progress');
 
             let unlockedCount = 0;
-
             nodes.sort((a, b) => (a.tierLevel || 1) - (b.tierLevel || 1));
 
             nodes.forEach(tech => {
                 const isUnlocked = state.unlockedTech.includes(tech.id);
                 if (isUnlocked) unlockedCount++;
+
+                const activeUpgrade = state.activeUpgrades ? state.activeUpgrades[tech.id] : null;
+                const refinedInfo = state.refinedTechs ? state.refinedTechs[tech.id] : null;
 
                 const isAvailable = ResearchSystem.isTechAvailable(tech.id);
                 const canAfford = ResearchSystem.canAfford(tech.id);
@@ -272,72 +274,166 @@ export class UIComponents {
                 if (!card) {
                     card = document.createElement('div');
                     card.setAttribute('data-tech-id', tech.id);
-                    card.innerHTML = `
-                        <div>
-                            <div class="tech-card-top">
-                                <span class="tech-tier-pill tier-pill-${tierLvl}">${tierPillText}</span>
-                                <span class="tech-stat-badge">${tech.statBonus || ''}</span>
-                            </div>
-                            <div class="tech-title">${tech.icon} ${tech.name}</div>
-                            <div class="tech-desc">${tech.desc}</div>
-                            <div class="tech-prereq-slot"></div>
-                        </div>
-                        <div class="tech-footer">
-                            <div class="tech-cost">Cost: ${costText.join(' + ')}</div>
-                            <div class="tech-action">
-                                <button class="btn-buy" data-tech="${tech.id}">Upgrade Component</button>
-                            </div>
-                        </div>
-                    `;
-
-                    const btn = card.querySelector('.btn-buy');
-                    btn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        if (ResearchSystem.unlockTech(tech.id)) {
-                            this.forceRender();
-                        }
-                    });
-
                     nodesContainer.appendChild(card);
                 }
 
-                const cardClass = `tech-card ${isUnlocked ? 'unlocked' : ''} ${(!isUnlocked && !isAvailable) ? 'locked-prereq' : ''}`.trim();
-                if (card.className !== cardClass) card.className = cardClass;
-
-                const costEl = card.querySelector('.tech-cost');
-                const costStr = `Cost: ${costText.join(' + ')}`;
-                if (costEl && costEl.textContent !== costStr) costEl.textContent = costStr;
-
-                const prereqSlot = card.querySelector('.tech-prereq-slot');
-                if (prereqSlot && prereqSlot.innerHTML !== prereqHtml) prereqSlot.innerHTML = prereqHtml;
-
-                const actionBox = card.querySelector('.tech-action');
-                if (actionBox) {
-                    if (isUnlocked) {
-                        if (!actionBox.querySelector('.unlocked-tag')) {
-                            actionBox.innerHTML = `<span class="sub-tag unlocked-tag" style="color:var(--accent-green); font-weight:700;">✓ UPGRADED</span>`;
-                        }
-                    } else {
-                        let btn = actionBox.querySelector('.btn-buy');
-                        if (!btn) {
-                            btn = document.createElement('button');
-                            btn.className = 'btn-buy';
-                            btn.setAttribute('data-tech', tech.id);
-                            btn.addEventListener('click', (e) => {
-                                e.preventDefault();
-                                if (ResearchSystem.unlockTech(tech.id)) {
-                                    this.forceRender();
-                                }
-                            });
-                            actionBox.innerHTML = '';
-                            actionBox.appendChild(btn);
-                        }
-                        const btnText = isAvailable ? 'Upgrade Component' : 'Locked (Prereqs)';
-                        if (btn.textContent !== btnText) btn.textContent = btnText;
-                        const shouldDisable = !(isAvailable && canAfford);
-                        if (btn.disabled !== shouldDisable) btn.disabled = shouldDisable;
-                    }
+                let cardStateClass = 'tech-card';
+                if (isUnlocked) cardStateClass += ' unlocked';
+                else if (activeUpgrade) {
+                    if (activeUpgrade.stage === 'DEVELOPING') cardStateClass += ' in-dev';
+                    else if (activeUpgrade.stage === 'TESTING') cardStateClass += ' in-test';
+                    else if (activeUpgrade.stage === 'REFINING') cardStateClass += ' in-refine';
+                } else if (!isAvailable) {
+                    cardStateClass += ' locked-prereq';
                 }
+
+                card.className = cardStateClass;
+
+                // Render Inner Content
+                let actionHtml = '';
+                if (isUnlocked) {
+                    const refBadge = refinedInfo ? `<div class="refined-spec-badge">${refinedInfo.badge || refinedInfo.name}</div><div class="refined-bonus-hint">${refinedInfo.bonusText || ''}</div>` : '';
+                    actionHtml = `
+                        <div class="unlocked-container">
+                            <span class="sub-tag unlocked-tag" style="color:var(--accent-green); font-weight:800;">✓ FITTED TO FACTORY BIKE</span>
+                            ${refBadge}
+                        </div>
+                    `;
+                } else if (activeUpgrade) {
+                    if (activeUpgrade.stage === 'DEVELOPING') {
+                        const pct = Math.min(100, Math.round((activeUpgrade.progress / activeUpgrade.duration) * 100));
+                        const remSec = Math.max(0, Math.ceil(activeUpgrade.duration - activeUpgrade.progress));
+                        actionHtml = `
+                            <div class="tech-pipeline-box">
+                                <div class="pipeline-header">
+                                    <span class="pipeline-lbl">🔨 CAD & Manufacturing</span>
+                                    <span class="pipeline-time">${remSec}s left</span>
+                                </div>
+                                <div class="pipeline-track">
+                                    <div class="pipeline-fill dev-fill" style="width:${pct}%;"></div>
+                                </div>
+                                <small class="pipeline-sub">Machining titanium & carbon components...</small>
+                            </div>
+                        `;
+                    } else if (activeUpgrade.stage === 'TESTING') {
+                        if (!activeUpgrade.isTestingActive) {
+                            actionHtml = `
+                                <div class="tech-pipeline-box">
+                                    <div class="pipeline-status-ready">🔬 Prototype Fabricated!</div>
+                                    <button class="btn-run-test" data-tech="${tech.id}">
+                                        <span>🧪</span> Run Dyno & Wind Tunnel Test (${activeUpgrade.testDuration}s)
+                                    </button>
+                                </div>
+                            `;
+                        } else {
+                            const pct = Math.min(100, Math.round((activeUpgrade.testProgress / activeUpgrade.testDuration) * 100));
+                            const remSec = Math.max(0, Math.ceil(activeUpgrade.testDuration - activeUpgrade.testProgress));
+                            actionHtml = `
+                                <div class="tech-pipeline-box">
+                                    <div class="pipeline-header">
+                                        <span class="pipeline-lbl">🧪 Dyno Telemetry Acquisition</span>
+                                        <span class="pipeline-time">${remSec}s left</span>
+                                    </div>
+                                    <div class="pipeline-track">
+                                        <div class="pipeline-fill test-fill" style="width:${pct}%;"></div>
+                                    </div>
+                                    <small class="pipeline-sub">Measuring thermal delta & downforce...</small>
+                                </div>
+                            `;
+                        }
+                    } else if (activeUpgrade.stage === 'REFINING') {
+                        const refinements = ResearchSystem.getRefinementsForTech(tech.id);
+                        actionHtml = `
+                            <div class="tech-pipeline-box refinement-panel">
+                                <div class="telemetry-banner">
+                                    <span>📊</span>
+                                    <small>${activeUpgrade.testTelemetryLog || 'Test telemetry analysis complete.'}</small>
+                                </div>
+                                <div class="refinement-options">
+                                    ${refinements.map((ref, rIdx) => `
+                                        <label class="refinement-card ${rIdx === 0 ? 'active' : ''}">
+                                            <input type="radio" name="refine_${tech.id}" value="${ref.id}" ${rIdx === 0 ? 'checked' : ''}>
+                                            <div class="ref-info">
+                                                <strong>${ref.name}</strong>
+                                                <small>${ref.desc}</small>
+                                                <span class="ref-pill">${ref.bonusText}</span>
+                                            </div>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                                <button class="btn-apply-refinement" data-tech="${tech.id}">
+                                    <span>✅</span> Apply Refinement & Install on Bike
+                                </button>
+                            </div>
+                        `;
+                    }
+                } else {
+                    const devDuration = ResearchSystem.getTechDuration(tech.id);
+                    actionHtml = `
+                        <div class="tech-cost">Cost: ${costText.join(' + ')}</div>
+                        <div class="tech-action">
+                            <button class="btn-buy" data-tech="${tech.id}" ${!(isAvailable && canAfford) ? 'disabled' : ''}>
+                                ${isAvailable ? `Start R&D (~${devDuration}s)` : 'Locked (Prereqs)'}
+                            </button>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div>
+                        <div class="tech-card-top">
+                            <span class="tech-tier-pill tier-pill-${tierLvl}">${tierPillText}</span>
+                            <span class="tech-stat-badge">${tech.statBonus || ''}</span>
+                        </div>
+                        <div class="tech-title">${tech.icon} ${tech.name}</div>
+                        <div class="tech-desc">${tech.desc}</div>
+                        <div class="tech-prereq-slot">${prereqHtml}</div>
+                    </div>
+                    <div class="tech-footer">
+                        ${actionHtml}
+                    </div>
+                `;
+
+                // Attach button handlers
+                const buyBtn = card.querySelector('.btn-buy');
+                if (buyBtn) {
+                    buyBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        if (ResearchSystem.startDevelopment(tech.id)) {
+                            this.forceRender();
+                        }
+                    });
+                }
+
+                const testBtn = card.querySelector('.btn-run-test');
+                if (testBtn) {
+                    testBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        if (ResearchSystem.startTesting(tech.id)) {
+                            this.forceRender();
+                        }
+                    });
+                }
+
+                const refineBtn = card.querySelector('.btn-apply-refinement');
+                if (refineBtn) {
+                    refineBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const selectedRadio = card.querySelector(`input[name="refine_${tech.id}"]:checked`);
+                        const refinementId = selectedRadio ? selectedRadio.value : null;
+                        if (ResearchSystem.applyRefinement(tech.id, refinementId)) {
+                            this.forceRender();
+                        }
+                    });
+                }
+
+                // Handle radio card click toggle
+                card.querySelectorAll('.refinement-card').forEach(rc => {
+                    rc.addEventListener('click', () => {
+                        card.querySelectorAll('.refinement-card').forEach(c => c.classList.remove('active'));
+                        rc.classList.add('active');
+                    });
+                });
             });
 
             if (progressEl) {
@@ -372,6 +468,29 @@ export class UIComponents {
                 const skillsHtml = skills.map(s => {
                     const cost = StaffSystem.getRiderSkillCost(s.id, rIdx);
                     const canAfford = state.cash >= cost.cash;
+                    const isTraining = StaffSystem.isTrainingActive(s.id, rIdx);
+                    const trainObj = StaffSystem.getActiveTraining(s.id, rIdx);
+
+                    if (isTraining && trainObj) {
+                        const pct = Math.min(100, Math.round((trainObj.progress / trainObj.duration) * 100));
+                        const remSec = Math.max(0, Math.ceil(trainObj.duration - trainObj.progress));
+                        return `
+                            <div class="rider-skill-row training-in-progress" data-skill-id="${s.id}">
+                                <div class="skill-info">
+                                    <span class="skill-name">${s.name} <small class="skill-lvl-tag training-tag">🏋️ Camp (Lvl ${trainObj.targetLvl})</small></span>
+                                    <span class="skill-score">${remSec}s remaining</span>
+                                </div>
+                                <div class="rider-training-progress-box">
+                                    <div class="training-bar-track">
+                                        <div class="training-bar-fill" style="width:${pct}%;"></div>
+                                    </div>
+                                    <span class="training-pct">${pct}%</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    const trainDuration = StaffSystem.getTrainingDuration(s.id, rIdx);
                     return `
                         <div class="rider-skill-row" data-skill-id="${s.id}">
                             <div class="skill-info">
@@ -379,7 +498,7 @@ export class UIComponents {
                                 <span class="skill-score">${s.val} pts</span>
                             </div>
                             <button class="btn-train-skill" data-skill="${s.id}" data-slot="${rIdx}" ${!canAfford ? 'disabled' : ''}>
-                                Train ($${cost.cash.toLocaleString()})
+                                Train ($${cost.cash.toLocaleString()}) ~${trainDuration}s
                             </button>
                         </div>
                     `;

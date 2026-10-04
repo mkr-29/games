@@ -42,6 +42,15 @@ export const INITIAL_STATE = {
     // Unlocked R&D Tech Node IDs
     unlockedTech: [],
 
+    // Active R&D Upgrades Pipeline { [techId]: { techId, stage: 'DEVELOPING'|'TESTING'|'REFINING', progress, duration, testProgress, testDuration, testData, telemetryResult, selectedRefinement } }
+    activeUpgrades: {},
+
+    // Refined Tech Configurations { [techId]: refinementId }
+    refinedTechs: {},
+
+    // Active Rider Training Projects { [`${slot}_${skill}`]: { riderSlot, skillId, progress, duration, targetLvl } }
+    riderTraining: {},
+
     // Bike Performance Base & Modifiers
     bike: {
         modelName: "Moto3 Entry Prototype",

@@ -33,6 +33,9 @@ export class SaveManager {
                 riders: (parsed.riders && Array.isArray(parsed.riders) && parsed.riders.length >= 2) ? parsed.riders : INITIAL_STATE.riders,
                 rider: (parsed.riders && parsed.riders[0]) ? parsed.riders[0] : (parsed.rider || INITIAL_STATE.rider),
                 crew: { ...INITIAL_STATE.crew, ...(parsed.crew || {}) },
+                activeUpgrades: parsed.activeUpgrades || {},
+                refinedTechs: parsed.refinedTechs || {},
+                riderTraining: parsed.riderTraining || {},
                 raceState: { ...INITIAL_STATE.raceState, ...(parsed.raceState || {}) }
             };
 

@@ -7,19 +7,20 @@ import { RaceSystem } from '../../src/systems/RaceSystem.js';
 
 describe('Official Racers Database & Dual Racer Team Architecture', () => {
 
-    describe('Official Racers JSON Dataset Integrity', () => {
-        it('should load all official racers across MotoGP, Moto2, Moto3, and Legends', () => {
+    describe('Official Racers & Rookies JSON Dataset Integrity', () => {
+        it('should load all official racers across MotoGP, Moto2, Moto3, Legends, and Rookies', () => {
             assert.ok(Array.isArray(OFFICIAL_RACERS));
-            assert.ok(OFFICIAL_RACERS.length >= 40, `Expected at least 40 official racers, found ${OFFICIAL_RACERS.length}`);
+            assert.ok(OFFICIAL_RACERS.length >= 60, `Expected at least 60 racers including rookies, found ${OFFICIAL_RACERS.length}`);
 
             const categories = new Set(OFFICIAL_RACERS.map(r => r.category));
             assert.ok(categories.has('MotoGP'));
             assert.ok(categories.has('Moto2'));
             assert.ok(categories.has('Moto3'));
             assert.ok(categories.has('Legends & Reserves'));
+            assert.ok(categories.has('Rookies'));
         });
 
-        it('should contain complete valid properties for every official racer', () => {
+        it('should contain complete valid properties for every racer and rookie', () => {
             OFFICIAL_RACERS.forEach(r => {
                 assert.ok(r.id && typeof r.id === 'string', `Invalid ID for racer ${JSON.stringify(r)}`);
                 assert.ok(r.name && typeof r.name === 'string', `Invalid Name for racer ${r.id}`);
@@ -35,7 +36,7 @@ describe('Official Racers Database & Dual Racer Team Architecture', () => {
             });
         });
 
-        it('should find marquee riders like Bagnaia, Marquez, Martin, Acosta, Rossi', () => {
+        it('should find marquee official riders', () => {
             const bagnaia = RiderSystem.getRacerById('bagnaia');
             const marquez = RiderSystem.getRacerById('marquez_m');
             const martin = RiderSystem.getRacerById('martin_j');
@@ -53,20 +54,44 @@ describe('Official Racers Database & Dual Racer Team Architecture', () => {
             assert.ok(rossi, 'Valentino Rossi should exist');
             assert.equal(rossi.number, 46);
         });
+
+        it('should find custom rookie academy riders', () => {
+            const vega = RiderSystem.getRacerById('rookie_vega');
+            const rinaldi = RiderSystem.getRacerById('rookie_rinaldi');
+            const dupont = RiderSystem.getRacerById('rookie_dupont');
+            const tanaka = RiderSystem.getRacerById('rookie_tanaka');
+            const campbell = RiderSystem.getRacerById('rookie_campbell');
+            const rao = RiderSystem.getRacerById('rookie_rao');
+
+            assert.ok(vega, 'Rookie Mateo Vega should exist');
+            assert.equal(vega.category, 'Rookies');
+            assert.equal(vega.number, 29);
+
+            assert.ok(rinaldi, 'Rookie Valentin Rinaldi should exist');
+            assert.equal(rinaldi.category, 'Rookies');
+            assert.equal(rinaldi.number, 17);
+
+            assert.ok(dupont, 'Rookie Lucas Dupont should exist');
+            assert.equal(dupont.wetSkill, 92);
+
+            assert.ok(tanaka, 'Rookie Hiroshi Tanaka should exist');
+            assert.ok(campbell, 'Rookie Mason Campbell should exist');
+            assert.ok(rao, 'Rookie Arjun Rao should exist');
+        });
     });
 
-    describe('Team 2-Racer Formatting and GameState Sync', () => {
+    describe('Team 2-Racer Formatting with Rookies and GameState Sync', () => {
         beforeEach(() => {
             gameState.resetState();
         });
 
-        it('should format official racer into team rider with correct initial progression levels', () => {
-            const bagnaiaData = RiderSystem.getRacerById('bagnaia');
-            const teamRider = RiderSystem.formatRiderForTeam(bagnaiaData, 0);
+        it('should format rookie racer into team rider with correct initial progression levels', () => {
+            const rookieData = RiderSystem.getRacerById('rookie_vega');
+            const teamRider = RiderSystem.formatRiderForTeam(rookieData, 0);
 
-            assert.equal(teamRider.id, 'bagnaia');
-            assert.equal(teamRider.name, 'Francesco Bagnaia');
-            assert.equal(teamRider.number, 63);
+            assert.equal(teamRider.id, 'rookie_vega');
+            assert.equal(teamRider.name, 'Mateo Vega');
+            assert.equal(teamRider.number, 29);
             assert.equal(teamRider.corneringLvl, 1);
             assert.equal(teamRider.brakingLvl, 1);
             assert.equal(teamRider.consistencyLvl, 1);
@@ -74,9 +99,9 @@ describe('Official Racers Database & Dual Racer Team Architecture', () => {
             assert.equal(teamRider.injury, null);
         });
 
-        it('should maintain 2 racers in state.riders and alias state.rider to slot 0', () => {
-            const r1 = RiderSystem.formatRiderForTeam(RiderSystem.getRacerById('bagnaia'), 0);
-            const r2 = RiderSystem.formatRiderForTeam(RiderSystem.getRacerById('marquez_m'), 1);
+        it('should maintain 2 rookie racers in state.riders and alias state.rider to slot 0', () => {
+            const r1 = RiderSystem.formatRiderForTeam(RiderSystem.getRacerById('rookie_vega'), 0);
+            const r2 = RiderSystem.formatRiderForTeam(RiderSystem.getRacerById('rookie_rinaldi'), 1);
 
             gameState.update(state => {
                 state.selectedRacersChosen = true;
@@ -85,9 +110,9 @@ describe('Official Racers Database & Dual Racer Team Architecture', () => {
 
             const state = gameState.getState();
             assert.equal(state.riders.length, 2);
-            assert.equal(state.riders[0].id, 'bagnaia');
-            assert.equal(state.riders[1].id, 'marquez_m');
-            assert.equal(state.rider.id, 'bagnaia', 'state.rider should alias riders[0]');
+            assert.equal(state.riders[0].id, 'rookie_vega');
+            assert.equal(state.riders[1].id, 'rookie_rinaldi');
+            assert.equal(state.rider.id, 'rookie_vega', 'state.rider should alias riders[0]');
         });
     });
 
@@ -115,16 +140,18 @@ describe('Official Racers Database & Dual Racer Team Architecture', () => {
             const initialR1Lvl = state.riders[0].corneringLvl || 1;
             const initialR2Lvl = state.riders[1].corneringLvl || 1;
 
-            // Upgrade Rider 1 Cornering
-            const r1Upgraded = StaffSystem.upgradeRiderSkill('cornering', 0);
-            assert.equal(r1Upgraded, true);
+            // Start & Complete Rider 1 Cornering training
+            const r1Started = StaffSystem.startTraining('cornering', 0);
+            assert.equal(r1Started, true);
+            StaffSystem.completeTraining(0, 'cornering');
             assert.equal(state.riders[0].corneringLvl, initialR1Lvl + 1);
             // Rider 2 level should remain unchanged
             assert.equal(state.riders[1].corneringLvl, initialR2Lvl);
 
-            // Upgrade Rider 2 Cornering
-            const r2Upgraded = StaffSystem.upgradeRiderSkill('cornering', 1);
-            assert.equal(r2Upgraded, true);
+            // Start & Complete Rider 2 Cornering training
+            const r2Started = StaffSystem.startTraining('cornering', 1);
+            assert.equal(r2Started, true);
+            StaffSystem.completeTraining(1, 'cornering');
             assert.equal(state.riders[1].corneringLvl, initialR2Lvl + 1);
         });
     });

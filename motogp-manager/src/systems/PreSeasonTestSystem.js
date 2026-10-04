@@ -4,6 +4,8 @@ import { gameState } from '../engine/GameState.js';
 import { CalendarSystem } from './CalendarSystem.js';
 import { RiderSystem } from './RiderSystem.js';
 import { RaceSystem } from './RaceSystem.js';
+import { ResearchSystem } from './ResearchSystem.js';
+import { StaffSystem } from './StaffSystem.js';
 
 export class PreSeasonTestSystem {
     static sessionState = {
@@ -398,6 +400,10 @@ export class PreSeasonTestSystem {
         const rpEarned = Math.round(totalLapsInStint * 2.5);
         state.telemetry = Math.min(state.telemetryMax, state.telemetry + telemetryEarned);
         state.science = Math.min(state.scienceMax, state.science + rpEarned);
+
+        // Advance active R&D component development and rider training
+        ResearchSystem.fastForward(durationMinutes * 2);
+        StaffSystem.fastForward(durationMinutes * 2);
 
         gameState.addLog(`⏱️ Sepang Test Stint (${durationMinutes}m): ${rider.name} ran ${totalLapsInStint} laps on ${proto.name}. Best Lap: ${telem.bestLap?.lapStr || '--'}. (+${telemetryEarned} Tel, +${rpEarned} RP)`);
 

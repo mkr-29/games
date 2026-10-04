@@ -57,16 +57,66 @@ export class StaffSystem {
         };
     }
 
-    static upgradeRiderSkill(skillType, riderSlot = 0) {
+    static getTrainingDuration(skillType, riderSlot = 0) {
+        const state = gameState.getState();
+        const r = (state.riders && state.riders[riderSlot]) ? state.riders[riderSlot] : state.rider;
+        const levelKey = `${skillType}Lvl`;
+        const currentLvl = r ? (r[levelKey] || 1) : 1;
+
+        let baseSec = 10 + (currentLvl * 3);
+        const physioLvl = state.crew?.physio_trainer || 0;
+        const speedBonus = 1 + (physioLvl * 0.15);
+
+        return Math.max(4, Math.round(baseSec / speedBonus));
+    }
+
+    static isTrainingActive(skillType, riderSlot = 0) {
+        const state = gameState.getState();
+        const key = `${riderSlot}_${skillType}`;
+        return !!(state.riderTraining && state.riderTraining[key]);
+    }
+
+    static getActiveTraining(skillType, riderSlot = 0) {
+        const state = gameState.getState();
+        const key = `${riderSlot}_${skillType}`;
+        return state.riderTraining ? state.riderTraining[key] : null;
+    }
+
+    static startTraining(skillType, riderSlot = 0) {
         const state = gameState.getState();
         const r = (state.riders && state.riders[riderSlot]) ? state.riders[riderSlot] : state.rider;
         if (!r) return false;
 
-        const cost = this.getRiderSkillCost(skillType, riderSlot);
+        const key = `${riderSlot}_${skillType}`;
+        if (state.riderTraining && state.riderTraining[key]) return false;
 
+        const cost = this.getRiderSkillCost(skillType, riderSlot);
         if (state.cash < cost.cash) return false;
 
         state.cash -= cost.cash;
+        const duration = this.getTrainingDuration(skillType, riderSlot);
+        const levelKey = `${skillType}Lvl`;
+        const targetLvl = (r[levelKey] || 1) + 1;
+
+        if (!state.riderTraining) state.riderTraining = {};
+        state.riderTraining[key] = {
+            riderSlot,
+            skillType,
+            riderName: r.name,
+            progress: 0,
+            duration: duration,
+            targetLvl: targetLvl
+        };
+
+        gameState.addLog(`🏋️ TRAINING STARTED: ${r.name} (#${r.number || (riderSlot + 1)}) entered specialized camp for ${skillType.toUpperCase()} (Lvl ${targetLvl}, ${duration}s).`);
+        return true;
+    }
+
+    static completeTraining(riderSlot, skillType) {
+        const state = gameState.getState();
+        const r = (state.riders && state.riders[riderSlot]) ? state.riders[riderSlot] : state.rider;
+        if (!r) return false;
+
         const levelKey = `${skillType}Lvl`;
         r[levelKey] = (r[levelKey] || 1) + 1;
         r[skillType] = (r[skillType] || 75) + 3; // +3 stat per level
@@ -82,8 +132,46 @@ export class StaffSystem {
             state.rider = r;
         }
 
-        gameState.addLog(`🏎️ Racer ${r.name} (#${r.number || (riderSlot + 1)}) improved ${skillType.toUpperCase()} (Lvl ${r[levelKey]})!`);
+        const key = `${riderSlot}_${skillType}`;
+        if (state.riderTraining) {
+            delete state.riderTraining[key];
+        }
+
+        gameState.addLog(`🏆 TRAINING COMPLETE: ${r.name} (#${r.number || (riderSlot + 1)}) mastered ${skillType.toUpperCase()} (Now Level ${r[levelKey]}, ${r[skillType]} pts, ${r.overallSkill} OVR)!`);
         return true;
+    }
+
+    static upgradeRiderSkill(skillType, riderSlot = 0) {
+        return this.startTraining(skillType, riderSlot);
+    }
+
+    static tick(delta) {
+        const state = gameState.getState();
+        if (!state.riderTraining) return false;
+
+        let changed = false;
+        Object.entries(state.riderTraining).forEach(([key, trainObj]) => {
+            trainObj.progress += delta;
+            if (trainObj.progress >= trainObj.duration) {
+                this.completeTraining(trainObj.riderSlot, trainObj.skillType);
+                changed = true;
+            }
+        });
+
+        return changed;
+    }
+
+    static fastForward(seconds) {
+        if (!seconds || seconds <= 0) return;
+        const state = gameState.getState();
+        if (!state.riderTraining) return;
+
+        Object.entries(state.riderTraining).forEach(([key, trainObj]) => {
+            trainObj.progress += seconds;
+            if (trainObj.progress >= trainObj.duration) {
+                this.completeTraining(trainObj.riderSlot, trainObj.skillType);
+            }
+        });
     }
 
     static getCrewCost(crewId) {

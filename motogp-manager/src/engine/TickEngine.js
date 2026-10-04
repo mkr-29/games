@@ -4,6 +4,8 @@ import { gameState } from './GameState.js';
 import { SaveManager } from './SaveManager.js';
 import { EconomySystem } from '../systems/EconomySystem.js';
 import { RaceSystem } from '../systems/RaceSystem.js';
+import { ResearchSystem } from '../systems/ResearchSystem.js';
+import { StaffSystem } from '../systems/StaffSystem.js';
 
 export class TickEngine {
     constructor() {
@@ -42,6 +44,8 @@ export class TickEngine {
         // Run core systems
         EconomySystem.tick(delta);
         RaceSystem.tick(delta);
+        ResearchSystem.tick(delta);
+        StaffSystem.tick(delta);
 
         // Auto Save every 15 seconds
         this.autoSaveTimer += delta;
@@ -64,7 +68,9 @@ export class TickEngine {
             
             // Execute economy tick for offline duration
             const gains = EconomySystem.calculateOfflineGains(cappedSecs);
-            gameState.addLog(`Welcome back! Offline gains for ${Math.floor(cappedSecs / 60)} mins: +$${gains.cash.toFixed(0)}, +${gains.telemetry.toFixed(0)} Telemetry, +${gains.science.toFixed(0)} RP.`);
+            ResearchSystem.fastForward(cappedSecs);
+            StaffSystem.fastForward(cappedSecs);
+            gameState.addLog(`Welcome back! Offline progress for ${Math.floor(cappedSecs / 60)} mins: +$${gains.cash.toFixed(0)}, +${gains.telemetry.toFixed(0)} Telemetry, +${gains.science.toFixed(0)} RP.`);
         }
     }
 

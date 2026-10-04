@@ -301,7 +301,8 @@ export class RacerSelectionModal {
             if (this.activeCategory === 'motogp') list = list.filter(r => r.category === 'MotoGP');
             else if (this.activeCategory === 'moto2') list = list.filter(r => r.category === 'Moto2');
             else if (this.activeCategory === 'moto3') list = list.filter(r => r.category === 'Moto3');
-            else if (this.activeCategory === 'legends') list = list.filter(r => r.category === 'Legends & Reserves');
+            else if (this.activeCategory === 'rookies') list = list.filter(r => r.category === 'Rookies' || r.category === 'Rookies & Academy');
+            else if (this.activeCategory === 'legends') list = list.filter(r => r.category === 'Legends & Reserves' || r.category === 'Legends');
         }
 
         // Search Query
@@ -340,7 +341,10 @@ export class RacerSelectionModal {
             const isSelected = this.selectedRacerIds.includes(r.id);
             const slotIdx = this.selectedRacerIds.indexOf(r.id);
             const slotTag = isSelected ? (slotIdx === 0 ? '⭐ RIDER #1' : '⭐ RIDER #2') : '';
-            const categoryClass = r.category === 'MotoGP' ? 'cat-motogp' : (r.category === 'Moto2' ? 'cat-moto2' : 'cat-moto3');
+            const categoryClass = r.category === 'MotoGP' ? 'cat-motogp' 
+                               : (r.category === 'Moto2' ? 'cat-moto2' 
+                               : (r.category === 'Moto3' ? 'cat-moto3' 
+                               : (r.category === 'Rookies' || r.category === 'Rookies & Academy' ? 'cat-rookies' : 'cat-legends')));
 
             return `
                 <div class="racer-selection-card ${isSelected ? 'selected' : ''}" data-racer-id="${r.id}" onclick="window.racerModalSelectCard('${r.id}')">

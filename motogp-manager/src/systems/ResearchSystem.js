@@ -454,7 +454,8 @@ export const TECH_NODES = [
 export class ResearchSystem {
     static isTechAvailable(techId) {
         const state = gameState.getState();
-        if (state.unlockedTech.includes(techId)) return false; // Already unlocked
+        if (state.unlockedTech.includes(techId)) return false; // Already fully unlocked
+        if (state.activeUpgrades && state.activeUpgrades[techId]) return false; // In development/testing pipeline
 
         const node = TECH_NODES.find(t => t.id === techId);
         if (!node) return false;
@@ -482,7 +483,37 @@ export class ResearchSystem {
         return true;
     }
 
-    static unlockTech(techId) {
+    static getTechDuration(techId) {
+        const state = gameState.getState();
+        const node = TECH_NODES.find(t => t.id === techId);
+        if (!node) return 15;
+
+        const tierLvl = node.tierLevel || 1;
+        let baseSec = tierLvl === 1 ? 14 : (tierLvl === 2 ? 26 : 42);
+
+        // Faster development with Chief Pit Mechanic & Data Engineers
+        const chiefLvl = state.crew?.chief_mechanic || 0;
+        const dataLvl = state.crew?.data_engineer || 0;
+        const speedBonus = 1 + (chiefLvl * 0.12) + (dataLvl * 0.08);
+
+        return Math.max(5, Math.round(baseSec / speedBonus));
+    }
+
+    static getTestDuration(techId) {
+        const state = gameState.getState();
+        const node = TECH_NODES.find(t => t.id === techId);
+        const tierLvl = node?.tierLevel || 1;
+        let baseSec = tierLvl === 1 ? 8 : (tierLvl === 2 ? 14 : 20);
+
+        // Wind tunnel and dyno bench speed up testing
+        const dynoCount = state.producers?.dyno_bench || 0;
+        const windCount = state.producers?.wind_tunnel_slot || 0;
+        const testSpeedBonus = 1 + (dynoCount * 0.08) + (windCount * 0.12);
+
+        return Math.max(3, Math.round(baseSec / testSpeedBonus));
+    }
+
+    static startDevelopment(techId) {
         const state = gameState.getState();
         if (!this.isTechAvailable(techId) || !this.canAfford(techId)) return false;
 
@@ -495,10 +526,295 @@ export class ResearchSystem {
         if (node.cost.cash) state.cash -= node.cost.cash;
         if (node.cost.telemetry) state.telemetry -= node.cost.telemetry;
 
-        state.unlockedTech.push(techId);
+        if (!state.activeUpgrades) state.activeUpgrades = {};
+
+        const duration = this.getTechDuration(techId);
+        const testDuration = this.getTestDuration(techId);
+
+        state.activeUpgrades[techId] = {
+            techId,
+            name: node.name,
+            icon: node.icon,
+            category: node.category,
+            stage: 'DEVELOPING', // 'DEVELOPING' -> 'TESTING' -> 'REFINING'
+            progress: 0,
+            duration: duration,
+            testProgress: 0,
+            testDuration: testDuration,
+            isTestingActive: false,
+            testTelemetryLog: null
+        };
+
+        gameState.addLog(`🔨 R&D STARTED: ${node.name} CAD engineering & manufacturing commenced (${duration}s estimated).`);
+        return true;
+    }
+
+    static startTesting(techId) {
+        const state = gameState.getState();
+        const upgrade = state.activeUpgrades ? state.activeUpgrades[techId] : null;
+        if (!upgrade || upgrade.stage !== 'TESTING') return false;
+
+        upgrade.isTestingActive = true;
+        const node = TECH_NODES.find(t => t.id === techId);
+        const nodeName = node ? node.name : techId;
+
+        gameState.addLog(`🔬 BENCH & TRACK TEST: ${nodeName} prototype loaded onto Dyno & Wind Tunnel for telemetry acquisition...`);
+        return true;
+    }
+
+    static getRefinementsForTech(techId) {
+        const node = TECH_NODES.find(t => t.id === techId);
+        const cat = node ? node.category : 'engine';
+        const nodeName = node ? node.name : 'Component';
+
+        if (cat === 'aero') {
+            return [
+                {
+                    id: 'high_downforce',
+                    name: 'High-Downforce Apex Grip Spec',
+                    badge: '🏁 High Downforce',
+                    desc: 'Aggressive flap angle of attack maximizing corner entry stability and front-tire loading.',
+                    bonusText: '+6 Aero Downforce, +4 Braking Stability, -1 km/h Straightaway Drag',
+                    applyBonus: (s) => {
+                        s.bike.aeroDownforce = (s.bike.aeroDownforce || 10) + 6;
+                        s.bike.chassisGrip = (s.bike.chassisGrip || 15) + 3;
+                    }
+                },
+                {
+                    id: 'low_drag',
+                    name: 'Low-Drag Slipstream Velocity Spec',
+                    badge: '⚡ Low Drag Velocity',
+                    desc: 'Slimline aerodynamic profile tailored for lightning top speed on high-speed straights.',
+                    bonusText: '+3 Aero Downforce, +6 km/h Straightaway Top Speed',
+                    applyBonus: (s) => {
+                        s.bike.aeroDownforce = (s.bike.aeroDownforce || 10) + 3;
+                        s.bike.powerHP = (s.bike.powerHP || 55) + 3;
+                    }
+                },
+                {
+                    id: 'ground_effect_efficiency',
+                    name: 'Ground-Effect Stepped Airflow Spec',
+                    badge: '🌿 Ground-Effect Flow',
+                    desc: 'Bespoke diffuser venturi channels stabilizing tire temperatures and high-speed lean.',
+                    bonusText: '+4 Aero Downforce, +5% Reliability, -8% Tire Degradation',
+                    applyBonus: (s) => {
+                        s.bike.aeroDownforce = (s.bike.aeroDownforce || 10) + 4;
+                        s.bike.reliability = Math.min(100, (s.bike.reliability || 95) + 3);
+                    }
+                }
+            ];
+        } else if (cat === 'chassis') {
+            return [
+                {
+                    id: 'rigid_apex_carver',
+                    name: 'Rigid Apex Attack Tuning',
+                    badge: '🎯 Rigid Apex Spec',
+                    desc: 'High torsional stiffness frame profile providing razor-sharp direction changes.',
+                    bonusText: '+8 Chassis Grip, +2% Apex Turn-in Pace',
+                    applyBonus: (s) => {
+                        s.bike.chassisGrip = (s.bike.chassisGrip || 15) + 8;
+                    }
+                },
+                {
+                    id: 'supple_tire_saver',
+                    name: 'Supple Flex Tire-Preservation Setup',
+                    badge: '🛞 Tire Preservation Spec',
+                    desc: 'Engineered lateral flex geometry absorbing kerb impacts and extending tire life.',
+                    bonusText: '+4 Chassis Grip, -12% Tire Degradation, +4% Wet Track Mastery',
+                    applyBonus: (s) => {
+                        s.bike.chassisGrip = (s.bike.chassisGrip || 15) + 4;
+                        s.bike.reliability = Math.min(100, (s.bike.reliability || 95) + 2);
+                    }
+                },
+                {
+                    id: 'heavy_braking_support',
+                    name: 'Anti-Dive Trail Braking Setup',
+                    badge: '🛑 Trail-Braking Support',
+                    desc: 'Reinforced steering headstock and swingarm pivot eliminating fork bottoming.',
+                    bonusText: '+6 Chassis Grip, +6 Trail Braking Stability',
+                    applyBonus: (s) => {
+                        s.bike.chassisGrip = (s.bike.chassisGrip || 15) + 6;
+                    }
+                }
+            ];
+        } else if (cat === 'electronics') {
+            return [
+                {
+                    id: 'adaptive_tc',
+                    name: 'AI Dynamic Lean-Angle Traction Control',
+                    badge: '🧠 Adaptive Lean TC',
+                    desc: 'Sub-millisecond ignition cut mapping delivering maximum drive out of slow hairpins.',
+                    bonusText: '+8 ECU Intelligence, +5% Wet Weather Grip',
+                    applyBonus: (s) => {
+                        s.bike.ecuIntelligence = (s.bike.ecuIntelligence || 5) + 8;
+                    }
+                },
+                {
+                    id: 'launch_hole_shot',
+                    name: 'Zero-Wheelie Hole-Shot Launch Control',
+                    badge: '🚀 Hole-Shot Master',
+                    desc: 'Optimized starting RPM torque curve and front ride-height actuation algorithm.',
+                    bonusText: '+5 ECU Intelligence, +0.35s Grid Launch Advantage',
+                    applyBonus: (s) => {
+                        s.bike.ecuIntelligence = (s.bike.ecuIntelligence || 5) + 5;
+                        s.bike.powerHP = (s.bike.powerHP || 55) + 2;
+                    }
+                },
+                {
+                    id: 'smooth_engine_brake',
+                    name: 'Progressive Deceleration Engine Braking',
+                    badge: '⚙️ Smooth Engine Brake',
+                    desc: 'Cylinder-by-cylinder fuel cutoff preventing rear-wheel lockups into chicanes.',
+                    bonusText: '+6 ECU Intelligence, -10% Rear Tire Wear, +3% Reliability',
+                    applyBonus: (s) => {
+                        s.bike.ecuIntelligence = (s.bike.ecuIntelligence || 5) + 6;
+                        s.bike.reliability = Math.min(100, (s.bike.reliability || 95) + 2);
+                    }
+                }
+            ];
+        } else {
+            // Default Engine / Powertrain
+            return [
+                {
+                    id: 'peak_rpm_power',
+                    name: 'High-Rev Top Speed Power Map',
+                    badge: '🔥 High-RPM Firepower',
+                    desc: 'Aggressive ignition timing and combustion chamber pressure maximizing peak horsepower.',
+                    bonusText: '+7 Power (HP), +5 km/h Top Speed',
+                    applyBonus: (s) => {
+                        s.bike.powerHP = (s.bike.powerHP || 55) + 7;
+                    }
+                },
+                {
+                    id: 'torque_corner_exit',
+                    name: 'Low-End Corner Exit Punch Map',
+                    badge: '⚡ Low-End Torque Punch',
+                    desc: 'Fat mid-range torque curve optimized for explosive acceleration out of 2nd-gear corners.',
+                    bonusText: '+4 Power (HP), +5 Chassis Acceleration Grip',
+                    applyBonus: (s) => {
+                        s.bike.powerHP = (s.bike.powerHP || 55) + 4;
+                        s.bike.chassisGrip = (s.bike.chassisGrip || 15) + 3;
+                    }
+                },
+                {
+                    id: 'endurance_efficiency',
+                    name: 'Endurance Thermal Efficiency Map',
+                    badge: '🛡️ Thermal Efficiency & Reliability',
+                    desc: 'Cooler combustion temperature profile preventing engine degradation across full race distance.',
+                    bonusText: '+3 Power (HP), +5% Engine Reliability, -6% Fuel Burn',
+                    applyBonus: (s) => {
+                        s.bike.powerHP = (s.bike.powerHP || 55) + 3;
+                        s.bike.reliability = Math.min(100, (s.bike.reliability || 95) + 4);
+                    }
+                }
+            ];
+        }
+    }
+
+    static applyRefinement(techId, refinementId) {
+        const state = gameState.getState();
+        const upgrade = state.activeUpgrades ? state.activeUpgrades[techId] : null;
+        if (!upgrade || upgrade.stage !== 'REFINING') return false;
+
+        const node = TECH_NODES.find(t => t.id === techId);
+        if (!node) return false;
+
+        const refinements = this.getRefinementsForTech(techId);
+        const choice = refinements.find(r => r.id === refinementId) || refinements[0];
+
+        // Apply base node effect
         node.effect(state);
 
-        gameState.addLog(`🔬 Unlocked Research: ${node.name}!`);
+        // Apply chosen refinement bonuses
+        choice.applyBonus(state);
+
+        if (!state.unlockedTech.includes(techId)) {
+            state.unlockedTech.push(techId);
+        }
+
+        if (!state.refinedTechs) state.refinedTechs = {};
+        state.refinedTechs[techId] = {
+            id: choice.id,
+            name: choice.name,
+            badge: choice.badge,
+            bonusText: choice.bonusText
+        };
+
+        // Remove from active pipeline
+        delete state.activeUpgrades[techId];
+
+        gameState.addLog(`✅ REFINEMENT APPLIED: ${node.name} successfully fitted to Factory Bike with [${choice.name}]!`);
         return true;
+    }
+
+    static unlockTech(techId) {
+        // Direct method starts the development workflow
+        return this.startDevelopment(techId);
+    }
+
+    static tick(delta) {
+        const state = gameState.getState();
+        if (!state.activeUpgrades) return;
+
+        let stateChanged = false;
+
+        Object.values(state.activeUpgrades).forEach(upgrade => {
+            const node = TECH_NODES.find(t => t.id === upgrade.techId);
+            const nodeName = node ? node.name : upgrade.techId;
+
+            if (upgrade.stage === 'DEVELOPING') {
+                upgrade.progress += delta;
+                if (upgrade.progress >= upgrade.duration) {
+                    upgrade.progress = upgrade.duration;
+                    upgrade.stage = 'TESTING';
+                    upgrade.isTestingActive = false;
+                    stateChanged = true;
+                    gameState.addLog(`⚙️ MANUFACTURING COMPLETE: ${nodeName} prototype fabricated! Ready for Dyno & Track Testing.`);
+                }
+            } else if (upgrade.stage === 'TESTING' && upgrade.isTestingActive) {
+                upgrade.testProgress += delta;
+                if (upgrade.testProgress >= upgrade.testDuration) {
+                    upgrade.testProgress = upgrade.testDuration;
+                    upgrade.stage = 'REFINING';
+                    upgrade.isTestingActive = false;
+
+                    // Generate rich telemetry telemetry findings
+                    const telemetrySnapshots = [
+                        `Aero Downforce: +14.8 kgf @ 290 km/h | Flow Separation: Minimal | Center of Pressure: Forward 2.2%`,
+                        `Dyno Output: +16.2 HP @ 17,900 RPM | Thermal Gradient: -4.1°C | Lambda Ratio: 0.88`,
+                        `Chassis Lateral G: 1.82G Max Lean | High-Speed Wobble Dampened | Rear Flex: Optimal`,
+                        `Telemetry Sampling: 500Hz | Slip Control Reaction: 8ms | Tire Surface Temp: 92°C Nominal`
+                    ];
+                    upgrade.testTelemetryLog = telemetrySnapshots[Math.floor(Math.random() * telemetrySnapshots.length)];
+
+                    stateChanged = true;
+                    gameState.addLog(`🔬 TRACK TESTING COMPLETED: ${nodeName} telemetry captured! Engineering refinement options are now available.`);
+                }
+            }
+        });
+
+        return stateChanged;
+    }
+
+    static fastForward(seconds) {
+        if (!seconds || seconds <= 0) return;
+        const state = gameState.getState();
+        if (!state.activeUpgrades) return;
+
+        Object.values(state.activeUpgrades).forEach(upgrade => {
+            if (upgrade.stage === 'DEVELOPING') {
+                upgrade.progress = Math.min(upgrade.duration, upgrade.progress + seconds);
+                if (upgrade.progress >= upgrade.duration) {
+                    upgrade.stage = 'TESTING';
+                    upgrade.isTestingActive = false;
+                }
+            } else if (upgrade.stage === 'TESTING' && upgrade.isTestingActive) {
+                upgrade.testProgress = Math.min(upgrade.testDuration, upgrade.testProgress + seconds);
+                if (upgrade.testProgress >= upgrade.testDuration) {
+                    upgrade.stage = 'REFINING';
+                    upgrade.isTestingActive = false;
+                }
+            }
+        });
     }
 }
