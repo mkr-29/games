@@ -2,6 +2,7 @@
 
 import { gameState } from '../engine/GameState.js';
 import { RiderSystem, OFFICIAL_RACERS } from '../systems/RiderSystem.js';
+import { RaceSystem } from '../systems/RaceSystem.js';
 import { SaveManager } from '../engine/SaveManager.js';
 import { UIComponents } from './Components.js';
 
@@ -195,11 +196,9 @@ export class RacerSelectionModal {
             state.selectedRacersChosen = true;
             state.riders = [formattedRider1, formattedRider2];
             state.rider = formattedRider1;
-            // Re-sync championship standings with new lineup
-            if (state.raceState) {
-                state.raceState.championshipStandings = null;
-            }
         });
+
+        RaceSystem.initChampionshipStandings(true);
 
         SaveManager.save();
         UIComponents.forceRender();

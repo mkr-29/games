@@ -462,17 +462,29 @@ export class RaceView {
         const tbody = document.getElementById('championship-standings-body');
         if (!tbody) return;
 
+        if (!rs.championshipStandings || rs.championshipStandings.length === 0) {
+            RaceSystem.initChampionshipStandings();
+        }
+
         const paddock = RiderSystem.getPaddockState();
 
         if (rs.championshipStandings && rs.championshipStandings.length > 0) {
             const emptyState = tbody.querySelector('.empty-state');
             if (emptyState) tbody.innerHTML = '';
 
+            const currentRiderNames = new Set(rs.championshipStandings.map(r => r.name));
+            Array.from(tbody.children).forEach(child => {
+                const rowName = child.getAttribute('data-standing-name');
+                if (rowName && !currentRiderNames.has(rowName)) {
+                    child.remove();
+                }
+            });
+
             rs.championshipStandings.forEach((r, idx) => {
                 const rank = idx + 1;
                 const rankBadge = rank === 1 ? '🥇 P1' : (rank === 2 ? '🥈 P2' : (rank === 3 ? '🥉 P3' : `P${rank}`));
 
-                const pRider = paddock.riders[r.id];
+                const pRider = paddock.riders && paddock.riders[r.id];
                 let statusBadge = '';
                 const uRiderObj = r.isUser ? ((state.riders && state.riders.find(ur => ur.name === r.name)) || state.rider) : null;
 

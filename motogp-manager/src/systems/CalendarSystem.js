@@ -722,6 +722,7 @@ export class CalendarSystem {
         const newWeek = this.getCurrentWeek();
         if (newWeek.type === 'race_week' && typeof newWeek.roundIndex === 'number') {
             state.raceState.currentGPRound = newWeek.roundIndex;
+            state.raceState.currentGPIndex = newWeek.roundIndex;
             state.raceState.stage = 'FP1';
         }
 
@@ -761,6 +762,7 @@ export class CalendarSystem {
         // If rewound into a race week, update current GP round and reset race stage to FP1
         if (targetWeek.type === 'race_week' && typeof targetWeek.roundIndex === 'number') {
             state.raceState.currentGPRound = targetWeek.roundIndex;
+            state.raceState.currentGPIndex = targetWeek.roundIndex;
             state.raceState.stage = 'FP1';
             state.raceState.raceInProgress = false;
         }

@@ -134,12 +134,16 @@ export class RaceSystem {
     static initChampionshipStandings(force = false) {
         const state = gameState.getState();
         const rs = state.raceState;
-        const tierRiders = this.getTierRiders(state.tier);
+        const tierDb = RiderSystem.getTierDatabase(state.tier);
         const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
-        const expectedCount = tierRiders.length + userRiders.length;
+        const userIds = userRiders.map(r => r.id).filter(Boolean);
+        const userNames = userRiders.map(r => r.name).filter(Boolean);
 
-        if (force || !rs.championshipStandings || rs.championshipStandings.length !== expectedCount || rs.championshipTier !== state.tier) {
-            const standings = tierRiders.map(ai => ({
+        // Official season championship roster for AI (excluding user chosen riders)
+        const officialAIRiders = tierDb.filter(r => !userIds.includes(r.id) && !userNames.includes(r.name));
+
+        if (force || !rs.championshipStandings || rs.championshipStandings.length === 0 || rs.championshipTier !== state.tier) {
+            const standings = officialAIRiders.map(ai => ({
                 id: ai.id,
                 name: ai.name,
                 team: ai.team,
@@ -169,7 +173,52 @@ export class RaceSystem {
 
             rs.championshipStandings = standings;
             rs.championshipTier = state.tier;
+            return;
         }
+
+        // When standings already exist, sync names/slots without wiping accumulated points
+        const existingStandings = rs.championshipStandings;
+        userRiders.forEach((u, idx) => {
+            let uStanding = existingStandings.find(s => s.isUser && (s.userSlot === idx || s.name === u.name || s.id === `user_${idx + 1}`));
+            if (!uStanding) {
+                existingStandings.push({
+                    id: `user_${idx + 1}`,
+                    name: u.name,
+                    number: u.number,
+                    team: u.team || "Your Team",
+                    isUser: true,
+                    userSlot: idx,
+                    points: 0,
+                    wins: 0,
+                    sprintWins: 0,
+                    podiums: 0,
+                    fastestLaps: 0
+                });
+            } else {
+                uStanding.name = u.name;
+                uStanding.number = u.number;
+                uStanding.team = u.team || "Your Team";
+                uStanding.userSlot = idx;
+                uStanding.isUser = true;
+            }
+        });
+
+        officialAIRiders.forEach(ai => {
+            const aiStanding = existingStandings.find(s => !s.isUser && (s.id === ai.id || s.name === ai.name));
+            if (!aiStanding) {
+                existingStandings.push({
+                    id: ai.id,
+                    name: ai.name,
+                    team: ai.team,
+                    isUser: false,
+                    points: 0,
+                    wins: 0,
+                    sprintWins: 0,
+                    podiums: 0,
+                    fastestLaps: 0
+                });
+            }
+        });
     }
 
     // ==========================================
@@ -1183,19 +1232,27 @@ export class RaceSystem {
             const pos = idx + 1;
             const pts = pos <= 9 ? sprintPointsTable[pos - 1] : 0;
 
-            const standingRider = rs.championshipStandings.find(s => s.name === r.name);
+            let standingRider = null;
+            if (r.isUser) {
+                const uSlot = r.userSlot !== undefined ? r.userSlot : 0;
+                standingRider = rs.championshipStandings.find(s => s.isUser && (s.userSlot === uSlot || s.name === r.name || s.id === `user_${uSlot + 1}`));
+            } else {
+                standingRider = rs.championshipStandings.find(s => !s.isUser && (s.id === r.id || s.name === r.name || (r.originalRiderName && s.name === r.originalRiderName) || (r.sidelinedRider && s.id === r.sidelinedRider.id)));
+            }
+
             if (standingRider) {
-                standingRider.points += pts;
+                standingRider.points = (standingRider.points || 0) + pts;
                 if (pos === 1) standingRider.sprintWins = (standingRider.sprintWins || 0) + 1;
+                if (pos <= 3) standingRider.podiums = (standingRider.podiums || 0) + 1;
             }
         });
 
         rs.championshipStandings.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
-            if ((b.wins + (b.sprintWins || 0)) !== (a.wins + (a.sprintWins || 0))) {
-                return (b.wins + (b.sprintWins || 0)) - (a.wins + (a.sprintWins || 0));
-            }
-            return b.podiums - a.podiums;
+            const bWins = (b.wins || 0) + (b.sprintWins || 0);
+            const aWins = (a.wins || 0) + (a.sprintWins || 0);
+            if (bWins !== aWins) return bWins - aWins;
+            return (b.podiums || 0) - (a.podiums || 0);
         });
 
         const winner = rs.leaderboard[0];
@@ -1263,30 +1320,46 @@ export class RaceSystem {
             const pos = idx + 1;
             const pts = pos <= 15 ? pointsTable[pos - 1] : 0;
 
-            const standingRider = rs.championshipStandings.find(s => s.name === r.name);
+            let standingRider = null;
+            if (r.isUser) {
+                const uSlot = r.userSlot !== undefined ? r.userSlot : 0;
+                standingRider = rs.championshipStandings.find(s => s.isUser && (s.userSlot === uSlot || s.name === r.name || s.id === `user_${uSlot + 1}`));
+            } else {
+                standingRider = rs.championshipStandings.find(s => !s.isUser && (s.id === r.id || s.name === r.name || (r.originalRiderName && s.name === r.originalRiderName) || (r.sidelinedRider && s.id === r.sidelinedRider.id)));
+            }
+
             if (standingRider) {
-                standingRider.points += pts;
-                if (pos === 1) standingRider.wins += 1;
-                if (pos <= 3) standingRider.podiums += 1;
+                standingRider.points = (standingRider.points || 0) + pts;
+                if (pos === 1) standingRider.wins = (standingRider.wins || 0) + 1;
+                if (pos <= 3) standingRider.podiums = (standingRider.podiums || 0) + 1;
             }
         });
 
         if (rs.fastestLap) {
             const flRiderPos = rs.leaderboard.findIndex(r => r.name === rs.fastestLap.riderName) + 1;
             if (flRiderPos >= 1 && flRiderPos <= 10) {
-                const standingRider = rs.championshipStandings.find(s => s.name === rs.fastestLap.riderName);
+                const flEntry = rs.leaderboard[flRiderPos - 1];
+                let standingRider = null;
+                if (flEntry && flEntry.isUser) {
+                    const uSlot = flEntry.userSlot !== undefined ? flEntry.userSlot : 0;
+                    standingRider = rs.championshipStandings.find(s => s.isUser && (s.userSlot === uSlot || s.name === flEntry.name));
+                } else {
+                    standingRider = rs.championshipStandings.find(s => s.name === rs.fastestLap.riderName || (flEntry && flEntry.originalRiderName && s.name === flEntry.originalRiderName));
+                }
                 if (standingRider) {
-                    standingRider.points += 1;
+                    standingRider.points = (standingRider.points || 0) + 1;
                     standingRider.fastestLaps = (standingRider.fastestLaps || 0) + 1;
-                    gameState.addLog(`🟣 BONUS POINT: ${rs.fastestLap.riderName} awarded +1 Championship Point for Race Fastest Lap (${rs.fastestLap.lapTimeStr})!`);
+                    gameState.addLog(`🟣 BONUS POINT: ${standingRider.name} awarded +1 Championship Point for Race Fastest Lap (${rs.fastestLap.lapTimeStr})!`);
                 }
             }
         }
 
         rs.championshipStandings.sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
-            if (b.wins !== a.wins) return b.wins - a.wins;
-            return b.podiums - a.podiums;
+            const bWins = (b.wins || 0) + (b.sprintWins || 0);
+            const aWins = (a.wins || 0) + (a.sprintWins || 0);
+            if (bWins !== aWins) return bWins - aWins;
+            return (b.podiums || 0) - (a.podiums || 0);
         });
 
         const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
