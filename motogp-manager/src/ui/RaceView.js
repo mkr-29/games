@@ -160,17 +160,20 @@ export class RaceView {
                     btnStage.textContent = "⚡ Saturday Sprint in Progress...";
                     btnStage.disabled = true;
                 } else {
-                    const sprintLaps = Math.max(4, Math.floor(gp.laps / 2));
+                    const sprintLaps = RaceSystem.getGPLaps(gp, state.tier, 'SPRINT');
                     btnStage.textContent = `⚡ Start Saturday Sprint (${sprintLaps} Laps | Grid P${rs.qpGridPosition || 1})`;
                     btnStage.disabled = false;
                 }
                 if (stratBox) stratBox.style.display = "block";
             } else if (rs.stage === 'RACE') {
                 if (rs.raceInProgress) {
-                    btnStage.textContent = "🏆 Grand Prix in Progress...";
+                    const tierName = state.tier === 1 ? 'Moto3™ Race' : (state.tier === 2 ? 'Moto2™ Race' : 'Grand Prix');
+                    btnStage.textContent = `🏆 ${tierName} in Progress...`;
                     btnStage.disabled = true;
                 } else {
-                    btnStage.textContent = `🏁 Start Sunday Grand Prix (${gp.laps} Laps | Grid P${rs.qpGridPosition || 1})`;
+                    const gpLaps = RaceSystem.getGPLaps(gp, state.tier, 'RACE');
+                    const tierLabel = state.tier === 1 ? 'Moto3™ Race' : (state.tier === 2 ? 'Moto2™ Race' : 'Sunday Grand Prix');
+                    btnStage.textContent = `🏁 Start ${tierLabel} (${gpLaps} Laps | Grid P${rs.qpGridPosition || 1})`;
                     btnStage.disabled = false;
                 }
                 if (stratBox) stratBox.style.display = "block";
@@ -210,7 +213,7 @@ export class RaceView {
         this.renderPitWallIncident(rs);
 
         // Live Lap Counter & Fill Bar
-        const maxLaps = rs.sessionType === 'SPRINT' ? Math.max(4, Math.floor(gp.laps / 2)) : gp.laps;
+        const maxLaps = rs.totalLaps || RaceSystem.getGPLaps(gp, state.tier, rs.sessionType || (rs.stage === 'SPRINT' ? 'SPRINT' : 'RACE'));
         this.updateText('race-lap-counter', `Lap ${rs.currentLap} / ${maxLaps}`);
         const fillBar = document.getElementById('race-lap-fill');
         if (fillBar) fillBar.style.width = `${rs.trackProgress}%`;

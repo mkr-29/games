@@ -10,7 +10,15 @@ export const TIERS = {
         shortName: "Moto3™",
         category: "moto3",
         hasSprint: false,
-        bikeModel: "KTM / Honda 250cc Factory Spec",
+        bikeModel: "KTM RC250GP / Honda NSF250RW Factory Spec",
+        engineSpec: "250cc 4-Stroke Single-Cylinder (DOHC 4V, 81mm Max Bore)",
+        revLimit: "13,500 RPM (Spec Dell'Orto Unified ECU)",
+        powerOutput: "60–65 HP @ 13,000 RPM",
+        topSpeedKmh: "245–250 km/h (Mugello Record: 248.8 km/h)",
+        minWeightKg: "152 kg (Combined Bike + Rider minimum)",
+        brakes: "Dual Steel Floating Discs (Carbon Brakes Strictly Banned)",
+        aeroRules: "Regulated Fairing (Ground-effect aero diffusers & wings prohibited)",
+        tires: "Pirelli Diablo Superbike Slick Spec",
         baseHP: 60,
         promotionCost: 0,
         requiredSeason: 1,
@@ -23,7 +31,7 @@ export const TIERS = {
         sprintPodiumPrize: 400,
         sprintTop9Prize: 200,
         sponsorMulti: 1.0,
-        description: "Entry class of Grand Prix racing with lightweight 250cc 4-stroke single cylinder prototypes (No Sprints)."
+        description: "Official FIM lightweight entry class: 250cc single-cylinder 4-stroke prototypes, 13,500 RPM rev limit, steel brakes, and extreme slipstream racing (No Sprints)."
     },
     2: {
         id: 2,
@@ -31,7 +39,15 @@ export const TIERS = {
         shortName: "Moto2™",
         category: "moto2",
         hasSprint: false,
-        bikeModel: "Kalex Triumph 765cc Triple Prototype",
+        bikeModel: "Kalex / Boscoscuro Triumph 765cc Triple Prototype",
+        engineSpec: "Spec Triumph 765cc Inline 3-Cylinder (DOHC 12V, ExternPro Sealed)",
+        revLimit: "14,000 RPM (Spec Magneti Marelli ECU)",
+        powerOutput: "140–145 HP @ 13,500 RPM",
+        topSpeedKmh: "295–301 km/h (Mugello Record: 301.8 km/h)",
+        minWeightKg: "217 kg (Combined Bike + Rider minimum)",
+        brakes: "Dual Steel Floating Discs (Carbon Brakes Strictly Banned)",
+        aeroRules: "Regulated Prototype Fairing (Wings & ground effect banned)",
+        tires: "Pirelli Diablo Superbike Slick Spec",
         baseHP: 140,
         promotionCost: 25000, // $25,000 Capital required
         requiredSeason: 2,    // Available only after Season 1 is completed
@@ -44,7 +60,7 @@ export const TIERS = {
         sprintPodiumPrize: 1500,
         sprintTop9Prize: 700,
         sponsorMulti: 3.5,
-        description: "Intermediate class powered by official Triumph 765cc engines and prototype chassis (No Sprints)."
+        description: "Official intermediate category: Sealed Triumph 765cc 3-cylinder race engines producing 140+ HP, prototype chassis, steel brakes, and rider-controlled dynamics (No Sprints)."
     },
     3: {
         id: 3,
@@ -52,8 +68,16 @@ export const TIERS = {
         shortName: "MotoGP™",
         category: "motogp",
         hasSprint: true,
-        bikeModel: "1000cc V4 Factory Prototype (280+ HP)",
-        baseHP: 280,
+        bikeModel: "1000cc Factory Prototype (Ducati Desmosedici / KTM RC16 / Aprilia RS-GP / Yamaha YZR-M1 / Honda RC213V)",
+        engineSpec: "1,000cc 4-Cylinder (V4 / Inline-4, 81mm Max Bore, Pneumatic Valves)",
+        revLimit: "18,500+ RPM (Magneti Marelli Unified Hardware & Software)",
+        powerOutput: "290–305+ HP @ 18,000 RPM",
+        topSpeedKmh: "360–366+ km/h (Official All-Time Record: 366.1 km/h)",
+        minWeightKg: "157 kg (Dry bike minimum)",
+        brakes: "Brembo 340mm/355mm Ventilated Carbon-Carbon Discs & Calipers",
+        aeroRules: "Aerodynamic Downforce Wings, Ground-Effect Side Fairings, Front & Rear Ride-Height / Holeshot Devices",
+        tires: "Michelin Power Slick Spec",
+        baseHP: 290,
         promotionCost: 100000, // $100,000 Capital required
         requiredSeason: 3,     // Available only after at least 1 Season in Moto2
         requiredHype: 120,
@@ -65,7 +89,7 @@ export const TIERS = {
         sprintPodiumPrize: 6000,
         sprintTop9Prize: 3000,
         sponsorMulti: 10.0,
-        description: "The pinnacle of motorcycle racing. 1000cc V4 engines producing over 280 HP, carbon disc brakes, ride-height devices, and ground-effect aero winglets."
+        description: "The pinnacle of world motorcycle racing. Bespoke 1,000cc 4-cylinder prototypes exceeding 300 HP, pneumatic valves, carbon disc brakes, active ride-height shapers, downforce winglets, and Saturday Sprints."
     }
 };
 

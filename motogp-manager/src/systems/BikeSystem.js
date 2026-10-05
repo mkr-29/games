@@ -64,8 +64,9 @@ export class BikeSystem {
         const compositeProgress = (hpProgress * 0.40) + (aeroProgress * 0.25) + (chassisProgress * 0.25) + (ecuProgress * 0.10);
         const overallRating = Math.min(99.0, Math.max(65.0, baseRating + (compositeProgress * (maxRating - baseRating))));
 
-        const baseTopSpeed = tier === 1 ? 220 : (tier === 2 ? 288 : 348);
-        const maxSpeedGain = tier === 1 ? 16 : (tier === 2 ? 20 : 22);
+        // Authentic FIM top speeds: Moto3 ~245-250 km/h, Moto2 ~295-301 km/h, MotoGP ~360-366+ km/h (Record: 366.1 km/h)
+        const baseTopSpeed = tier === 1 ? 242 : (tier === 2 ? 294 : 355);
+        const maxSpeedGain = tier === 1 ? 8 : (tier === 2 ? 7 : 11);
         const topSpeedKmh = Math.round(baseTopSpeed + (Math.min(1.2, hpProgress) * maxSpeedGain));
 
         return {

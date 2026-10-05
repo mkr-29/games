@@ -85,14 +85,14 @@ describe('FIM World Championship Standings System', () => {
         assert.equal(standings[0].name, 'F. Bagnaia');
     });
 
-    it('should award GP points (25 down to 1) and fastest lap bonus in finishRace', () => {
+    it('should strictly adhere to official MotoGP scoring (win capped at 25 pts, 0 bonus points for fastest lap)', () => {
         RaceSystem.initChampionshipStandings(true);
         const state = gameState.getState();
         const rs = state.raceState;
 
         rs.leaderboard = [
-            { id: 'user_2', name: 'M. Marquez', isUser: true, userSlot: 1, dnf: false }, // P1: 25 pts
-            { id: 'user_1', name: 'F. Bagnaia', isUser: true, userSlot: 0, dnf: false }, // P2: 20 pts + 1 FL pt = 21
+            { id: 'user_2', name: 'M. Marquez', isUser: true, userSlot: 1, dnf: false }, // P1: 25 pts (capped at 25)
+            { id: 'user_1', name: 'F. Bagnaia', isUser: true, userSlot: 0, dnf: false }, // P2: 20 pts (official rules: 0 FL bonus pts)
             { id: 'martin_j', name: 'J. Martin', isUser: false, dnf: false },             // P3: 16 pts
             { id: 'acosta', name: 'P. Acosta', isUser: false, dnf: false },               // P4: 13 pts
             { id: 'bezzecchi', name: 'M. Bezzecchi', isUser: false, dnf: false },         // P5: 11 pts
@@ -125,12 +125,12 @@ describe('FIM World Championship Standings System', () => {
         const mirStanding = standings.find(s => s.name === 'J. Mir');
         const mariniStanding = standings.find(s => s.name === 'L. Marini');
 
-        assert.equal(marquezStanding.points, 25, 'Winner should receive 25 points');
+        assert.equal(marquezStanding.points, 25, 'Winner should receive exactly 25 points (capped per official MotoGP rules)');
         assert.equal(marquezStanding.wins, 1, 'Winner should receive 1 GP win');
         assert.equal(marquezStanding.podiums, 1, 'Winner should receive 1 podium');
 
-        assert.equal(bagnaiaStanding.points, 21, 'P2 (20 pts) + Fastest Lap (1 pt) should equal 21 points');
-        assert.equal(bagnaiaStanding.fastestLaps, 1, 'Fastest lap count should be 1');
+        assert.equal(bagnaiaStanding.points, 20, 'P2 should receive exactly 20 points under official MotoGP rules (no fastest lap bonus point)');
+        assert.equal(bagnaiaStanding.fastestLaps, 1, 'Fastest lap count should be recorded in rider stats');
         assert.equal(bagnaiaStanding.podiums, 1, 'P2 should receive 1 podium');
 
         assert.equal(martinStanding.points, 16, 'P3 should receive 16 points');

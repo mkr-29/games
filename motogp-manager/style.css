@@ -620,6 +620,150 @@ html, body {
     box-shadow: none;
 }
 
+/* Official MotoGP Paddock Commercial Sponsors Hub */
+.sponsors-hub-card {
+    background: linear-gradient(135deg, rgba(0, 210, 255, 0.05) 0%, rgba(18, 21, 30, 0.95) 100%);
+    border: 1px solid rgba(0, 210, 255, 0.25);
+    margin-top: 16px;
+}
+
+.sponsors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.sponsor-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sponsor-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.sponsor-card.signed {
+    border-color: rgba(46, 213, 115, 0.4);
+    background: linear-gradient(145deg, rgba(46, 213, 115, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+}
+
+.sponsor-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sponsor-icon {
+    font-size: 1.5rem;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+}
+
+.sponsor-title-wrap {
+    flex: 1;
+}
+
+.sponsor-name {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.sponsor-category {
+    font-size: 0.70rem;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sponsor-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.35;
+    flex: 1;
+}
+
+.sponsor-perks {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.sponsor-perk-badge {
+    font-size: 0.72rem;
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: 600;
+    color: #e0e0e0;
+}
+
+.sponsor-perk-badge.bonus {
+    color: #2ed573;
+    border-color: rgba(46, 213, 115, 0.3);
+}
+
+.sponsor-perk-badge.payout {
+    color: #ffd32a;
+    border-color: rgba(255, 211, 42, 0.3);
+}
+
+.btn-sign-sponsor {
+    width: 100%;
+    padding: 9px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #00d2ff 0%, #0084ff 100%);
+    color: #fff;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.btn-sign-sponsor:hover:not(:disabled) {
+    transform: translateY(-1px);
+    opacity: 0.95;
+}
+
+.btn-sign-sponsor:disabled {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-dim);
+    cursor: not-allowed;
+}
+
+.sponsor-signed-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px;
+    font-size: 0.80rem;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    background: rgba(46, 213, 115, 0.12);
+    border: 1px solid rgba(46, 213, 115, 0.4);
+    color: #2ed573;
+}
+
 /* R&D Tech Tree */
 .rnd-categories-nav {
     display: flex;

@@ -42,6 +42,9 @@ export const INITIAL_STATE = {
     // Unlocked R&D Tech Node IDs
     unlockedTech: [],
 
+    // Active Official MotoGP Sponsors Signed
+    activeSponsors: [],
+
     // Active R&D Upgrades Pipeline { [techId]: { techId, stage: 'DEVELOPING'|'TESTING'|'REFINING', progress, duration, testProgress, testDuration, testData, telemetryResult, selectedRefinement } }
     activeUpgrades: {},
 

@@ -1,7 +1,7 @@
 // Components.js - Flicker-free DOM rendering & interaction logic
 
 import { gameState } from '../engine/GameState.js';
-import { EconomySystem, PRODUCERS } from '../systems/EconomySystem.js';
+import { EconomySystem, PRODUCERS, OFFICIAL_MOTOGP_SPONSORS } from '../systems/EconomySystem.js';
 import { ResearchSystem, TECH_NODES } from '../systems/ResearchSystem.js';
 import { BikeSystem } from '../systems/BikeSystem.js';
 import { StaffSystem, CREW_TYPES } from '../systems/StaffSystem.js';
@@ -108,7 +108,8 @@ export class UIComponents {
 
         // 3. Dynamic Lists (In-Place DOM update)
         this.renderProducers(state, forceRebuild);
-        this.renderPromotionHub(state);
+        this.renderPromotionHub(state, forceRebuild);
+        this.renderOfficialSponsors(state, forceRebuild);
         this.renderTechTree(state, forceRebuild);
         this.renderStaff(state, forceRebuild);
         this.renderHeritage(state, forceRebuild);
@@ -769,7 +770,7 @@ export class UIComponents {
         });
     }
 
-    static renderPromotionHub(state) {
+    static renderPromotionHub(state, forceRebuild = false) {
         const container = document.getElementById('promotion-hub-content');
         const currentTierBadge = document.getElementById('promotion-current-tier');
         if (!container) return;
@@ -778,23 +779,36 @@ export class UIComponents {
         const current = status.currentTier;
         const next = status.nextTier;
 
-        if (currentTierBadge) {
+        if (currentTierBadge && currentTierBadge.textContent !== current.name) {
             currentTierBadge.textContent = current.name;
         }
 
+        const tierChanged = container.getAttribute('data-tier') !== String(state.tier);
+
         if (status.isMaxTier || !next) {
-            container.innerHTML = `
-                <div class="promotion-target-info">
-                    <h3>👑 Pinnacle of Motorsport: Premier Class MotoGP™</h3>
-                    <p class="promotion-target-desc">Your factory squad is competing at the absolute summit of Grand Prix racing against the best riders on Earth. Defend your World Championships and build a lasting dynasty!</p>
-                    <div class="promotion-perks-list">
-                        <span class="perk-pill">🏆 $25,000 GP Win Purses</span>
-                        <span class="perk-pill">💨 Factory Aero Winglets</span>
-                        <span class="perk-pill">⚡ 10x Sponsor Payouts</span>
-                        <span class="perk-pill">👑 280+ HP V4 Factory Prototypes</span>
+            if (forceRebuild || tierChanged || !container.querySelector('.promotion-max-tier')) {
+                container.setAttribute('data-tier', String(state.tier));
+                container.innerHTML = `
+                    <div class="promotion-target-info promotion-max-tier">
+                        <h3>👑 Pinnacle of Motorsport: Premier Class MotoGP™</h3>
+                        <p class="promotion-target-desc">Your factory squad is competing at the absolute summit of Grand Prix racing against the best riders on Earth. Defend your World Championships and build a lasting dynasty!</p>
+                        <div class="promotion-perks-list">
+                            <span class="perk-pill">🏆 $25,000 GP Win Purses (Strict 25 Pts Win Cap)</span>
+                            <span class="perk-pill">💨 Factory Aero Downforce Winglets</span>
+                            <span class="perk-pill">⚡ 10x Sponsor Commercial Scaling</span>
+                            <span class="perk-pill">👑 1,000cc 290+ HP V4 Prototypes</span>
+                        </div>
+                        <div style="margin-top: 14px; font-size: 0.82rem; background: rgba(0,0,0,0.25); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.08); line-height: 1.5;">
+                            <div style="font-weight: 700; color: #ff334b; margin-bottom: 6px;">📋 Official FIM Premier Class Technical Regulations</div>
+                            <div>• <strong>Engine:</strong> ${current.engineSpec || '1,000cc 4-Cylinder Prototype (81mm max bore)'}</div>
+                            <div>• <strong>Rev Ceiling:</strong> ${current.revLimit || '18,500+ RPM (Pneumatic Valves)'}</div>
+                            <div>• <strong>Output & Speed:</strong> ${current.powerOutput || '290–305+ HP'} | Record: ${current.topSpeedKmh || '366.1 km/h'}</div>
+                            <div>• <strong>Chassis & Brakes:</strong> ${current.brakes || 'Brembo Carbon Discs'} | Min Weight: ${current.minWeightKg || '157 kg'}</div>
+                            <div>• <strong>Aero & Tires:</strong> ${current.aeroRules || 'Active Aero Wings'} | ${current.tires || 'Michelin Spec'}</div>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
             return;
         }
 
@@ -804,63 +818,190 @@ export class UIComponents {
         const hypeMetIcon = req.hypeMet ? '✅' : '❌';
         const hpMetIcon = req.hpMet ? '✅' : '❌';
 
-        const seasonClass = req.seasonMet ? 'met' : 'unmet';
-        const cashClass = req.cashMet ? 'met' : 'unmet';
-        const hypeClass = req.hypeMet ? 'met' : 'unmet';
-        const hpClass = req.hpMet ? 'met' : 'unmet';
-
         const btnDisabled = !status.canPromote;
         const btnText = status.canPromote
             ? `🚀 Upgrade Team to ${next.shortName} (-$${next.promotionCost.toLocaleString()})`
             : `🔒 Requirements Incomplete for ${next.shortName}`;
 
-        container.innerHTML = `
-            <div class="promotion-hub-layout">
-                <div class="promotion-target-info">
-                    <h3>🎯 Next Category: ${next.name}</h3>
-                    <p class="promotion-target-desc">${next.description}</p>
-                    <div class="promotion-perks-list">
-                        <span class="perk-pill">💰 $${next.gpWinPrize.toLocaleString()} GP Win Purse</span>
-                        <span class="perk-pill">⚡ ${next.sponsorMulti}x Sponsorship Scaling</span>
-                        <span class="perk-pill">🏍️ ${next.baseHP}+ HP ${next.bikeModel}</span>
-                    </div>
-                </div>
-
-                <div class="promotion-requirements-box">
-                    <div class="req-grid">
-                        <div class="req-item">
-                            <span class="req-label">🗓️ Season Completed:</span>
-                            <span class="req-val ${seasonClass}">${seasonMetIcon} S${req.currentSeason} / S${req.requiredSeason}+</span>
+        if (forceRebuild || tierChanged || !container.querySelector('.promotion-hub-layout')) {
+            container.setAttribute('data-tier', String(state.tier));
+            container.innerHTML = `
+                <div class="promotion-hub-layout">
+                    <div class="promotion-target-info">
+                        <h3>🎯 Next Category: ${next.name}</h3>
+                        <p class="promotion-target-desc">${next.description}</p>
+                        <div class="promotion-perks-list">
+                            <span class="perk-pill">💰 $${next.gpWinPrize.toLocaleString()} GP Win Purse</span>
+                            <span class="perk-pill">⚡ ${next.sponsorMulti}x Sponsorship Scaling</span>
+                            <span class="perk-pill">🏍️ ${next.baseHP}+ HP ${next.bikeModel}</span>
                         </div>
-                        <div class="req-item">
-                            <span class="req-label">💰 Capital Investment:</span>
-                            <span class="req-val ${cashClass}">${cashMetIcon} $${Math.floor(req.currentCash).toLocaleString()} / $${next.promotionCost.toLocaleString()}</span>
-                        </div>
-                        <div class="req-item">
-                            <span class="req-label">🔥 Team Reputation:</span>
-                            <span class="req-val ${hypeClass}">${hypeMetIcon} ${req.currentHype} / ${next.requiredHype} Hype</span>
-                        </div>
-                        <div class="req-item">
-                            <span class="req-label">🏍️ Bike Engine Spec:</span>
-                            <span class="req-val ${hpClass}">${hpMetIcon} ${req.currentHP} / ${next.requiredHP} HP</span>
+                        <div style="margin-top: 12px; font-size: 0.80rem; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; border: 1px solid rgba(255,255,255,0.08); line-height: 1.45;">
+                            <div style="font-weight: 700; color: #ffb700; margin-bottom: 4px;">📋 Official FIM Technical Regulations</div>
+                            <div>• <strong>Engine:</strong> ${next.engineSpec || next.bikeModel}</div>
+                            <div>• <strong>Rev Limit:</strong> ${next.revLimit || 'N/A'} | <strong>Output:</strong> ${next.powerOutput || next.baseHP + ' HP'}</div>
+                            <div>• <strong>Top Speed:</strong> ${next.topSpeedKmh || 'N/A'} | <strong>Min Weight:</strong> ${next.minWeightKg || 'N/A'}</div>
+                            <div>• <strong>Brakes:</strong> ${next.brakes || 'Steel Discs'} | <strong>Tires:</strong> ${next.tires || 'Pirelli Spec'}</div>
                         </div>
                     </div>
 
-                    <button class="btn-promote-category" id="btn-promote-category" ${btnDisabled ? 'disabled' : ''}>
-                        ${btnText}
-                    </button>
-                </div>
-            </div>
-        `;
+                    <div class="promotion-requirements-box">
+                        <div class="req-grid">
+                            <div class="req-item">
+                                <span class="req-label">🗓️ Season Completed:</span>
+                                <span class="req-val val-season">${seasonMetIcon} S${req.currentSeason} / S${req.requiredSeason}+</span>
+                            </div>
+                            <div class="req-item">
+                                <span class="req-label">💰 Capital Investment:</span>
+                                <span class="req-val val-cash">${cashMetIcon} $${Math.floor(req.currentCash).toLocaleString()} / $${next.promotionCost.toLocaleString()}</span>
+                            </div>
+                            <div class="req-item">
+                                <span class="req-label">🔥 Team Reputation:</span>
+                                <span class="req-val val-hype">${hypeMetIcon} ${req.currentHype} / ${next.requiredHype} Hype</span>
+                            </div>
+                            <div class="req-item">
+                                <span class="req-label">🏍️ Bike Engine Spec:</span>
+                                <span class="req-val val-hp">${hpMetIcon} ${req.currentHP} / ${next.requiredHP} HP</span>
+                            </div>
+                        </div>
 
-        document.getElementById('btn-promote-category')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (status.canPromote && status.nextTier) {
-                if (confirm(`Are you ready to promote your team to the ${status.nextTier.name}? This will invest $${status.nextTier.promotionCost.toLocaleString()} in factory prototype chassis and team licenses for a brand new season!`)) {
-                    PromotionSystem.promoteTeam();
-                    this.forceRender(true);
+                        <button class="btn-promote-category" id="btn-promote-category" ${btnDisabled ? 'disabled' : ''}>
+                            ${btnText}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            if (!container.dataset.hasListener) {
+                container.dataset.hasListener = 'true';
+                container.addEventListener('click', (e) => {
+                    const btn = e.target.closest('#btn-promote-category');
+                    if (!btn || btn.disabled) return;
+                    const curStatus = PromotionSystem.getPromotionStatus(gameState.getState());
+                    if (curStatus.canPromote && curStatus.nextTier) {
+                        if (confirm(`Are you ready to promote your team to the ${curStatus.nextTier.name}? This will invest $${curStatus.nextTier.promotionCost.toLocaleString()} in factory prototype chassis and team licenses for a brand new season!`)) {
+                            PromotionSystem.promoteTeam();
+                            this.forceRender(true);
+                        }
+                    }
+                });
+            }
+        } else {
+            // Update in-place without DOM thrashing
+            const seasonEl = container.querySelector('.val-season');
+            if (seasonEl) {
+                seasonEl.textContent = `${seasonMetIcon} S${req.currentSeason} / S${req.requiredSeason}+`;
+                seasonEl.className = `req-val val-season ${req.seasonMet ? 'met' : 'unmet'}`;
+            }
+
+            const cashEl = container.querySelector('.val-cash');
+            if (cashEl) {
+                cashEl.textContent = `${cashMetIcon} $${Math.floor(req.currentCash).toLocaleString()} / $${next.promotionCost.toLocaleString()}`;
+                cashEl.className = `req-val val-cash ${req.cashMet ? 'met' : 'unmet'}`;
+            }
+
+            const hypeEl = container.querySelector('.val-hype');
+            if (hypeEl) {
+                hypeEl.textContent = `${hypeMetIcon} ${req.currentHype} / ${next.requiredHype} Hype`;
+                hypeEl.className = `req-val val-hype ${req.hypeMet ? 'met' : 'unmet'}`;
+            }
+
+            const hpEl = container.querySelector('.val-hp');
+            if (hpEl) {
+                hpEl.textContent = `${hpMetIcon} ${req.currentHP} / ${next.requiredHP} HP`;
+                hpEl.className = `req-val val-hp ${req.hpMet ? 'met' : 'unmet'}`;
+            }
+
+            const btn = container.querySelector('#btn-promote-category');
+            if (btn) {
+                if (btn.disabled !== btnDisabled) btn.disabled = btnDisabled;
+                if (btn.textContent.trim() !== btnText) btn.textContent = btnText;
+            }
+        }
+    }
+
+    // ==========================================
+    // OFFICIAL MOTOGP™ PADDOCK SPONSORS HUB
+    // ==========================================
+    static renderOfficialSponsors(state, forceRebuild = false) {
+        const container = document.getElementById('sponsors-hub-content');
+        if (!container) return;
+
+        const currentTier = state.tier || 1;
+        const tierChanged = container.getAttribute('data-tier') !== String(currentTier);
+
+        if (forceRebuild || tierChanged) {
+            container.innerHTML = '';
+            container.setAttribute('data-tier', String(currentTier));
+        }
+
+        const sponsors = EconomySystem.getAvailableSponsors(currentTier);
+        const signedList = Array.isArray(state.activeSponsors) ? state.activeSponsors : [];
+
+        sponsors.forEach(s => {
+            const isSigned = signedList.includes(s.id);
+            const canAffordHype = state.hype >= s.requiredHype;
+            let card = container.querySelector(`[data-sponsor-id="${s.id}"]`);
+
+            if (!card) {
+                card = document.createElement('div');
+                card.className = `sponsor-card ${isSigned ? 'signed' : ''}`;
+                card.setAttribute('data-sponsor-id', s.id);
+                card.style.borderLeft = `4px solid ${s.color || '#00d2ff'}`;
+
+                card.innerHTML = `
+                    <div class="sponsor-header">
+                        <div class="sponsor-icon">${s.icon}</div>
+                        <div class="sponsor-title-wrap">
+                            <div class="sponsor-name">${s.name}</div>
+                            <div class="sponsor-category">${s.category}</div>
+                        </div>
+                    </div>
+                    <div class="sponsor-desc">${s.desc}</div>
+                    <div class="sponsor-perks">
+                        <span class="sponsor-perk-badge bonus">🎁 +$${s.signingBonus.toLocaleString()} Bonus</span>
+                        <span class="sponsor-perk-badge payout">🏁 +$${s.racePayout.toLocaleString()} / GP</span>
+                    </div>
+                    <div class="sponsor-action-area">
+                        ${isSigned ? `
+                            <div class="sponsor-signed-badge">✅ Contract Active</div>
+                        ` : `
+                            <button class="btn-sign-sponsor" data-sponsor-id="${s.id}" ${canAffordHype ? '' : 'disabled'}>
+                                ${canAffordHype ? `✍️ Sign Contract (+$${s.signingBonus.toLocaleString()})` : `🔒 Requires ${s.requiredHype} Hype`}
+                            </button>
+                        `}
+                    </div>
+                `;
+
+                container.appendChild(card);
+            } else {
+                // In-place updates
+                if (isSigned && !card.classList.contains('signed')) {
+                    card.classList.add('signed');
+                    const actionArea = card.querySelector('.sponsor-action-area');
+                    if (actionArea) actionArea.innerHTML = `<div class="sponsor-signed-badge">✅ Contract Active</div>`;
+                } else if (!isSigned) {
+                    const btn = card.querySelector('.btn-sign-sponsor');
+                    if (btn) {
+                        const targetDisabled = !canAffordHype;
+                        const targetText = canAffordHype ? `✍️ Sign Contract (+$${s.signingBonus.toLocaleString()})` : `🔒 Requires ${s.requiredHype} Hype`;
+                        if (btn.disabled !== targetDisabled) btn.disabled = targetDisabled;
+                        if (btn.textContent.trim() !== targetText) btn.textContent = targetText;
+                    }
                 }
             }
         });
+
+        // Event delegation listener
+        if (!container.dataset.hasListener) {
+            container.dataset.hasListener = 'true';
+            container.addEventListener('click', (e) => {
+                const btn = e.target.closest('.btn-sign-sponsor');
+                if (!btn || btn.disabled) return;
+                const spId = btn.getAttribute('data-sponsor-id');
+                if (spId && EconomySystem.signSponsor(spId)) {
+                    this.forceRender(true);
+                }
+            });
+        }
     }
 }

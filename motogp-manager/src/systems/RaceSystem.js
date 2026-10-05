@@ -5,31 +5,32 @@ import { BikeSystem } from './BikeSystem.js';
 import { TIERS } from './PromotionSystem.js';
 import { RiderSystem } from './RiderSystem.js';
 import { CalendarSystem } from './CalendarSystem.js';
+import { EconomySystem } from './EconomySystem.js';
 
 // Official 2026 FIM MotoGP™ World Championship Calendar (22 Rounds)
 export const GP_CALENDAR = [
-    { id: 'thailand', title: "Thai Grand Prix (Chang International Circuit)", flag: "🇹🇭", lengthKm: 4.554, type: "1km Slipstream Straight & Heavy Hairpins", favors: "hp", laps: 12, baseSec: 90.5, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
-    { id: 'argentina', title: "Argentine Grand Prix (Termas de Río Hondo)", flag: "🇦🇷", lengthKm: 4.806, type: "Fast Flowing Sweepers", favors: "aero", laps: 12, baseSec: 98.1, sectorRatios: [0.25, 0.27, 0.23, 0.25] },
-    { id: 'americas', title: "Grand Prix of the Americas (COTA Austin)", flag: "🇺🇸", lengthKm: 5.513, type: "Technical & Heavy Bumps", favors: "chassis", laps: 12, baseSec: 122.3, sectorRatios: [0.27, 0.25, 0.26, 0.22] },
-    { id: 'qatar', title: "Qatar Grand Prix (Lusail)", flag: "🇶🇦", lengthKm: 5.380, type: "High Speed & Night Straight", favors: "hp", laps: 12, baseSec: 108.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
-    { id: 'jerez', title: "Gran Premio de España (Jerez)", flag: "🇪🇸", lengthKm: 4.423, type: "Hard Braking & Trail Entry", favors: "chassis", laps: 12, baseSec: 96.6, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'france', title: "French Grand Prix (Le Mans)", flag: "🇫🇷", lengthKm: 4.185, type: "Stop-and-Go & Sudden Rain", favors: "ecu", laps: 12, baseSec: 90.6, sectorRatios: [0.23, 0.27, 0.25, 0.25] },
-    { id: 'silverstone', title: "British Grand Prix (Silverstone)", flag: "🇬🇧", lengthKm: 5.900, type: "Ultra High-Speed Sweeps", favors: "hp", laps: 12, baseSec: 118.2, sectorRatios: [0.25, 0.26, 0.24, 0.25] },
-    { id: 'aragon', title: "Gran Premio de Aragón (MotorLand)", flag: "🇪🇸", lengthKm: 5.077, type: "Carbon Discs Heavy Braking & Corkscrew", favors: "hp", laps: 12, baseSec: 106.2, sectorRatios: [0.26, 0.24, 0.26, 0.24] },
-    { id: 'mugello', title: "Gran Premio d'Italia (Mugello)", flag: "🇮🇹", lengthKm: 5.245, type: "1.1km Main Straight Speed", favors: "hp", laps: 12, baseSec: 105.1, sectorRatios: [0.27, 0.23, 0.26, 0.24] },
-    { id: 'assen', title: "TT Assen (Cathedral of Speed)", flag: "🇳🇱", lengthKm: 4.542, type: "Fast Flowing Chicanes", favors: "aero", laps: 12, baseSec: 91.6, sectorRatios: [0.24, 0.26, 0.25, 0.25] },
-    { id: 'sachsenring', title: "German Grand Prix (Sachsenring)", flag: "🇩🇪", lengthKm: 3.671, type: "Tight Left-Hand Waterfall", favors: "chassis", laps: 12, baseSec: 80.3, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'brno', title: "Czech Republic Grand Prix (Automotodrom Brno)", flag: "🇨🇿", lengthKm: 5.403, type: "Natural Hillside Amphitheater", favors: "chassis", laps: 12, baseSec: 114.5, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'spielberg', title: "Austrian Grand Prix (Red Bull Ring)", flag: "🇦🇹", lengthKm: 4.348, type: "Steep Uphill Acceleration", favors: "hp", laps: 12, baseSec: 88.6, sectorRatios: [0.24, 0.28, 0.24, 0.24] },
-    { id: 'balaton', title: "Hungarian Grand Prix (Balaton Park)", flag: "🇭🇺", lengthKm: 4.115, type: "Technical Chicane Rhythm", favors: "chassis", laps: 12, baseSec: 92.1, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'catalunya', title: "Gran Premio de Catalunya (Barcelona)", flag: "🇪🇸", lengthKm: 4.657, type: "High Tire Wear & Long Straight", favors: "aero", laps: 12, baseSec: 98.6, sectorRatios: [0.26, 0.24, 0.25, 0.25] },
-    { id: 'misano', title: "San Marino Grand Prix (Misano)", flag: "🇸🇲", lengthKm: 4.226, type: "High Lean Cornering Speed & Curvone", favors: "chassis", laps: 12, baseSec: 91.1, sectorRatios: [0.24, 0.26, 0.25, 0.25] },
-    { id: 'motegi', title: "Grand Prix of Japan (Mobility Resort Motegi)", flag: "🇯🇵", lengthKm: 4.801, type: "Hard Braking & Acceleration", favors: "ecu", laps: 12, baseSec: 104.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
-    { id: 'mandalika', title: "Indonesian Grand Prix (Pertamina Mandalika)", flag: "🇮🇩", lengthKm: 4.313, type: "Fast Coastal Sweeps", favors: "aero", laps: 12, baseSec: 90.1, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
-    { id: 'phillip_island', title: "Australian Grand Prix (Phillip Island)", flag: "🇦🇺", lengthKm: 4.448, type: "Ocean Sweeps & High Tire Wear", favors: "aero", laps: 12, baseSec: 87.6, sectorRatios: [0.23, 0.27, 0.26, 0.24] },
-    { id: 'sepang', title: "Petronas Grand Prix of Malaysia (Sepang)", flag: "🇲🇾", lengthKm: 5.543, type: "Twin Straights & Tropical Heat", favors: "ecu", laps: 12, baseSec: 117.7, sectorRatios: [0.26, 0.25, 0.25, 0.24] },
-    { id: 'portugal', title: "Portuguese Grand Prix (Portimão)", flag: "🇵🇹", lengthKm: 4.592, type: "Elevation Rollercoaster", favors: "chassis", laps: 12, baseSec: 98.4, sectorRatios: [0.25, 0.25, 0.26, 0.24] },
-    { id: 'valencia', title: "Gran Premio de Valencia (Ricardo Tormo Finale)", flag: "🇪🇸", lengthKm: 4.005, type: "Tight Stadium Arena Finale", favors: "chassis", laps: 12, baseSec: 89.9, sectorRatios: [0.24, 0.26, 0.25, 0.25] }
+    { id: 'thailand', title: "Thai Grand Prix (Chang International Circuit)", flag: "🇹🇭", lengthKm: 4.554, type: "1km Slipstream Straight & Heavy Hairpins", favors: "hp", lapsMotoGP: 26, lapsSprint: 13, lapsMoto2: 22, lapsMoto3: 19, laps: 26, baseSec: 90.5, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
+    { id: 'argentina', title: "Argentine Grand Prix (Termas de Río Hondo)", flag: "🇦🇷", lengthKm: 4.806, type: "Fast Flowing Sweepers", favors: "aero", lapsMotoGP: 25, lapsSprint: 12, lapsMoto2: 21, lapsMoto3: 18, laps: 25, baseSec: 98.1, sectorRatios: [0.25, 0.27, 0.23, 0.25] },
+    { id: 'americas', title: "Grand Prix of the Americas (COTA Austin)", flag: "🇺🇸", lengthKm: 5.513, type: "Technical & Heavy Bumps", favors: "chassis", lapsMotoGP: 20, lapsSprint: 10, lapsMoto2: 16, lapsMoto3: 14, laps: 20, baseSec: 122.3, sectorRatios: [0.27, 0.25, 0.26, 0.22] },
+    { id: 'qatar', title: "Qatar Grand Prix (Lusail)", flag: "🇶🇦", lengthKm: 5.380, type: "High Speed & Night Straight", favors: "hp", lapsMotoGP: 22, lapsSprint: 11, lapsMoto2: 18, lapsMoto3: 16, laps: 22, baseSec: 108.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
+    { id: 'jerez', title: "Gran Premio de España (Jerez)", flag: "🇪🇸", lengthKm: 4.423, type: "Hard Braking & Trail Entry", favors: "chassis", lapsMotoGP: 25, lapsSprint: 12, lapsMoto2: 21, lapsMoto3: 19, laps: 25, baseSec: 96.6, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
+    { id: 'france', title: "French Grand Prix (Le Mans)", flag: "🇫🇷", lengthKm: 4.185, type: "Stop-and-Go & Sudden Rain", favors: "ecu", lapsMotoGP: 27, lapsSprint: 13, lapsMoto2: 22, lapsMoto3: 20, laps: 27, baseSec: 90.6, sectorRatios: [0.23, 0.27, 0.25, 0.25] },
+    { id: 'silverstone', title: "British Grand Prix (Silverstone)", flag: "🇬🇧", lengthKm: 5.900, type: "Ultra High-Speed Sweeps", favors: "hp", lapsMotoGP: 20, lapsSprint: 10, lapsMoto2: 17, lapsMoto3: 15, laps: 20, baseSec: 118.2, sectorRatios: [0.25, 0.26, 0.24, 0.25] },
+    { id: 'aragon', title: "Gran Premio de Aragón (MotorLand)", flag: "🇪🇸", lengthKm: 5.077, type: "Carbon Discs Heavy Braking & Corkscrew", favors: "hp", lapsMotoGP: 23, lapsSprint: 11, lapsMoto2: 19, lapsMoto3: 17, laps: 23, baseSec: 106.2, sectorRatios: [0.26, 0.24, 0.26, 0.24] },
+    { id: 'mugello', title: "Gran Premio d'Italia (Mugello)", flag: "🇮🇹", lengthKm: 5.245, type: "1.1km Main Straight Speed", favors: "hp", lapsMotoGP: 23, lapsSprint: 11, lapsMoto2: 19, lapsMoto3: 17, laps: 23, baseSec: 105.1, sectorRatios: [0.27, 0.23, 0.26, 0.24] },
+    { id: 'assen', title: "TT Assen (Cathedral of Speed)", flag: "🇳🇱", lengthKm: 4.542, type: "Fast Flowing Chicanes", favors: "aero", lapsMotoGP: 26, lapsSprint: 13, lapsMoto2: 22, lapsMoto3: 20, laps: 26, baseSec: 91.6, sectorRatios: [0.24, 0.26, 0.25, 0.25] },
+    { id: 'sachsenring', title: "German Grand Prix (Sachsenring)", flag: "🇩🇪", lengthKm: 3.671, type: "Tight Left-Hand Waterfall", favors: "chassis", lapsMotoGP: 30, lapsSprint: 15, lapsMoto2: 25, lapsMoto3: 23, laps: 30, baseSec: 80.3, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
+    { id: 'brno', title: "Czech Republic Grand Prix (Automotodrom Brno)", flag: "🇨🇿", lengthKm: 5.403, type: "Natural Hillside Amphitheater", favors: "chassis", lapsMotoGP: 20, lapsSprint: 10, lapsMoto2: 18, lapsMoto3: 16, laps: 20, baseSec: 114.5, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
+    { id: 'spielberg', title: "Austrian Grand Prix (Red Bull Ring)", flag: "🇦🇹", lengthKm: 4.348, type: "Steep Uphill Acceleration", favors: "hp", lapsMotoGP: 28, lapsSprint: 14, lapsMoto2: 23, lapsMoto3: 20, laps: 28, baseSec: 88.6, sectorRatios: [0.24, 0.28, 0.24, 0.24] },
+    { id: 'balaton', title: "Hungarian Grand Prix (Balaton Park)", flag: "🇭🇺", lengthKm: 4.115, type: "Technical Chicane Rhythm", favors: "chassis", lapsMotoGP: 26, lapsSprint: 13, lapsMoto2: 22, lapsMoto3: 20, laps: 26, baseSec: 92.1, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
+    { id: 'catalunya', title: "Gran Premio de Catalunya (Barcelona)", flag: "🇪🇸", lengthKm: 4.657, type: "High Tire Wear & Long Straight", favors: "aero", lapsMotoGP: 24, lapsSprint: 12, lapsMoto2: 21, lapsMoto3: 18, laps: 24, baseSec: 98.6, sectorRatios: [0.26, 0.24, 0.25, 0.25] },
+    { id: 'misano', title: "San Marino Grand Prix (Misano)", flag: "🇸🇲", lengthKm: 4.226, type: "High Lean Cornering Speed & Curvone", favors: "chassis", lapsMotoGP: 27, lapsSprint: 13, lapsMoto2: 22, lapsMoto3: 20, laps: 27, baseSec: 91.1, sectorRatios: [0.24, 0.26, 0.25, 0.25] },
+    { id: 'motegi', title: "Grand Prix of Japan (Mobility Resort Motegi)", flag: "🇯🇵", lengthKm: 4.801, type: "Hard Braking & Acceleration", favors: "ecu", lapsMotoGP: 24, lapsSprint: 12, lapsMoto2: 19, lapsMoto3: 17, laps: 24, baseSec: 104.2, sectorRatios: [0.24, 0.26, 0.26, 0.24] },
+    { id: 'mandalika', title: "Indonesian Grand Prix (Pertamina Mandalika)", flag: "🇮🇩", lengthKm: 4.313, type: "Fast Coastal Sweeps", favors: "aero", lapsMotoGP: 27, lapsSprint: 13, lapsMoto2: 22, lapsMoto3: 20, laps: 27, baseSec: 90.1, sectorRatios: [0.25, 0.25, 0.25, 0.25] },
+    { id: 'phillip_island', title: "Australian Grand Prix (Phillip Island)", flag: "🇦🇺", lengthKm: 4.448, type: "Ocean Sweeps & High Tire Wear", favors: "aero", lapsMotoGP: 27, lapsSprint: 13, lapsMoto2: 23, lapsMoto3: 21, laps: 27, baseSec: 87.6, sectorRatios: [0.23, 0.27, 0.26, 0.24] },
+    { id: 'sepang', title: "Petronas Grand Prix of Malaysia (Sepang)", flag: "🇲🇾", lengthKm: 5.543, type: "Twin Straights & Tropical Heat", favors: "ecu", lapsMotoGP: 20, lapsSprint: 10, lapsMoto2: 17, lapsMoto3: 15, laps: 20, baseSec: 117.7, sectorRatios: [0.26, 0.25, 0.25, 0.24] },
+    { id: 'portugal', title: "Portuguese Grand Prix (Portimão)", flag: "🇵🇹", lengthKm: 4.592, type: "Elevation Rollercoaster", favors: "chassis", lapsMotoGP: 25, lapsSprint: 12, lapsMoto2: 21, lapsMoto3: 19, laps: 25, baseSec: 98.4, sectorRatios: [0.25, 0.25, 0.26, 0.24] },
+    { id: 'valencia', title: "Gran Premio de Valencia (Ricardo Tormo Finale)", flag: "🇪🇸", lengthKm: 4.005, type: "Tight Stadium Arena Finale", favors: "chassis", lapsMotoGP: 27, lapsSprint: 13, lapsMoto2: 22, lapsMoto3: 20, laps: 27, baseSec: 89.9, sectorRatios: [0.24, 0.26, 0.25, 0.25] }
 ];
 
 // Tire Compound Specs
@@ -81,6 +82,16 @@ export class RaceSystem {
         const state = gameState.getState();
         const idx = state.raceState.currentGPIndex % GP_CALENDAR.length;
         return GP_CALENDAR[idx];
+    }
+
+    static getGPLaps(gp, tier = 1, sessionType = 'RACE') {
+        if (!gp) return 20;
+        if (sessionType === 'SPRINT') {
+            return gp.lapsSprint || Math.max(4, Math.floor((gp.lapsMotoGP || gp.laps || 24) / 2));
+        }
+        if (tier === 1) return gp.lapsMoto3 || 18;
+        if (tier === 2) return gp.lapsMoto2 || 21;
+        return gp.lapsMotoGP || gp.laps || 24;
     }
 
     static getTierRiders(tier) {
@@ -629,7 +640,7 @@ export class RaceSystem {
         this.setFlag('GREEN', null, 0, 'Track clear - Sprint Start');
 
         const gp = this.getCurrentGP();
-        rs.totalLaps = Math.max(4, Math.floor(gp.laps / 2));
+        rs.totalLaps = this.getGPLaps(gp, state.tier, 'SPRINT');
 
         this.prepareGridRidersForRace(rs);
 
@@ -662,11 +673,12 @@ export class RaceSystem {
         this.setFlag('GREEN', null, 0, 'Track clear - GP Start');
 
         const gp = this.getCurrentGP();
-        rs.totalLaps = gp.laps;
+        rs.totalLaps = this.getGPLaps(gp, state.tier, 'RACE');
 
         this.prepareGridRidersForRace(rs);
 
-        gameState.addLog(`🏆 LIGHTS OUT! Sunday Grand Prix Race underway at ${gp.title} (${rs.totalLaps} Laps)!`);
+        const tierCategoryName = state.tier === 1 ? 'Moto3™ World Championship' : (state.tier === 2 ? 'Moto2™ World Championship' : 'MotoGP™ Premier Class');
+        gameState.addLog(`🏆 LIGHTS OUT! ${tierCategoryName} Race underway at ${gp.title} (${rs.totalLaps} Laps)!`);
         return true;
     }
 
@@ -1337,7 +1349,7 @@ export class RaceSystem {
 
         if (rs.fastestLap) {
             const flRiderPos = rs.leaderboard.findIndex(r => r.name === rs.fastestLap.riderName) + 1;
-            if (flRiderPos >= 1 && flRiderPos <= 10) {
+            if (flRiderPos >= 1 && flRiderPos <= 15) {
                 const flEntry = rs.leaderboard[flRiderPos - 1];
                 let standingRider = null;
                 if (flEntry && flEntry.isUser) {
@@ -1347,9 +1359,9 @@ export class RaceSystem {
                     standingRider = rs.championshipStandings.find(s => s.name === rs.fastestLap.riderName || (flEntry && flEntry.originalRiderName && s.name === flEntry.originalRiderName));
                 }
                 if (standingRider) {
-                    standingRider.points = (standingRider.points || 0) + 1;
+                    // Official MotoGP rules: NO bonus points awarded for fastest lap; recorded in rider stats
                     standingRider.fastestLaps = (standingRider.fastestLaps || 0) + 1;
-                    gameState.addLog(`🟣 BONUS POINT: ${standingRider.name} awarded +1 Championship Point for Race Fastest Lap (${rs.fastestLap.lapTimeStr})!`);
+                    gameState.addLog(`🟣 FASTEST LAP: ${standingRider.name} set the official Race Fastest Lap (${rs.fastestLap.lapTimeStr})! (Official MotoGP Rules: 0 bonus points awarded).`);
                 }
             }
         }
@@ -1366,6 +1378,7 @@ export class RaceSystem {
         const tierDef = TIERS[state.tier] || TIERS[1];
         let totalGPPrize = 0;
         let totalGPHype = 0;
+        let bestUserPos = 99;
 
         userRiders.forEach((uRider, uIdx) => {
             const userPos = rs.leaderboard.findIndex(r => r.isUser && (r.userSlot === uIdx || (r.userSlot === undefined && uIdx === 0) || r.name === uRider.name)) + 1;
@@ -1374,6 +1387,7 @@ export class RaceSystem {
             if (userEntry && userEntry.dnf) {
                 gameState.addLog(`💥 RACE RESULT: ${uRider.name} (#${uRider.number || (uIdx + 1)}) suffered a DNF crash and scored 0 points.`);
             } else if (userPos > 0) {
+                if (userPos < bestUserPos) bestUserPos = userPos;
                 let prizeMoney = Math.floor(tierDef.gpTop10Prize * 0.30);
                 let pointsEarned = userPos <= 15 ? pointsTable[userPos - 1] : 0;
                 let hypeEarned = 2;
@@ -1390,8 +1404,9 @@ export class RaceSystem {
                 }
 
                 if (rs.fastestLap && rs.fastestLap.riderName === uRider.name && userPos <= 10) {
-                    pointsEarned += 1;
+                    // Official MotoGP rules: Fastest lap earns bonus paddock prize & hype, but 0 championship points
                     prizeMoney += Math.floor(tierDef.gpTop10Prize * 0.50);
+                    hypeEarned += 5;
                 }
 
                 if (state.heritagePerks.includes('heritage_paddock_brand')) {
@@ -1429,6 +1444,11 @@ export class RaceSystem {
         state.cash = (Number.isFinite(state.cash) ? state.cash : 0) + (Number.isFinite(totalGPPrize) ? totalGPPrize : 0);
         state.hype += totalGPHype;
         this.syncCalendarActivity('race_gp');
+
+        // Official MotoGP Paddock Sponsor race weekend payouts
+        if (bestUserPos <= 24) {
+            EconomySystem.processRaceSponsorPayouts(bestUserPos);
+        }
 
         gameState.addLog(`🏁 GRAND PRIX WEEKEND CONCLUDED! Total Team Winnings: +$${totalGPPrize.toLocaleString()}, +${totalGPHype} Hype.`);
 
