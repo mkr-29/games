@@ -62,6 +62,9 @@ export class RaceView {
 
     static render(state) {
         const rs = state.raceState;
+        if (rs.leaderboardTier !== state.tier || !rs.leaderboard || rs.leaderboard.length === 0) {
+            RaceSystem.initWeekendLeaderboard(state.tier);
+        }
         const gp = RaceSystem.getCurrentGP();
         const userRiders = state.riders || [state.rider];
         const r0 = (state.riders && state.riders[0]) || state.rider;
@@ -277,9 +280,23 @@ export class RaceView {
         const tbody = document.getElementById('leaderboard-body');
         if (!tbody) return;
 
+        const currentTierStr = String(rs.leaderboardTier || '');
+        if (tbody.getAttribute('data-tier') !== currentTierStr) {
+            tbody.innerHTML = '';
+            tbody.setAttribute('data-tier', currentTierStr);
+        }
+
         if (rs.leaderboard && rs.leaderboard.length > 0) {
             const emptyState = tbody.querySelector('.empty-state');
             if (emptyState) tbody.innerHTML = '';
+
+            const currentNames = new Set(rs.leaderboard.map(r => r.name));
+            Array.from(tbody.children).forEach(row => {
+                const rowRider = row.getAttribute('data-rider-name');
+                if (rowRider && !currentNames.has(rowRider)) {
+                    row.remove();
+                }
+            });
 
             rs.leaderboard.forEach((r, idx) => {
                 const pos = idx + 1;

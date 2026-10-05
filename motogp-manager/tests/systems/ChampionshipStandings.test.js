@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { gameState } from '../../src/engine/GameState.js';
 import { RaceSystem } from '../../src/systems/RaceSystem.js';
 import { RiderSystem } from '../../src/systems/RiderSystem.js';
+import { PromotionSystem } from '../../src/systems/PromotionSystem.js';
 
 describe('FIM World Championship Standings System', () => {
     beforeEach(() => {
@@ -176,5 +177,39 @@ describe('FIM World Championship Standings System', () => {
 
         const ptsAfterRace2 = rs.championshipStandings.find(s => s.isUser && s.userSlot === 0).points;
         assert.equal(ptsAfterRace2, 50, 'Championship points should accumulate across the season');
+    });
+
+    it('should cleanly switch timing tower and weekend leaderboard from Moto3 to Moto2 when promoted', () => {
+        const state = gameState.getState();
+        state.tier = 1; // Moto3
+        state.season = 2;
+        state.cash = 50000;
+        state.hype = 50;
+        state.bike.powerHP = 75;
+
+        // Initialize Moto3 weekend leaderboard
+        RaceSystem.initWeekendLeaderboard(1);
+        assert.equal(state.raceState.leaderboardTier, 1);
+        const moto3RiderNames = state.raceState.leaderboard.map(r => r.name);
+        assert.ok(moto3RiderNames.some(name => name.includes('Morelli') || name.includes('Cruces') || name.includes('Yamanaka')));
+
+        // Promote to Moto2
+        const promoted = PromotionSystem.promoteTeam();
+        assert.equal(promoted, true);
+        assert.equal(state.tier, 2);
+        assert.equal(state.raceState.leaderboardTier, 2);
+
+        // Leaderboard must now contain Moto2 riders and NO Moto3-only riders
+        const moto2RiderNames = state.raceState.leaderboard.map(r => r.name);
+        assert.ok(moto2RiderNames.some(name => name.includes('Ogura') || name.includes('Garcia') || name.includes('Aldeguer') || name.includes('Roberts')), 'Should contain official Moto2 riders');
+        assert.ok(!moto2RiderNames.some(name => name.includes('Morelli') || name.includes('Cruces') || name.includes('Yamanaka')), 'Must not contain Moto3 riders in Moto2 leaderboard');
+
+        // Verify FP1 run updates Moto2 leaderboard and timing tower data cleanly
+        state.raceState.stage = 'FP1';
+        const ranFP1 = RaceSystem.runFP1();
+        assert.equal(ranFP1, true);
+        assert.equal(state.raceState.leaderboardTier, 2);
+        assert.equal(state.raceState.leaderboard.length >= 20, true);
+        assert.ok(state.raceState.leaderboard.every(r => r.lastLapSec > 0 && r.lastSectors.length === 4), 'FP1 should populate lap times and sectors for all Moto2 riders');
     });
 });

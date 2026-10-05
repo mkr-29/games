@@ -232,6 +232,83 @@ export class RaceSystem {
         });
     }
 
+    static initWeekendLeaderboard(tier = null) {
+        const state = gameState.getState();
+        const currentTier = tier || state.tier || 1;
+        const tierRiders = this.getTierRiders(currentTier);
+        const userRiders = (state.riders && state.riders.length >= 2) ? state.riders : [state.rider];
+        const gp = this.getCurrentGP();
+
+        const gridList = [];
+
+        userRiders.forEach((u, idx) => {
+            gridList.push({
+                id: `user_${idx + 1}`,
+                name: u.name,
+                number: u.number,
+                team: u.team || "Your Team",
+                isUser: true,
+                userSlot: idx,
+                favoriteTracks: u.favoriteTracks || [],
+                isFavTrack: u.favoriteTracks ? u.favoriteTracks.includes(gp.id) : false,
+                speed: u.speed || 80,
+                racecraft: u.racecraft || 80,
+                tireMgmt: u.tireMgmt || 80,
+                injury: u.injury || null,
+                tireCompound: 'medium',
+                tireCondition: 100,
+                gapSeconds: 0,
+                intervalSeconds: 0,
+                lastLapSec: 0,
+                lastLapStr: '--:--.---',
+                bestLapSec: 999,
+                bestLapStr: '--:--.---',
+                lastSectors: [0, 0, 0, 0],
+                lastSectorColors: ['yellow', 'yellow', 'yellow', 'yellow'],
+                personalBestSectors: [999, 999, 999, 999],
+                accumulatedRaceTime: 0,
+                dnf: false,
+                dnfReason: ''
+            });
+        });
+
+        tierRiders.forEach(ai => {
+            gridList.push({
+                id: ai.id,
+                name: ai.name,
+                number: ai.number,
+                team: ai.team,
+                isUser: false,
+                isReplacement: ai.isReplacement || false,
+                favoriteTracks: ai.favoriteTracks || [],
+                isFavTrack: ai.favoriteTracks ? ai.favoriteTracks.includes(gp.id) : false,
+                speed: ai.speed || 80,
+                racecraft: ai.racecraft || 80,
+                tireMgmt: ai.tireMgmt || 80,
+                injury: ai.injury || null,
+                tireCompound: 'medium',
+                tireCondition: 100,
+                gapSeconds: 0,
+                intervalSeconds: 0,
+                lastLapSec: 0,
+                lastLapStr: '--:--.---',
+                bestLapSec: 999,
+                bestLapStr: '--:--.---',
+                lastSectors: [0, 0, 0, 0],
+                lastSectorColors: ['yellow', 'yellow', 'yellow', 'yellow'],
+                personalBestSectors: [999, 999, 999, 999],
+                accumulatedRaceTime: 0,
+                dnf: false,
+                dnfReason: ''
+            });
+        });
+
+        state.raceState.leaderboard = gridList;
+        state.raceState.grid = gridList;
+        state.raceState.leaderboardTier = currentTier;
+        return gridList;
+    }
+
     // ==========================================
     // 1. FREE PRACTICE 1 (FP1)
     // ==========================================
@@ -249,6 +326,104 @@ export class RaceSystem {
 
         const setupMatch = Math.min(99, 72 + Math.floor(bikeStats.overallRating * 0.35) + Math.floor(Math.random() * 8));
         rs.setupMatch = setupMatch;
+
+        // Baseline shakedown simulation for FP1
+        const tierMult = this.getTierSpeedMultiplier(state.tier);
+        const baseTrackSec = gp.baseSec * tierMult;
+
+        let trackBonus = 0;
+        if (gp.favors === 'hp') trackBonus = (bikeStats.hpProgress || 0) * 2.2;
+        if (gp.favors === 'aero') trackBonus = (bikeStats.aeroProgress || 0) * 2.2;
+        if (gp.favors === 'chassis') trackBonus = (bikeStats.chassisProgress || 0) * 2.2;
+        if (gp.favors === 'ecu') trackBonus = (bikeStats.ecuProgress || 0) * 2.2;
+
+        const setupBonus = (((setupMatch || 75) - 70) / 30) * 1.5;
+
+        const fp1List = tierRiders.map(ai => {
+            const aiScore = RiderSystem.calculateRiderPerformanceScore(ai, gp.id, rs.weather, state.tier);
+            const aiConsistency = ai.consistency || 75;
+            const { bestLap, bestSectors } = this.simulateHotLap(aiScore, aiConsistency, baseTrackSec + 1.2, gp.sectorRatios);
+
+            return {
+                id: ai.id,
+                name: ai.name,
+                team: ai.team,
+                isUser: false,
+                isReplacement: ai.isReplacement || false,
+                favoriteTracks: ai.favoriteTracks || [],
+                isFavTrack: ai.favoriteTracks ? ai.favoriteTracks.includes(gp.id) : false,
+                speed: ai.speed || 80,
+                racecraft: ai.racecraft || 80,
+                tireMgmt: ai.tireMgmt || 80,
+                injury: ai.injury || null,
+                score: aiScore,
+                consistency: aiConsistency,
+                bestLapSec: bestLap,
+                lastLapSec: bestLap,
+                lastLapStr: this.formatLapTime(bestLap),
+                bestLapStr: this.formatLapTime(bestLap),
+                lastSectors: bestSectors,
+                lastSectorColors: ['yellow', 'yellow', 'yellow', 'yellow'],
+                personalBestSectors: [...bestSectors],
+                tireCompound: 'medium',
+                tireCondition: 94,
+                dnf: false
+            };
+        });
+
+        userRiders.forEach((uRider, uIdx) => {
+            let riderSkill = uRider.overallSkill || 80;
+            if (uRider.injury) riderSkill = Math.max(20, riderSkill - (uRider.injury.penalty * 0.4));
+
+            let uTrackBonus = trackBonus;
+            if (uRider.favoriteTracks && uRider.favoriteTracks.includes(gp.id)) {
+                uTrackBonus += 1.8;
+            }
+            if (rs.weather === 'wet') {
+                uTrackBonus += ((uRider.wetSkill || 75) - 75) * 0.06;
+            }
+
+            const userScore = (bikeStats.overallRating * 0.50) + (riderSkill * 0.50) + uTrackBonus + setupBonus;
+            const userConsistency = uRider.consistency || 70;
+            const { bestLap: userBestLap, bestSectors: userBestSectors } = this.simulateHotLap(userScore, userConsistency, baseTrackSec + 1.2, gp.sectorRatios);
+
+            fp1List.push({
+                id: `user_${uIdx + 1}`,
+                name: uRider.name,
+                number: uRider.number,
+                team: uRider.team || "Your Team",
+                isUser: true,
+                userSlot: uIdx,
+                favoriteTracks: uRider.favoriteTracks || [],
+                isFavTrack: uRider.favoriteTracks ? uRider.favoriteTracks.includes(gp.id) : false,
+                speed: uRider.speed || 80,
+                racecraft: uRider.racecraft || 80,
+                tireMgmt: uRider.tireMgmt || 80,
+                injury: uRider.injury || null,
+                score: userScore,
+                consistency: userConsistency,
+                bestLapSec: userBestLap,
+                lastLapSec: userBestLap,
+                lastLapStr: this.formatLapTime(userBestLap),
+                bestLapStr: this.formatLapTime(userBestLap),
+                lastSectors: userBestSectors,
+                lastSectorColors: ['yellow', 'yellow', 'yellow', 'yellow'],
+                personalBestSectors: [...userBestSectors],
+                tireCompound: 'medium',
+                tireCondition: 94,
+                dnf: false
+            });
+        });
+
+        fp1List.sort((a, b) => a.bestLapSec - b.bestLapSec);
+        const fp1Leader = fp1List[0].bestLapSec;
+        fp1List.forEach((r, idx) => {
+            r.gapSeconds = idx === 0 ? 0 : r.bestLapSec - fp1Leader;
+            r.intervalSeconds = idx === 0 ? 0 : r.bestLapSec - fp1List[idx - 1].bestLapSec;
+        });
+
+        rs.leaderboard = fp1List;
+        rs.leaderboardTier = state.tier;
 
         state.telemetry = Math.min(state.telemetryMax, state.telemetry + 35);
         state.science = Math.min(state.scienceMax, state.science + 12);
@@ -1471,5 +1646,13 @@ export class RaceSystem {
                 s.fastestLaps = 0;
             });
         }
+
+        // Cleanly reset grid and initialize weekend leaderboard for next race weekend
+        rs.grid = [];
+        rs.q1Riders = null;
+        rs.q2DirectRiders = null;
+        rs.fastestLap = null;
+        rs.lapHistory = [];
+        this.initWeekendLeaderboard(state.tier);
     }
 }

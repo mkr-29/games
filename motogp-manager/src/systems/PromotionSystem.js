@@ -155,8 +155,7 @@ export class PromotionSystem {
         state.bike.modelName = next.bikeModel;
         state.bike.powerHP = Math.max(state.bike.powerHP, next.baseHP);
 
-        // Re-initialize championship for the new tier
-        RaceSystem.initChampionshipStandings(true);
+        // Reset race weekend states and clear out old tier data
         state.raceState.currentGPIndex = 0;
         state.raceState.stage = 'FP1';
         state.raceState.fpCompleted = false;
@@ -164,6 +163,16 @@ export class PromotionSystem {
         state.raceState.q1Completed = false;
         state.raceState.q2Completed = false;
         state.raceState.sprintCompleted = false;
+        state.raceState.grid = [];
+        state.raceState.q1Riders = null;
+        state.raceState.q2DirectRiders = null;
+        state.raceState.fastestLap = null;
+        state.raceState.lapHistory = [];
+        state.raceState.activeIncident = null;
+
+        // Re-initialize championship standings and weekend leaderboard for the new tier
+        RaceSystem.initChampionshipStandings(true);
+        RaceSystem.initWeekendLeaderboard(next.id);
 
         gameState.addLog(`🎉 CATEGORY PROMOTION! Your team has officially stepped up to the ${next.name}! Capital invested: -$${next.promotionCost.toLocaleString()}. Fresh championship season begins!`);
         return true;
